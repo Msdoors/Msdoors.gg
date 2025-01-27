@@ -10,7 +10,7 @@
                                                                  ███    ███                   
 ]]--
 
-if $G.ObsidianaLib then
+if _G.ObsidianaLib then
     warn("[Msdoors] • Script já está carregado!")
     return
 end
