@@ -71,7 +71,6 @@ local function createUI()
     main.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
     main.BorderSizePixel = 0
     main.Parent = gui
-    main.ResetOnSpawn = false
     TweenService:Create(main, 
         TweenInfo.new(0.5, Enum.EasingStyle.Back), 
         {Size = UDim2.new(0, 300, 0, 200)}
