@@ -37,7 +37,7 @@ local SUPPORTED_GAMES = {
     [12137249458] = "CampoFFA/ArmasFFA.lua",
     [5275822877] = "Carrinho%2Bcart-para-Giganoob/game.lua",
     [9285238704] = "Raceclicker/game.lua",
-    [4367208330] = "pressure/game.lua" -- GAME
+    [4367208330] = "pressure/game.lua"
 }
 
 local function notify(title, message, tipo)
