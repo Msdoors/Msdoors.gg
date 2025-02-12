@@ -34,7 +34,6 @@ local SUPPORTED_GAMES = {
     [10549820578] = "Doors/Fools23.lua",
     [110258689672367] = "Doors/OldLobby.lua",
     [189707] = "NaturalDisaster/places/game.lua",
-    [12137249458] = "CampoFFA/ArmasFFA.lua",
     [5275822877] = "Carrinho%2Bcart-para-Giganoob/game.lua",
     [9285238704] = "Raceclicker/game.lua",
     [12552538292] = "pressure/game.lua"
