@@ -1,0 +1,6 @@
+{
+    "msdoors-lobby": [
+        { "Name": "Música 1", "Link": "https://github.com/user/repo/raw/main/musica1.mp3" },
+        { "Name": "Música 2", "Link": "https://github.com/user/repo/raw/main/musica2.mp3" }
+    ]
+}
