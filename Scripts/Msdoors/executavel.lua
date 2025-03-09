@@ -19,6 +19,9 @@ if _G.MsdoorsLoaded then
 end
 _G.MsdoorsLoaded = true
 
+--[[ DOORS SYSTEM ]]--
+--// DEPOIS PONHO \\--
+----------------------
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
 local Players = game:GetService("Players")
