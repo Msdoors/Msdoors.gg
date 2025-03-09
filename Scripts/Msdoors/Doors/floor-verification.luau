@@ -1,7 +1,11 @@
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
-local Player = Players.LocalPlayer
 local PlaceId = game.PlaceId
+
+while not Players.LocalPlayer do
+    task.wait()
+end
+local Player = Players.LocalPlayer
 
 local function fetchGameList()
     local success, response = pcall(function()
@@ -12,7 +16,7 @@ local function fetchGameList()
     if success then
         local gameList = HttpService:JSONDecode(response)
         return gameList
-   else
+    else
         return nil
     end
 end
@@ -27,8 +31,6 @@ local function checkCurrentGame()
                 return true
             end
         end
-      
-    else
     end
     
     return false
