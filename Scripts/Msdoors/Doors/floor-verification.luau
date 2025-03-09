@@ -1,5 +1,40 @@
 local HttpService = game:GetService("HttpService")
 local PlaceId = game.PlaceId
+local Player = Players.LocalPlayer
+
+local function fetchGameList()
+    local success, response = pcall(function()
+        local url = "https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/data/doors/floors-data.json"
+        return HttpService:GetAsync(url)
+    end)
+    
+    if success then
+        local gameList = HttpService:JSONDecode(response)
+        return gameList
+   else
+        return nil
+    end
+end
+
+local function checkCurrentGame()
+    local gameList = fetchGameList()
+    
+    if gameList then
+        for id, data in pairs(gameList) do
+            if tonumber(id) == PlaceId then
+                _G.msdoors_msdoors = tonumber(id)
+                return true
+            end
+        end
+      
+    else
+    end
+    
+    return false
+end
+checkCurrentGame()
+
+task.wait(2)
 
 local function fetchGameList()
     local success, response = pcall(function()
