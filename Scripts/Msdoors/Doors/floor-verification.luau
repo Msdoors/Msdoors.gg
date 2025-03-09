@@ -1,6 +1,7 @@
 local HttpService = game:GetService("HttpService")
-local PlaceId = game.PlaceId
+local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
+local PlaceId = game.PlaceId
 
 local function fetchGameList()
     local success, response = pcall(function()
