@@ -1,11 +1,7 @@
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
-local PlaceId = game.PlaceId
-
-while not Players.LocalPlayer do
-    task.wait()
-end
 local Player = Players.LocalPlayer
+local PlaceId = game.PlaceId
 
 local function fetchGameList()
     local success, response = pcall(function()
@@ -17,6 +13,7 @@ local function fetchGameList()
         local gameList = HttpService:JSONDecode(response)
         return gameList
     else
+        warn("Failed to fetch game list: " .. tostring(response))
         return nil
     end
 end
@@ -31,10 +28,14 @@ local function checkCurrentGame()
                 return true
             end
         end
+        
+    else
+        print("[ Msdoors ] » Não foi possível verificar a lista de jogos.")
     end
     
     return false
 end
+
 checkCurrentGame()
 
 task.wait(2)
