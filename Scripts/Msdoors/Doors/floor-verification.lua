@@ -1,19 +1,16 @@
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
-local Player = Players.LocalPlayer
 local PlaceId = game.PlaceId
 
 local function fetchGameList()
     local success, response = pcall(function()
-        local url = "https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/data/doors/floors-data.json"
-        return HttpService:GetAsync(url)
+        return game:HttpGet("https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/data/doors/floors-data.json")
     end)
-    
+
     if success then
-        local gameList = HttpService:JSONDecode(response)
-        return gameList
+        return HttpService:JSONDecode(response)
     else
-        warn("Failed to fetch game list: " .. tostring(response))
+        warn("[ Msdoors ] » Falha ao buscar a lista de floors: " .. tostring(response))
         return nil
     end
 end
@@ -24,35 +21,15 @@ local function checkCurrentGame()
     if gameList then
         for id, data in pairs(gameList) do
             if tonumber(id) == PlaceId then
-                _G.msdoors_msdoors = tonumber(id)
+                _G.msdoors_msdoors = tonumber(id) -- Mantendo o uso de _G
                 return true
             end
         end
-        
     else
         print("[ Msdoors ] » Não foi possível verificar a lista de jogos.")
     end
     
     return false
-end
-
-checkCurrentGame()
-
-task.wait(2)
-
-local function fetchGameList()
-    local success, response = pcall(function()
-        local url = "https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/data/doors/floors-data.json"
-        return HttpService:GetAsync(url)
-    end)
-    
-    if success then
-        local gameList = HttpService:JSONDecode(response)
-        return gameList
-    else
-        warn("[ Msdoors ] » Falha ao buscar a lista de floors: " .. tostring(response))
-        return nil
-    end
 end
 
 local function setupFloorName()
@@ -78,4 +55,9 @@ local function setupFloorName()
     
     return false
 end
-setupFloorName()
+
+-- Executando as funções
+if checkCurrentGame() then
+    task.wait(2)
+    setupFloorName()
+end
