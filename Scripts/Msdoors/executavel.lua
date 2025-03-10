@@ -280,6 +280,8 @@ local function startMsdoors()
 
     local scriptName = SUPPORTED_GAMES[currentGame]
     if not scriptName then
+      _G.ObsidianaLib = false
+      _G.MsdoorsLoaded = true
         notify("Aviso", "Este jogo não é suportado!", "warning")
         ui.updateStatus("Jogo não suportado!")
         ui.updateProgress(1)
@@ -303,6 +305,8 @@ local function startMsdoors()
         ui.updateProgress(1)
         notify("Sucesso", "Script carregado com sucesso!", "success")
     else
+      _G.ObsidianaLib = false
+      _G.MsdoorsLoaded = true
         ui.updateStatus("Falha ao carregar script!")
         ui.updateProgress(1)
     end
