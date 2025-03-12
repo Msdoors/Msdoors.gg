@@ -30,26 +30,14 @@ local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local PlaceId = game.PlaceId
 
-local function fetchGameList()
-    local success, response = pcall(function()
-        return game:HttpGet("https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/data/doors/floors-data.json")
-    end)
-
-    if success then
-        return HttpService:JSONDecode(response)
-    else
-        warn("[ Msdoors ] » Falha ao buscar a lista de floors: " .. tostring(response))
-        return nil
-    end
-end
-
 local function checkCurrentGame()
     local gameList = fetchGameList()
     
     if gameList then
         for id, data in pairs(gameList) do
             if tonumber(id) == PlaceId then
-                _G.msdoors_msdoors = tonumber(id) -- Mantendo o uso de _G
+                _G.msdoors_msdoors = tonumber(id) -- Aqui você armazena o ID correto
+                print("[ Msdoors ] » Jogo encontrado: " .. id)
                 return true
             end
         end
@@ -65,7 +53,7 @@ local function setupFloorName()
         local gameList = fetchGameList()
         
         if gameList then
-            local currentId = tostring(PlaceId)
+            local currentId = tostring(_G.msdoors_msdoors) -- Use o ID armazenado, não PlaceId
             
             if gameList[currentId] and gameList[currentId].name then
                 _G.msdoors_floor = gameList[currentId].name
@@ -82,10 +70,6 @@ local function setupFloorName()
     end
     
     return false
-end
-if checkCurrentGame() then
-    task.wait(2)
-    setupFloorName()
 end
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/Sc-Rhyan57/Msdoors/refs/heads/main/Src/Loaders/"
