@@ -42,10 +42,10 @@ print("[ Msdoors ] » Floor name: " .. _G.msdoors_floor)
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/Sc-Rhyan57/Msdoors/refs/heads/main/Src/Loaders/"
 local SUPPORTED_GAMES = {
-    [6516141723] = "Doors/lobby.lua", -- lobby
+    [6516141723] = "Doors/lobby/lobby.lua", -- lobby
     [6839171747] = "Doors/hotel.lua", -- FLOORS 2
     [2440500124] = "Doors/hotel.lua", -- FLOORS 1
-    [10549820578] = "Doors/Fools23.lua",
+    [10549820578] = "Doors/hotel.lua", -- Super Hard Mode
     [110258689672367] = "Doors/OldLobby.lua",
     [189707] = "NaturalDisaster/places/game.lua",
     [5275822877] = "Carrinho%2Bcart-para-Giganoob/game.lua",
