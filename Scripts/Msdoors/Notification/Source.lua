@@ -2,7 +2,7 @@ if not _G.msdoors_ then
     _G.msdoors_ = {}
 end
 
-local Linoria = {}
+local Library = {}
 
 function Library:Notify(options)
     options = options or {}
