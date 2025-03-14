@@ -2,36 +2,24 @@ if not _G.msdoors_ then
     _G.msdoors_ = {}
 end
 
-local Library = {}
-
-function Library:Notify(options)
+local function Notify(options)
     options = options or {}
-    local description = options.Description or "Sem mensagem"
-    local time = options.Duration or 5
+
+    if Library and Library.Notify then
+        Library:Notify({
+            Title = options.Title or "Sem Título",
+            Description = options.Description or "Sem Descrição",
+            Time = options.Time or 5
+        })
+    else
+        warn("Library não encontrada. Verifique se está carregada corretamente.")
+    end
 end
 
-function Library:Alert(options)
-    self:Notify(options)
-
-    local sound = Instance.new("Sound", game:GetService("SoundService")) 
-    sound.SoundId = "rbxassetid://4590656842"
-    sound.Volume = 0.5
-    sound.PlayOnRemove = true
-    sound:Destroy()
-end
-
-local function MsdoorsNotify(title, description, reason, image, color, time, style)
-    title = title or "Sem Título"
-    description = description or "Sem Descrição"
-    reason = reason or ""
-    image = image or "rbxassetid://6023426923"
-    color = color or Color3.new(1, 1, 1)
-    time = time or 5
-    style = style or "NOTIFICATION"
-
-    local mainUI = game.Players.LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("MainUI", 2.5)
+local function MsdoorsNotify(title, description, reason, image, color, time)
+    local mainUI = game.Players.LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("MainUI")
     if not mainUI then
-        warn("[ Doors Notification ] » MainUI não encontrada. Verifique se o jogo DOORS está carregado corretamente.")
+        warn("MainUI não encontrada. Verifique se o jogo DOORS está carregado corretamente.")
         return
     end
 
@@ -41,20 +29,20 @@ local function MsdoorsNotify(title, description, reason, image, color, time, sty
     achievement.Name = "LiveAchievement"
     achievement.Visible = true
 
-    achievement.Frame.TextLabel.Text = style
-    achievement.Frame.Details.Title.Text = title
-    achievement.Frame.Details.Desc.Text = description
-    achievement.Frame.Details.Reason.Text = reason
+    achievement.Frame.TextLabel.Text = "NOTIFICATION"
+    achievement.Frame.Details.Title.Text = title or "Sem Título"
+    achievement.Frame.Details.Desc.Text = description or "Sem Descrição"
+    achievement.Frame.Details.Reason.Text = reason or ""
 
-    if image:match("rbxthumb://") or image:match("rbxassetid://") then
+    if image and (image:match("rbxthumb://") or image:match("rbxassetid://")) then
         achievement.Frame.ImageLabel.Image = image
     else
-        achievement.Frame.ImageLabel.Image = "rbxassetid://" .. image
+        achievement.Frame.ImageLabel.Image = "rbxassetid://133997875469993"
     end
 
-    achievement.Frame.TextLabel.TextColor3 = color
-    achievement.Frame.UIStroke.Color = color
-    achievement.Frame.Glow.ImageColor3 = color
+    achievement.Frame.TextLabel.TextColor3 = color or Color3.new(1, 1, 1)
+    achievement.Frame.UIStroke.Color = color or Color3.new(1, 1, 1)
+    achievement.Frame.Glow.ImageColor3 = color or Color3.new(1, 1, 1)
 
     achievement.Parent = mainUI.AchievementsHolder
     achievement.Sound.SoundId = "rbxassetid://10469938989"
@@ -63,121 +51,30 @@ local function MsdoorsNotify(title, description, reason, image, color, time, sty
 
     task.spawn(function()
         achievement:TweenSize(UDim2.new(1, 0, 0.2, 0), "In", "Quad", 0.8, true)
-
-        task.wait(0.8)
-
-        achievement.Frame:TweenPosition(UDim2.new(0, 0, 0, 0), "Out", "Quad", 0.5, true)
-
-        game:GetService("TweenService"):Create(achievement.Frame.Glow, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-            ImageTransparency = 1
-        }):Play()
-
-        task.wait(time)
-
+        task.wait(time or 5)
         achievement.Frame:TweenPosition(UDim2.new(1.1, 0, 0, 0), "In", "Quad", 0.5, true)
-        task.wait(0.5)
-        achievement:TweenSize(UDim2.new(1, 0, -0.1, 0), "InOut", "Quad", 0.5, true)
         task.wait(0.5)
         achievement:Destroy()
     end)
 end
 
-local function Notify(options)
-    options = options or {}
-
-    local title = options.Title or "Sem Título"
-    local description = options.Description or "Sem Descrição"
-    local reason = options.Reason or ""
-    local color = options.Color or Color3.new(1, 1, 1)
-    local style = options.Style or "NOTIFICATION"
-    local duration = options.Duration or 5
+_G.msdoors_.Notify = function(options)
     local notifyStyle = options.NotifyStyle or "Doors"
-    local image = options.Image or "rbxassetid://133997875469993"
 
-    if notifyStyle == "Linoria" then
-        Library:Notify({
-            Description = description,
-            Duration = duration,
-            Title = title,
-            Color = color
-        })
-    local sound = Instance.new("Sound", game:GetService("SoundService")) 
-    sound.SoundId = "rbxassetid://4590662766"
-    sound.Volume = 0.5
-    sound.PlayOnRemove = true
-    sound:Destroy()
-    elseif notifyStyle == "Doors" then
+    if notifyStyle == "Doors" then
         MsdoorsNotify(
-            title,
-            description,
-            reason,
-            image,
-            color,
-            duration,
-            style
+            options.Title, 
+            options.Description, 
+            options.Reason, 
+            options.Image, 
+            options.Color, 
+            options.Time
         )
+    elseif notifyStyle == "Linoria" then
+        Notify(options)
     else
         warn("Estilo de notificação inválido: " .. tostring(notifyStyle))
     end
 end
 
-local function Alert(options)
-    options = options or {}
-
-    options.Style = options.Style or "ALERT"
-    if not options.Color then
-        options.Color = Color3.fromRGB(255, 0, 0)
-    end
-
-    local notifyStyle = options.NotifyStyle or "Linoria"
-
-    if notifyStyle == "Linoria" then
-        Library:Alert(options)
-    else
-        Notify(options)
-    end
-end
-
-_G.msdoors_.Notify = Notify
-_G.msdoors_.Alert = Alert
-_G.msdoors_.Linoria = Linoria
-_G.msdoors_.MsdoorsNotify = MsdoorsNotify
-
-_G.msdoors_.SetDefaultStyle = function(style)
-    if style == "Linoria" or style == "Doors" then
-        _G.msdoors_.DefaultStyle = style
-    else
-        warn("Estilo de notificação inválido: " .. tostring(style))
-    end
-end
-local function CreateNotifier(defaultOptions)
-    defaultOptions = defaultOptions or {}
-
-    local notifier = {}
-
-    function notifier:Notify(options)
-        options = options or {}
-        for key, value in pairs(defaultOptions) do
-            if options[key] == nil then
-                options[key] = value
-            end
-        end
-        return Notify(options)
-    end
-
-    function notifier:Alert(options)
-        options = options or {}
-        for key, value in pairs(defaultOptions) do
-            if options[key] == nil then
-                options[key] = value
-            end
-        end
-        return Alert(options)
-    end
-
-    return notifier
-end
-
-_G.msdoors_.CreateNotifier = CreateNotifier
-
-return Notify
+return _G.msdoors_.Notify
