@@ -4,13 +4,13 @@ end
 
 local Linoria = {}
 
-function Linoria:Notify(options)
+function Library:Notify(options)
     options = options or {}
     local description = options.Description or "Sem mensagem"
     local time = options.Duration or 5
 end
 
-function Linoria:Alert(options)
+function Library:Alert(options)
     self:Notify(options)
 
     local sound = Instance.new("Sound", game:GetService("SoundService")) 
@@ -91,11 +91,11 @@ local function Notify(options)
     local color = options.Color or Color3.new(1, 1, 1)
     local style = options.Style or "NOTIFICATION"
     local duration = options.Duration or 5
-    local notifyStyle = options.NotifyStyle or "Linoria"
+    local notifyStyle = options.NotifyStyle or "Doors"
     local image = options.Image or "rbxassetid://133997875469993"
 
     if notifyStyle == "Linoria" then
-        Linoria:Notify({
+        Library:Notify({
             Description = description,
             Duration = duration,
             Title = title,
@@ -132,7 +132,7 @@ local function Alert(options)
     local notifyStyle = options.NotifyStyle or "Linoria"
 
     if notifyStyle == "Linoria" then
-        Linoria:Alert(options)
+        Library:Alert(options)
     else
         Notify(options)
     end
