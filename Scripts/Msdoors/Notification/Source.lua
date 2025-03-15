@@ -16,12 +16,13 @@ local function Notify(options)
     end
 end
 
-local function MsdoorsNotify(title, description, reason, image, color, time)
+local function MsdoorsNotify(title, description, reason, image, color, style, time)
     title = title or "Sem Título"
     description = description or "Sem Descrição"
     reason = reason or ""
     image = image or "rbxassetid://133997875469993"
     color = color or Color3.new(1, 1, 1)
+    style = style or "NOTIFICATION"
     time = time or 5
 
     local mainUI = game.Players.LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("MainUI")
@@ -36,7 +37,7 @@ local function MsdoorsNotify(title, description, reason, image, color, time)
     achievement.Name = "LiveAchievement"
     achievement.Visible = true
 
-    achievement.Frame.TextLabel.Text = "NOTIFICATION"
+    achievement.Frame.TextLabel.Text = style
     achievement.Frame.Details.Title.Text = title
     achievement.Frame.Details.Desc.Text = description
     achievement.Frame.Details.Reason.Text = reason
