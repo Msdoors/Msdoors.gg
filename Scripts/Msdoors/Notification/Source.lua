@@ -11,6 +11,11 @@ local function Notify(options)
             Description = options.Description or "Sem Descrição",
             Time = options.Time or 5
         })
+        local sound = Instance.new("Sound")
+        sound.SoundId = "rbxassetid://4590656842"
+        sound.Parent = game.Workspace
+        sound.Volume = 1
+        sound:Play()
     else
         warn("Library não encontrada. Verifique se está carregada corretamente.")
     end
@@ -53,7 +58,6 @@ local function MsdoorsNotify(title, description, reason, image, color, style, ti
     achievement.Sound.Volume = 1
     achievement.Sound:Play()
 
-    -- ANIMAÇÕES RESTAURADAS
     task.spawn(function()
         achievement:TweenSize(UDim2.new(1, 0, 0.2, 0), "In", "Quad", 0.8, true)
         
