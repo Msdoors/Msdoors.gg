@@ -40,7 +40,7 @@ local function MsdoorsNotify(title, description, reason, image, color, time)
     achievement.Frame.Details.Title.Text = title
     achievement.Frame.Details.Desc.Text = description
     achievement.Frame.Details.Reason.Text = reason
-    achievement.Frame.ImageLabel.Image = "rbxassetid://" .. image
+    achievement.Frame.ImageLabel.Image = image
 
 
     achievement.Frame.TextLabel.TextColor3 = color
