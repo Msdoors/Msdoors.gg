@@ -6,16 +6,17 @@ local function Notify(options)
     options = options or {}
 
     if Library and Library.Notify then
-        Library:Notify({
-            Title = options.Title or "Sem Título",
-            Description = options.Description or "Sem Descrição",
-            Time = options.Time or 5
-        })
+        
         local sound = Instance.new("Sound")
         sound.SoundId = "rbxassetid://4590656842"
         sound.Parent = game.Workspace
         sound.Volume = 1
         sound:Play()
+        Library:Notify({
+            Title = options.Title or "Sem Título",
+            Description = options.Description or "Sem Descrição",
+            Time = options.Time or 5
+        })
     else
         warn("Library não encontrada. Verifique se está carregada corretamente.")
     end
