@@ -10,7 +10,7 @@
                                                                  ███    ███                   
 ]]--
 --// TEST EXECUTOR \\--
-
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/Scripts/Msdoors/internal/TestExecutor.luau"))()
 
 if _G.ObsidianaLib then
     warn("[Msdoors] • Script já está carregado!")
