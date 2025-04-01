@@ -34,7 +34,7 @@ local HttpService = game:GetService("HttpService")
 
 local placeIdList = {
     [6839171747] = true,
-    [2440500124] = true,  
+    [2440500124] = true,
     [10549820578] = true,
     [110258689672367] = true
 }
