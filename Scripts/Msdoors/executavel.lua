@@ -42,6 +42,7 @@ local placeIdList = {
 
 if placeIdList[placeId] then
 
+local replicatedStorage = game:GetService("ReplicatedStorage") -- POR QUE DIABOS EU REMOVI ISSO?!
 local gameData = replicatedStorage:WaitForChild("GameData")
 local floor = gameData:WaitForChild("Floor").Value
 
