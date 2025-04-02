@@ -81,7 +81,7 @@ local function notify(title, message, tipo)
         Title = "Msdoors | " .. title,
         Text = message,
         Duration = 5,
-        Icon = "rbxassetid://6031071053"
+        Icon = "rbxassetid://112673545263214"
     })
 end
 
