@@ -193,7 +193,7 @@ local function createUI()
             for i = 1, #text do
                 if not status.Parent then break end
                 status.Text = string.sub(text, 1, i)
-                task.wait(0.02)
+                task.wait(0.01)
             end
         end,
         updateProgress = function(value)
@@ -208,14 +208,13 @@ local function createUI()
                 TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), 
                 {Size = UDim2.new(0, 0, 0, 200)}
             ):Play()
-            task.wait(0.5)
+            task.wait(0.2)
             gui:Destroy()
             blur:Destroy()
         end
     }
 end
 
--- Carregador de Scripts
 local function loadScript(url)
     local success, response = pcall(function()
         return game:HttpGet(url)
@@ -242,12 +241,12 @@ local function startMsdoors()
     local currentGame = game.PlaceId
 
     ui.updateStatus("Iniciando Msdoors...")
-    ui.updateProgress(0.2)
-    task.wait(0.5)
+    ui.updateProgress(0.1)
+    task.wait(0.3)
 
     ui.updateStatus("Verificando compatibilidade...")
-    ui.updateProgress(0.4)
-    task.wait(0.5)
+    ui.updateProgress(0.3)
+    task.wait(0.3)
 
     local scriptName = SUPPORTED_GAMES[currentGame]
     if not scriptName then
@@ -262,11 +261,11 @@ local function startMsdoors()
     end
 
     ui.updateStatus("Preparando carregamento...")
-    ui.updateProgress(0.6)
+    ui.updateProgress(0.5)
     task.wait(0.5)
   
     ui.updateStatus("Carregando script...")
-    ui.updateProgress(0.8)
+    ui.updateProgress(0.6)
     task.wait(0.5)
 
     local success = loadScript(SCRIPT_URL .. scriptName)
