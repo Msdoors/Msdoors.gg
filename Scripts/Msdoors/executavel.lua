@@ -41,13 +41,12 @@ local placeIdList = {
 
 if placeIdList[placeId] then
 
-local replicatedStorage = game:GetService("ReplicatedStorage")
 local gameData = replicatedStorage:WaitForChild("GameData")
 local floor = gameData:WaitForChild("Floor").Value
 
 local floornickname = {
     ["Fools"] = "Super Hard Mode",
-    ["Party"] = "Ranked fools",
+    ["Party"] = "Ranked",
     ["Retro"] = "Retro Mode"
 }
 _G.msdoors_floor = floornickname[floor] or floor
