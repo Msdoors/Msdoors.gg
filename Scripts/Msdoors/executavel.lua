@@ -62,7 +62,7 @@ local SUPPORTED_GAMES = {
     [6516141723] = "Doors/lobby/game.lua", -- lobby
     [6839171747] = "Doors/hotel.lua", -- FLOORS 2
     [2440500124] = "Doors/hotel.lua", -- FLOORS 1
-    [87716067947993] "Doors/hotel.lua" -- Ranked(soon)
+    [87716067947993] "Doors/hotel.lua", -- Ranked(soon)
     [10549820578] = "Doors/hotel.lua", -- Super Hard Mode
     [110258689672367] = "Doors/OldLobby.lua",
     [189707] = "NaturalDisaster/places/game.lua",
