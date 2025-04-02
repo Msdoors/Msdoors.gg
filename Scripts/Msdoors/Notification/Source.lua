@@ -90,6 +90,7 @@ _G.msdoors_.Notify = function(options)
             options.Reason, 
             options.Image, 
             options.Color, 
+            options.style
             options.Time
         )
     elseif notifyStyle == "Linoria" then
