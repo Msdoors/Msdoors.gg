@@ -266,7 +266,7 @@ local function startMsdoors()
     task.wait(0.5)
   
     ui.updateStatus("Carregando script...")
-    ui.updateProgress(0.4)
+    ui.updateProgress(0.6)
     task.wait(0.3)
 
     local success = loadScript(SCRIPT_URL .. scriptName)
