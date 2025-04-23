@@ -124,7 +124,7 @@ local function createUI()
 
     local title = Instance.new("TextLabel")
     title.Name = "Title"
-    title.Text = "MSDOORS"
+    title.Text = "Msdoors"
     title.Size = UDim2.new(1, 0, 0, 40)
     title.Position = UDim2.new(0, 0, 0, 20)
     title.Font = Enum.Font.GothamBold
@@ -173,7 +173,7 @@ local function createUI()
 
     local version = Instance.new("TextLabel")
     version.Name = "Version"
-    version.Text = "v1.0.1"
+    version.Text = "v1.1.1"
     version.Size = UDim2.new(1, -40, 0, 20)
     version.Position = UDim2.new(0, 20, 0, 160)
     version.Font = Enum.Font.Gotham
