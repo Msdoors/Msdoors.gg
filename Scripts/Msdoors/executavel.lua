@@ -66,7 +66,7 @@ local SUPPORTED_GAMES = {
     [87716067947993] = "Doors/hotel.lua", -- Ranked(soon)
     [10549820578] = "Doors/hotel.lua", -- Super Hard Mode
     [110258689672367] = "Doors/OldLobby.lua",
-    [189707] = "NaturalDisaster/places/game.lua",
+    [189707] = "Natural-Disaster/places/game.lua",
     [5275822877] = "Carrinho%2Bcart-para-Giganoob/game.lua",
     [12552538292] = "pressure/game.lua"
 }
