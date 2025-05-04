@@ -265,7 +265,7 @@ local function startMsdoors()
     ui.updateProgress(0.5)
     task.wait(0.5)
   
-    ui.updateStatus("Carregando script...")
+    ui.updateStatus("Carregando script...[ Pode congelar, basta esperar! ]")
     ui.updateProgress(0.6)
     task.wait(0.3)
 
