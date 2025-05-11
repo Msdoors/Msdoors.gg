@@ -20,6 +20,7 @@ if _G.MsdoorsLoaded then
     return warn("[Msdoors] • Já está em execução.")
 end
 _G.MsdoorsLoaded = true
+_G.msdoors_keyeystem_keystatus = true -- Bypass Key Sytem
 
 local placeId = game.PlaceId
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
