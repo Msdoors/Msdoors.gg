@@ -1,37 +1,45 @@
---[[
-   ▄▄▄▄███▄▄▄▄      ▄████████ ████████▄   ▄██████▄   ▄██████▄     ▄████████    ▄████████      
- ▄██▀▀▀███▀▀▀██▄   ███    ███ ███   ▀███ ███    ███ ███    ███   ███    ███   ███    ███      
- ███   ███   ███   ███    █▀  ███    ███ ███    ███ ███    ███   ███    ███   ███    █▀       
- ███   ███   ███   ███        ███    ███ ███    ███ ███    ███  ▄███▄▄▄▄██▀   ███             
- ███   ███   ███ ▀███████████ ███    ███ ███    ███ ███    ███ ▀▀███▀▀▀▀▀   ▀███████████      
- ███   ███   ███          ███ ███    ███ ███    ███ ███    ███ ▀███████████          ███      
- ███   ███   ███    ▄█    ███ ███   ▄███ ███    ███ ███    ███   ███    ███    ▄█    ███      
-  ▀█   ███   █▀   ▄████████▀  ████████▀   ▀██████▀   ▀██████▀    ███    ███  ▄████████▀       
-                                                                 ███    ███                   
-]]--
---// TEST EXECUTOR \\--
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/Scripts/Msdoors/internal/TestExecutor.luau"))()
+pcall(function()
+
+_G.msdoors_version = game:HttpGet("https://msdoors.vercel.app/version")
+
 
 if _G.ObsidianaLib then
     warn("[Msdoors] • Script já está carregado!")
     return
 end
-if _G.MsdoorsLoaded then
-    return warn("[Msdoors] • Já está em execução.")
-end
-_G.MsdoorsLoaded = true
-_G.msdoors_keyeystem_keystatus = true -- Bypass Key Sytem
 
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/Scripts/Msdoors/internal/TestExecutor.luau"))()
+end)
+
+_G.msdoors_keyeystem_keystatus = true
+
+local Services = {
+    ReplicatedStorage = game:GetService("ReplicatedStorage"),
+    StarterGui = game:GetService("StarterGui"),
+    Players = game:GetService("Players"),
+    TweenService = game:GetService("TweenService"),
+    RunService = game:GetService("RunService"),
+    Lighting = game:GetService("Lighting"),
+    HttpService = game:GetService("HttpService"),
+    CoreGui = game:GetService("CoreGui"),
+    UserInputService = game:GetService("UserInputService")
+}
+
+local player = Services.Players.LocalPlayer
 local placeId = game.PlaceId
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local StarterGui = game:GetService("StarterGui")
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
-local player = game.Players.LocalPlayer
-local HttpService = game:GetService("HttpService")
---[ DEFINIR FLOOR ATUAL ]]--
+local CUSTOM_ICON_ID = "95869322194132"
+
+local function safeCall(func, ...)
+    local success, result = pcall(func, ...)
+    return success and result or nil
+end
+
+local function getHiddenParent()
+    if typeof(gethui) == "function" then
+        return safeCall(gethui) or Services.CoreGui
+    end
+    return Services.CoreGui
+end
 
 local placeIdList = {
     [6839171747] = true,
@@ -42,247 +50,422 @@ local placeIdList = {
 }
 
 if placeIdList[placeId] then
-
-local replicatedStorage = game:GetService("ReplicatedStorage") -- POR QUE DIABOS EU REMOVI ISSO?!
-local gameData = replicatedStorage:WaitForChild("GameData")
-local floor = gameData:WaitForChild("Floor").Value
-
-local floornickname = {
-    ["Fools"] = "Super Hard Mode",
-    ["Party"] = "Ranked",
-    ["Retro"] = "Retro Mode"
-}
-_G.msdoors_floor = floornickname[floor] or floor
-
-print("[ Msdoors ] » Floor name: " .. _G.msdoors_floor)
-   
+    local success, floor = pcall(function()
+        local gameData = Services.ReplicatedStorage:WaitForChild("GameData", 5)
+        return gameData and gameData:WaitForChild("Floor", 5) and gameData.Floor.Value
+    end)
+    
+    if success and floor then
+        local floornickname = {
+            ["Fools"] = "Super Hard Mode",
+            ["Party"] = "Ranked",
+            ["Retro"] = "Retro Mode"
+        }
+        _G.msdoors_floor = floornickname[floor] or floor
+        print("[ Msdoors ] » Floor name: " .. _G.msdoors_floor)
+    end
 end
-
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/Sc-Rhyan57/Msdoors/refs/heads/main/Src/Loaders/"
 local SUPPORTED_GAMES = {
-    [6516141723] = "Doors/lobby/game.lua", -- lobby
-    [6839171747] = "Doors/hotel.lua", -- FLOORS 2
-    [2440500124] = "Doors/hotel.lua", -- FLOORS 1
-    [87716067947993] = "Doors/hotel.lua", -- Ranked(soon)
-    [10549820578] = "Doors/hotel.lua", -- Super Hard Mode
+    [6516141723] = "Doors/lobby/game.lua",
+    [6839171747] = "Doors/hotel.lua",
+    [2440500124] = "Doors/hotel.lua",
+    [87716067947993] = "Doors/hotel.lua",
+    [10549820578] = "Doors/hotel.lua",
     [110258689672367] = "Doors/OldLobby.lua",
     [189707] = "Natural-Disaster/places/game.lua",
     [5275822877] = "Carrinho%2Bcart-para-Giganoob/game.lua",
     [12552538292] = "pressure/game.lua"
 }
 
-local function notify(title, message, tipo)
-    local types = {
-        success = Color3.fromRGB(0, 255, 128),
-        warning = Color3.fromRGB(255, 128, 0),
-        error = Color3.fromRGB(255, 0, 0)
-    }
-    
-    StarterGui:SetCore("SendNotification", {
-        Title = "Msdoors | " .. title,
-        Text = message,
-        Duration = 5,
-        Icon = "rbxassetid://112673545263214"
-    })
+local function notify(title, message)
+    pcall(function()
+        Services.StarterGui:SetCore("SendNotification", {
+            Title = "Msdoors | " .. title,
+            Text = message,
+            Duration = 5
+        })
+    end)
+    print("[Msdoors] " .. title .. ": " .. message)
 end
 
 local function createUI()
     local gui = Instance.new("ScreenGui")
     gui.Name = "MsdoorsLoader"
-    gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
-
-    local blur = Instance.new("BlurEffect", Lighting)
-    blur.Size = 0
-    TweenService:Create(blur, TweenInfo.new(0.5), {Size = 10}):Play()
+    gui.ResetOnSpawn = false
+    gui.Parent = getHiddenParent()
 
     local main = Instance.new("Frame")
     main.Name = "Main"
-    main.Size = UDim2.new(0, 0, 0, 200)
+    main.Size = UDim2.new(0, 400, 0, 280)
     main.Position = UDim2.new(0.5, 0, 0.5, 0)
     main.AnchorPoint = Vector2.new(0.5, 0.5)
-    main.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    main.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
     main.BorderSizePixel = 0
+    main.BackgroundTransparency = 0.05
     main.Parent = gui
-    TweenService:Create(main, 
-        TweenInfo.new(0.5, Enum.EasingStyle.Back), 
-        {Size = UDim2.new(0, 300, 0, 200)}
-    ):Play()
 
-    local corner = Instance.new("UICorner", main)
-    corner.CornerRadius = UDim.new(0, 8)
+    local shadow = Instance.new("Frame")
+    shadow.Name = "Shadow"
+    shadow.Size = UDim2.new(1, 20, 1, 20)
+    shadow.Position = UDim2.new(0, -10, 0, -10)
+    shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.BackgroundTransparency = 0.7
+    shadow.ZIndex = -1
+    shadow.Parent = main
 
-    local stroke = Instance.new("UIStroke", main)
-    stroke.Color = Color3.fromRGB(100, 100, 255)
-    stroke.Thickness = 1.5
+    local shadowCorner = Instance.new("UICorner")
+    shadowCorner.CornerRadius = UDim.new(0, 16)
+    shadowCorner.Parent = shadow
 
-    local gradient = Instance.new("UIGradient", main)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 16)
+    corner.Parent = main
+
+    local gradient = Instance.new("UIGradient")
     gradient.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 25, 35)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(35, 35, 50))
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(18, 18, 25)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(22, 22, 32)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 25, 40))
     })
-    gradient.Rotation = 45
+    gradient.Rotation = 135
+    gradient.Parent = main
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(88, 101, 242)
+    stroke.Thickness = 2
+    stroke.Transparency = 0.3
+    stroke.Parent = main
+
+    spawn(function()
+        while main.Parent do
+            Services.TweenService:Create(stroke, 
+                TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), 
+                {Color = Color3.fromRGB(139, 69, 255)}
+            ):Play()
+            wait(0.1)
+        end
+    end)
+
+    local header = Instance.new("Frame")
+    header.Name = "Header"
+    header.Size = UDim2.new(1, 0, 0, 80)
+    header.BackgroundTransparency = 1
+    header.Parent = main
+
+    local icon = Instance.new("ImageLabel")
+    icon.Name = "Icon"
+    icon.Size = UDim2.new(0, 40, 0, 40)
+    icon.Position = UDim2.new(0, 25, 0, 20)
+    icon.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
+    icon.BorderSizePixel = 0
+    icon.Image = "rbxassetid://" .. CUSTOM_ICON_ID
+    icon.ScaleType = Enum.ScaleType.Fit
+    icon.Parent = header
+
+    local iconCorner = Instance.new("UICorner")
+    iconCorner.CornerRadius = UDim.new(0, 8)
+    iconCorner.Parent = icon
+
+    local iconText = Instance.new("TextLabel")
+    iconText.Text = "M"
+    iconText.Size = UDim2.new(1, 0, 1, 0)
+    iconText.BackgroundTransparency = 1
+    iconText.Font = Enum.Font.GothamBold
+    iconText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    iconText.TextSize = 20
+    iconText.Visible = false
+    iconText.Parent = icon
+
+    spawn(function()
+        task.wait(1)
+        if icon.Image == "" or not icon.IsLoaded then
+            iconText.Visible = true
+            icon.BackgroundTransparency = 0
+        else
+            icon.BackgroundTransparency = 1
+        end
+    end)
 
     local title = Instance.new("TextLabel")
     title.Name = "Title"
-    title.Text = "Msdoors"
-    title.Size = UDim2.new(1, 0, 0, 40)
-    title.Position = UDim2.new(0, 0, 0, 20)
+    title.Text = "MSDOORS"
+    title.Size = UDim2.new(0, 200, 0, 35)
+    title.Position = UDim2.new(0, 75, 0, 15)
     title.Font = Enum.Font.GothamBold
     title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    title.TextSize = 28
+    title.TextSize = 24
+    title.TextXAlignment = Enum.TextXAlignment.Left
     title.BackgroundTransparency = 1
-    title.Parent = main
+    title.Parent = header
+
+    local subtitle = Instance.new("TextLabel")
+    subtitle.Name = "Subtitle"
+    subtitle.Text = "dsc.gg/msdoors-gg"
+    subtitle.Size = UDim2.new(0, 200, 0, 20)
+    subtitle.Position = UDim2.new(0, 75, 0, 45)
+    subtitle.Font = Enum.Font.Gotham
+    subtitle.TextColor3 = Color3.fromRGB(157, 171, 255)
+    subtitle.TextSize = 14
+    subtitle.TextXAlignment = Enum.TextXAlignment.Left
+    subtitle.BackgroundTransparency = 1
+    subtitle.Parent = header
+
+    local statusContainer = Instance.new("Frame")
+    statusContainer.Name = "StatusContainer"
+    statusContainer.Size = UDim2.new(1, -50, 0, 80)
+    statusContainer.Position = UDim2.new(0, 25, 0, 100)
+    statusContainer.BackgroundTransparency = 1
+    statusContainer.Parent = main
 
     local status = Instance.new("TextLabel")
     status.Name = "Status"
-    status.Size = UDim2.new(1, -40, 0, 20)
-    status.Position = UDim2.new(0, 20, 0, 80)
+    status.Size = UDim2.new(1, 0, 0, 25)
     status.Font = Enum.Font.Gotham
-    status.TextColor3 = Color3.fromRGB(200, 200, 200)
-    status.TextSize = 14
+    status.TextColor3 = Color3.fromRGB(209, 213, 219)
+    status.TextSize = 15
     status.TextXAlignment = Enum.TextXAlignment.Left
     status.BackgroundTransparency = 1
-    status.Parent = main
+    status.Parent = statusContainer
 
-    local progressBg = Instance.new("Frame")
-    progressBg.Name = "ProgressBg"
-    progressBg.Size = UDim2.new(1, -40, 0, 6)
-    progressBg.Position = UDim2.new(0, 20, 0, 120)
-    progressBg.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-    progressBg.BorderSizePixel = 0
-    progressBg.Parent = main
+    local progressContainer = Instance.new("Frame")
+    progressContainer.Name = "ProgressContainer"
+    progressContainer.Size = UDim2.new(1, 0, 0, 12)
+    progressContainer.Position = UDim2.new(0, 0, 0, 40)
+    progressContainer.BackgroundColor3 = Color3.fromRGB(31, 41, 55)
+    progressContainer.BorderSizePixel = 0
+    progressContainer.Parent = statusContainer
 
-    local progressBgCorner = Instance.new("UICorner", progressBg)
-    progressBgCorner.CornerRadius = UDim.new(1, 0)
+    local progressCorner = Instance.new("UICorner")
+    progressCorner.CornerRadius = UDim.new(0, 6)
+    progressCorner.Parent = progressContainer
 
     local progress = Instance.new("Frame")
     progress.Name = "Progress"
     progress.Size = UDim2.new(0, 0, 1, 0)
-    progress.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
+    progress.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
     progress.BorderSizePixel = 0
-    progress.Parent = progressBg
+    progress.Parent = progressContainer
 
-    local progressCorner = Instance.new("UICorner", progress)
-    progressCorner.CornerRadius = UDim.new(1, 0)
+    local progressFillCorner = Instance.new("UICorner")
+    progressFillCorner.CornerRadius = UDim.new(0, 6)
+    progressFillCorner.Parent = progress
 
-    local progressGradient = Instance.new("UIGradient", progress)
+    local progressGradient = Instance.new("UIGradient")
     progressGradient.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 100, 255)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 150, 255))
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(88, 101, 242)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(139, 69, 255))
     })
+    progressGradient.Parent = progress
+
+    local percentage = Instance.new("TextLabel")
+    percentage.Name = "Percentage"
+    percentage.Text = "0%"
+    percentage.Size = UDim2.new(0, 50, 0, 20)
+    percentage.Position = UDim2.new(1, -50, 0, 55)
+    percentage.Font = Enum.Font.GothamMedium
+    percentage.TextColor3 = Color3.fromRGB(156, 163, 175)
+    percentage.TextSize = 12
+    percentage.TextXAlignment = Enum.TextXAlignment.Right
+    percentage.BackgroundTransparency = 1
+    percentage.Parent = statusContainer
+
+    local footer = Instance.new("Frame")
+    footer.Name = "Footer"
+    footer.Size = UDim2.new(1, -50, 0, 60)
+    footer.Position = UDim2.new(0, 25, 0, 200)
+    footer.BackgroundTransparency = 1
+    footer.Parent = main
 
     local version = Instance.new("TextLabel")
     version.Name = "Version"
-    version.Text = "v1.1.1"
-    version.Size = UDim2.new(1, -40, 0, 20)
-    version.Position = UDim2.new(0, 20, 0, 160)
+    version.Text = _G.msdoors_version
+    version.Size = UDim2.new(1, 0, 0, 20)
     version.Font = Enum.Font.Gotham
-    version.TextColor3 = Color3.fromRGB(150, 150, 150)
-    version.TextSize = 12
+    version.TextColor3 = Color3.fromRGB(107, 114, 128)
+    version.TextSize = 14
     version.TextXAlignment = Enum.TextXAlignment.Left
     version.BackgroundTransparency = 1
-    version.Parent = main
+    version.Parent = footer
+
+    local spinner = Instance.new("Frame")
+    spinner.Name = "Spinner"
+    spinner.Size = UDim2.new(0, 20, 0, 20)
+    spinner.Position = UDim2.new(1, -25, 0, 0)
+    spinner.BackgroundTransparency = 1
+    spinner.Parent = footer
+
+    local spinnerRing = Instance.new("Frame")
+    spinnerRing.Size = UDim2.new(1, 0, 1, 0)
+    spinnerRing.BackgroundTransparency = 1
+    spinnerRing.Parent = spinner
+
+    local spinnerStroke = Instance.new("UIStroke")
+    spinnerStroke.Color = Color3.fromRGB(88, 101, 242)
+    spinnerStroke.Thickness = 2
+    spinnerStroke.Transparency = 0.7
+    spinnerStroke.Parent = spinnerRing
+
+    local spinnerCorner = Instance.new("UICorner")
+    spinnerCorner.CornerRadius = UDim.new(1, 0)
+    spinnerCorner.Parent = spinnerRing
+
+    spawn(function()
+        while spinner.Parent do
+            Services.TweenService:Create(spinnerRing, 
+                TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), 
+                {Rotation = 360}
+            ):Play()
+            wait(0.1)
+        end
+    end)
+
+    main.Size = UDim2.new(0, 0, 0, 0)
+    main.BackgroundTransparency = 1
+    
+    Services.TweenService:Create(main, 
+        TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), 
+        {Size = UDim2.new(0, 400, 0, 280), BackgroundTransparency = 0.05}
+    ):Play()
 
     return {
         gui = gui,
-        blur = blur,
         main = main,
         status = status,
         progress = progress,
+        percentage = percentage,
         updateStatus = function(text)
-            status.Text = ""
-            for i = 1, #text do
-                if not status.Parent then break end
-                status.Text = string.sub(text, 1, i)
-                task.wait(0.01)
-            end
+            status.Text = text
+            status.TextTransparency = 0.5
+            Services.TweenService:Create(status, 
+                TweenInfo.new(0.3, Enum.EasingStyle.Quad), 
+                {TextTransparency = 0}
+            ):Play()
         end,
         updateProgress = function(value)
-            TweenService:Create(progress, 
-                TweenInfo.new(0.3, Enum.EasingStyle.Quad), 
+            local percent = math.floor(value * 100)
+            percentage.Text = percent .. "%"
+            
+            Services.TweenService:Create(progress, 
+                TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
                 {Size = UDim2.new(value, 0, 1, 0)}
             ):Play()
         end,
         destroy = function()
-            TweenService:Create(blur, TweenInfo.new(0.5), {Size = 0}):Play()
-            TweenService:Create(main, 
-                TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), 
-                {Size = UDim2.new(0, 0, 0, 200)}
+            Services.TweenService:Create(main, 
+                TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), 
+                {Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1}
             ):Play()
-            task.wait(0.2)
-            gui:Destroy()
-            blur:Destroy()
+            
+            task.wait(0.5)
+            pcall(function()
+                gui:Destroy()
+            end)
         end
     }
 end
 
 local function loadScript(url)
-    local success, response = pcall(function()
-        return game:HttpGet(url)
-    end)
-    
-    if success then
-        local loadSuccess, error = pcall(function()
-            loadstring(response)()
-        end)
-        
-        if not loadSuccess then
-            notify("Erro", "Falha ao executar o script", "error")
-            return false
+    local httpMethods = {
+        function() return game:HttpGet(url) end,
+        function() 
+            if typeof(http_request) == "function" then
+                local response = http_request({Url = url, Method = "GET"})
+                return response.Body
+            end
+        end,
+        function() 
+            if typeof(request) == "function" then
+                local response = request({Url = url, Method = "GET"})
+                return response.Body
+            end
+        end,
+        function()
+            if typeof(syn) == "table" and typeof(syn.request) == "function" then
+                local response = syn.request({Url = url, Method = "GET"})
+                return response.Body
+            end
         end
-        return true
+    }
+    
+    local response = nil
+    for _, method in pairs(httpMethods) do
+        local success, result = pcall(method)
+        if success and result then
+            response = result
+            break
+        end
     end
     
-    notify("Erro", "Falha ao baixar o script", "error")
-    return false
+    if not response then
+        notify("Erro", "Não foi possível baixar o script")
+        return false
+    end
+    
+    local success, error = pcall(function()
+        local func = loadstring(response)
+        if func then
+            func()
+        else
+            error("Falha ao carregar script")
+        end
+    end)
+    
+    if not success then
+        notify("Erro", "Falha ao executar script")
+        return false
+    end
+    
+    return true
 end
 
 local function startMsdoors()
     local ui = createUI()
     local currentGame = game.PlaceId
 
-    ui.updateStatus("Iniciando Msdoors...")
+    ui.updateStatus("Inicializando sistema...")
     ui.updateProgress(0.1)
-    task.wait(0.3)
+    wait(0.6)
 
     ui.updateStatus("Verificando compatibilidade...")
-    ui.updateProgress(0.3)
-    task.wait(0.3)
+    ui.updateProgress(0.25)
+    wait(0.5)
 
     local scriptName = SUPPORTED_GAMES[currentGame]
     if not scriptName then
-      _G.ObsidianaLib = false
-      _G.MsdoorsLoaded = true
-        notify("Aviso", "Este jogo não é suportado!", "warning")
-        ui.updateStatus("Jogo não suportado!")
+        _G.ObsidianaLib = false
+        notify("Aviso", "Jogo não suportado")
+        ui.updateStatus("Jogo não suportado")
         ui.updateProgress(1)
-        task.wait(1)
+        wait(2.5)
         ui.destroy()
         return
     end
 
-    ui.updateStatus("Preparando carregamento...")
+    ui.updateStatus("Preparando ambiente...")
     ui.updateProgress(0.5)
-    task.wait(0.5)
+    wait(0.5)
   
-    ui.updateStatus("Carregando script... \n [ Pode congelar, basta esperar! ]")
-    ui.updateProgress(0.6)
-    task.wait(0.3)
+    ui.updateStatus("Baixando recursos...")
+    ui.updateProgress(0.75)
+    wait(0.4)
 
     local success = loadScript(SCRIPT_URL .. scriptName)
     
     if success then
-        ui.updateStatus("Script carregado com sucesso!")
+        ui.updateStatus("Carregamento concluído!")
         ui.updateProgress(1)
-        notify("Sucesso", "Script carregado com sucesso!", "success")
+        notify("Sucesso", "Script executado com sucesso!")
+        task.wait(1.2)
     else
-      _G.ObsidianaLib = false
-      _G.MsdoorsLoaded = true
-        ui.updateStatus("Falha ao carregar script!")
+        _G.ObsidianaLib = false
+        ui.updateStatus("Falha no carregamento")
         ui.updateProgress(1)
+        task.wait(2.5)
     end
-    task.wait(1)
+    
     ui.destroy()
 end
+
 startMsdoors()
