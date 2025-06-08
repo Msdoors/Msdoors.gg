@@ -13,6 +13,15 @@ end)
 
 _G.msdoors_keyeystem_keystatus = true
 
+local exname = {"Xeno", "Solara"}
+
+for i, nome in pairs(exname) do
+    if _G.msdoors_executorinfo_name == nome then
+
+        break
+    end
+end
+
 local Services = {
     ReplicatedStorage = game:GetService("ReplicatedStorage"),
     StarterGui = game:GetService("StarterGui"),
@@ -179,7 +188,7 @@ local function createUI()
     iconText.Parent = icon
 
     spawn(function()
-        task.wait(1)
+        task.wait(0.1)
         if icon.Image == "" or not icon.IsLoaded then
             iconText.Visible = true
             icon.BackgroundTransparency = 0
@@ -399,6 +408,7 @@ local function loadScript(url)
     end
     
     if not response then
+                _G.ObsidianaLib = false
         notify("Erro", "Não foi possível baixar o script")
         return false
     end
@@ -408,11 +418,13 @@ local function loadScript(url)
         if func then
             func()
         else
+                _G.ObsidianaLib = false
             error("Falha ao carregar script")
         end
     end)
     
     if not success then
+                _G.ObsidianaLib = false
         notify("Erro", "Falha ao executar script")
         return false
     end
