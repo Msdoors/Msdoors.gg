@@ -7,7 +7,7 @@ local ExecutorSupportInfo = {}
 local GlobalVariablePrefix = "msdoors_executorinfo_"
 
 _G[GlobalVariablePrefix .. "timestamp"] = os.time()
-_G[GlobalVariablePrefix .. "version"] = "1.3.0"
+_G[GlobalVariablePrefix .. "version"] = game:HttpGet("https://msdoors.vercel.app/version")
 
 local function formatDateTime()
     local dateTime = os.date("*t")
