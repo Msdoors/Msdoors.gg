@@ -3,14 +3,6 @@ if _G.ObsidianaLib then
     return
 end
 
-local sound = Instance.new("Sound")
-sound.SoundId = "rbxassetid://8486683243"
-sound.Volume = 3
-sound.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-sound:Play()
-sound.Ended:Connect(function()
-    sound:Destroy()
-end)
 
 pcall(function()
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/Scripts/Msdoors/internal/TestExecutor.luau"))()
