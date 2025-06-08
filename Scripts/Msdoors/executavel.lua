@@ -1,12 +1,8 @@
-pcall(function()
-
-_G.msdoors_version = game:HttpGet("https://msdoors.vercel.app/version")
-
-
 if _G.ObsidianaLib then
     warn("[Msdoors] • Script já está carregado!")
     return
 end
+
 local sound = Instance.new("Sound")
 sound.SoundId = "rbxassetid://8486683243"
 sound.Volume = 3
@@ -15,23 +11,17 @@ sound:Play()
 sound.Ended:Connect(function()
     sound:Destroy()
 end)
-        
+
+pcall(function()
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/Scripts/Msdoors/internal/TestExecutor.luau"))()
 end)
 
+_G.msdoors_version = game:HttpGet("https://msdoors.vercel.app/version")
 _G.msdoors_keyeystem_keystatus = true
 
 local exname = {"Xeno", "Solara", "Delta"}
 for i, nome in pairs(exname) do
     if _G.msdoors_executorinfo_name == nome then
-        Services.StarterGui:SetCore("SendNotification", {
-            Title = "Executor não suportado!",
-            Text =  "Seu executor " .._G.msdoors_executorinfo_name.. " não é suportado.,
-            Duration = 5
-        })
-        break
-    end
-end
 local sound = Instance.new("Sound")
 sound.SoundId = "rbxassetid://6176997734"
 sound.Volume = 3
@@ -40,6 +30,14 @@ sound:Play()
 sound.Ended:Connect(function()
     sound:Destroy()
 end)
+        Services.StarterGui:SetCore("SendNotification", {
+            Title = "Executor não suportado!",
+            Text =  "Seu executor " .._G.msdoors_executorinfo_name.. " não é suportado.,
+            Duration = 5
+        })
+        break
+    end
+end
 
 local Services = {
     ReplicatedStorage = game:GetService("ReplicatedStorage"),
