@@ -14,17 +14,17 @@ _G.msdoors_keyeystem_keystatus = true
 local exname = {"Xeno", "Solara", "Delta"}
 for i, nome in pairs(exname) do
     if _G.msdoors_executorinfo_name == nome then
-local sound = Instance.new("Sound")
-sound.SoundId = "rbxassetid://6176997734"
-sound.Volume = 3
-sound.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-sound:Play()
-sound.Ended:Connect(function()
-    sound:Destroy()
-end)
-        Services.StarterGui:SetCore("SendNotification", {
+        local sound = Instance.new("Sound")
+        sound.SoundId = "rbxassetid://6176997734"
+        sound.Volume = 3
+        sound.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+        sound:Play()
+        sound.Ended:Connect(function()
+            sound:Destroy()
+        end)
+        game:GetService("StarterGui"):SetCore("SendNotification", {
             Title = "Executor não suportado!",
-            Text =  "Seu executor " .._G.msdoors_executorinfo_name.. " não é suportado.,
+            Text = "Seu executor " .. _G.msdoors_executorinfo_name .. " não é suportado.",
             Duration = 5
         })
         break
