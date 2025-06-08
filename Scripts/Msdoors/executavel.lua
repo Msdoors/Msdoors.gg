@@ -1,35 +1,17 @@
+pcall(function()
+
+_G.msdoors_version = game:HttpGet("https://msdoors.vercel.app/version")
+
+
 if _G.ObsidianaLib then
     warn("[Msdoors] • Script já está carregado!")
     return
 end
 
-
-pcall(function()
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/Scripts/Msdoors/internal/TestExecutor.luau"))()
 end)
 
-_G.msdoors_version = game:HttpGet("https://msdoors.vercel.app/version")
 _G.msdoors_keyeystem_keystatus = true
-
-local exname = {"Xeno", "Solara", "Delta"}
-for i, nome in pairs(exname) do
-    if _G.msdoors_executorinfo_name == nome then
-        local sound = Instance.new("Sound")
-        sound.SoundId = "rbxassetid://6176997734"
-        sound.Volume = 3
-        sound.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-        sound:Play()
-        sound.Ended:Connect(function()
-            sound:Destroy()
-        end)
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Executor não suportado!",
-            Text = "Seu executor " .. _G.msdoors_executorinfo_name .. " não é suportado.",
-            Duration = 5
-        })
-        break
-    end
-end
 
 local Services = {
     ReplicatedStorage = game:GetService("ReplicatedStorage"),
@@ -197,7 +179,7 @@ local function createUI()
     iconText.Parent = icon
 
     spawn(function()
-        task.wait(0.1)
+        task.wait(1)
         if icon.Image == "" or not icon.IsLoaded then
             iconText.Visible = true
             icon.BackgroundTransparency = 0
@@ -417,7 +399,6 @@ local function loadScript(url)
     end
     
     if not response then
-                _G.ObsidianaLib = false
         notify("Erro", "Não foi possível baixar o script")
         return false
     end
@@ -427,13 +408,11 @@ local function loadScript(url)
         if func then
             func()
         else
-                _G.ObsidianaLib = false
             error("Falha ao carregar script")
         end
     end)
     
     if not success then
-                _G.ObsidianaLib = false
         notify("Erro", "Falha ao executar script")
         return false
     end
