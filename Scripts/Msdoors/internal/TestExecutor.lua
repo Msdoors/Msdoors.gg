@@ -1,3 +1,7 @@
+if _G.msdoors_checkexecutor then
+    break
+end
+
 local ExecutorSupport = {}
 local ExecutorSupportInfo = {}
 local GlobalVariablePrefix = "msdoors_executorinfo_"
@@ -526,3 +530,4 @@ logPrint("═══════════════════════�
 saveLogToFile()
 
 return ExecutorSupport
+_G.msdoors_checkexecutor = true
