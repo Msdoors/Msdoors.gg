@@ -41,7 +41,7 @@ for i, nome in pairs(exname) do
             Text = "o executor " .._G.msdoors_executorinfo_name .. " não é suportado.",
             Duration = 5
         })
-        break
+       break
     end
 end
 
