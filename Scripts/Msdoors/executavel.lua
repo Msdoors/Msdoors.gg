@@ -1,8 +1,22 @@
 if _G.ObsidianaLib then
     warn("[Msdoors] • Script já está carregado!")
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Script já carregado!",
+            Image = "rbxassetid://95869322194132",
+            Text = "o script já está carregado!",
+            Duration = 5
+        })
     return
 end
 
+        local sound = Instance.new("Sound")
+        sound.SoundId = "rbxassetid://8486683243"
+        sound.Volume = 3
+        sound.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+        sound:Play()
+        sound.Ended:Connect(function()
+            sound:Destroy()
+        end)
 
 pcall(function()
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/Scripts/Msdoors/internal/TestExecutor.luau"))()
@@ -24,7 +38,7 @@ for i, nome in pairs(exname) do
         end)
         game:GetService("StarterGui"):SetCore("SendNotification", {
             Title = "Executor não suportado!",
-            Text = "Seu executor " .. _G.msdoors_executorinfo_name .. " não é suportado.",
+            Text = "o executor " .._G.msdoors_executorinfo_name .. " não é suportado.",
             Duration = 5
         })
         break
