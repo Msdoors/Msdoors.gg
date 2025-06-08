@@ -1,5 +1,5 @@
 if _G.msdoors_checkexecutor then
-    break
+    return
 end
 
 local ExecutorSupport = {}
