@@ -96,7 +96,7 @@ if placeIdList[placeId] then
             ["Retro"] = "Retro Mode"
         }
         _G.msdoors_floor = floornickname[floor] or floor
-        print("[ Msdoors ] » Floor name: " .. _G.msdoors_floor)
+        print("[ Msdoors ] » {DOORS} FLOOR DETECTADO: " .. _G.msdoors_floor)
     end
 end
 
@@ -351,7 +351,7 @@ local function createUI()
                 TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), 
                 {Rotation = 360}
             ):Play()
-            wait(0.1)
+            task.wait(0.1)
         end
     end)
 
