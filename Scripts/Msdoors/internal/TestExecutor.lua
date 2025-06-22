@@ -527,7 +527,7 @@ logPrint("\n══════════════════════�
 logPrint("📋 LOG FINALIZADO: " .. logDateTime)
 logPrint("═════════════════════════════════════════════\n\n")
 
-saveLogToFile()
+--[[ saveLogToFile() ]]--
 
 return ExecutorSupport
 _G.msdoors_checkexecutor = true
