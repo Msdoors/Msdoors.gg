@@ -25,6 +25,7 @@ end)
 _G.msdoors_version = game:HttpGet("https://msdoors.vercel.app/version")
 _G.msdoors_keyeystem_keystatus = true
 
+--[[
 local exname = {"Xeno", "Solara", "Delta"}
 for i, nome in pairs(exname) do
     if _G.msdoors_executorinfo_name == nome then
@@ -44,6 +45,7 @@ for i, nome in pairs(exname) do
        return
     end
 end
+]]--
 
 _G.msdoors_keyeystem_keystatus = true
 
