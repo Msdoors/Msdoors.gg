@@ -8,7 +8,7 @@ local function Notify(options)
     if Library and Library.Notify then
         
         local sound = Instance.new("Sound")
-        sound.SoundId = "rbxassetid://4590656842"
+        sound.SoundId = "rbxassetid://4590657391"
         sound.Parent = game.Workspace
         sound.Volume = 1
         sound:Play()
