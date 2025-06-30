@@ -102,23 +102,24 @@ function TranslationAPI:initialize()
 end
 
 function TranslationAPI:loadSavedLanguage()
-    if isfile(CONFIG.LOCAL_FILE) then
-        local success, savedLanguage = pcall(function()
+    local success, savedLanguage = pcall(function()
+        if isfile(CONFIG.LOCAL_FILE) then
             return readfile(CONFIG.LOCAL_FILE):gsub("%s+", "")
-        end)
-        
-        if success and savedLanguage and savedLanguage ~= "" then
-            self.currentLanguage = savedLanguage
-            _G.msdoors_language = savedLanguage
-            print("[TranslationAPI] Idioma carregado do arquivo local:", savedLanguage)
-            return
+        else
+            return nil
         end
-    end
+    end)
     
-    print("[TranslationAPI] Nenhum idioma salvo encontrado, criando arquivo com idioma padrão:", CONFIG.DEFAULT_LANGUAGE)
-    _G.msdoors_language = CONFIG.DEFAULT_LANGUAGE
-    self.currentLanguage = CONFIG.DEFAULT_LANGUAGE
-    self:saveCurrentLanguage()
+    if success and savedLanguage and savedLanguage ~= "" then
+        self.currentLanguage = savedLanguage
+        _G.msdoors_language = savedLanguage
+        print("[TranslationAPI] Idioma carregado do arquivo local:", savedLanguage)
+    else
+        print("[TranslationAPI] Arquivo não encontrado ou erro ao ler. Criando com idioma padrão:", CONFIG.DEFAULT_LANGUAGE)
+        self.currentLanguage = CONFIG.DEFAULT_LANGUAGE
+        _G.msdoors_language = CONFIG.DEFAULT_LANGUAGE
+        self:saveCurrentLanguage()
+    end
 end
 
 function TranslationAPI:saveCurrentLanguage()
@@ -129,8 +130,10 @@ function TranslationAPI:saveCurrentLanguage()
     if success then
         _G.msdoors_language = self.currentLanguage
         print("[TranslationAPI] Idioma salvo no arquivo '" .. CONFIG.LOCAL_FILE .. "' e em variável global:", self.currentLanguage)
+        return true
     else
         warn("[TranslationAPI] Erro ao salvar idioma no arquivo:", error)
+        return false
     end
 end
 
@@ -288,11 +291,16 @@ function TranslationAPI:setLanguage(languageCode)
     local oldLanguage = self.currentLanguage
     self.currentLanguage = languageCode
     
-    self:saveCurrentLanguage()
+    local saveSuccess = self:saveCurrentLanguage()
+    if not saveSuccess then
+        self.currentLanguage = oldLanguage
+        return false
+    end
     
     self:executeLanguageChangedCallbacks(oldLanguage, languageCode)
     
     print("[TranslationAPI] Idioma alterado com sucesso para:", languageCode)
+    print("[TranslationAPI] Variável global atualizada:", _G.msdoors_language)
     return true
 end
 
@@ -343,8 +351,13 @@ function TranslationAPI:createLanguageDropdown(tab, options)
             
             if languageCode and languageCode ~= self.currentLanguage then
                 local success = self:setLanguage(languageCode)
-                if success and options.Callback then
-                    options.Callback(languageCode, selected)
+                if success then
+                    print("[TranslationAPI] Mudança de idioma bem-sucedida!")
+                    if options.Callback then
+                        options.Callback(languageCode, selected)
+                    end
+                else
+                    warn("[TranslationAPI] Falha ao alterar idioma para:", languageCode)
                 end
             end
         end
@@ -372,7 +385,8 @@ function TranslationAPI:getSystemInfo()
             isExpired = Cache:isExpired(),
             cachedLanguages = Cache.translations and table.concat(Cache.translations, ", ") or "Nenhum"
         },
-        isInitialized = self.isInitialized
+        isInitialized = self.isInitialized,
+        fileExists = isfile(CONFIG.LOCAL_FILE)
     }
 end
 
@@ -395,6 +409,17 @@ function TranslationAPI:validateTranslations(languageCode)
     end
     
     return true, string.format("Idioma %s possui %d traduções válidas", languageCode, count)
+end
+
+function TranslationAPI:forceCreateFile()
+    print("[TranslationAPI] Forçando criação do arquivo...")
+    local success = self:saveCurrentLanguage()
+    if success then
+        print("[TranslationAPI] Arquivo criado com sucesso!")
+    else
+        warn("[TranslationAPI] Falha ao criar arquivo!")
+    end
+    return success
 end
 
 return TranslationAPI
