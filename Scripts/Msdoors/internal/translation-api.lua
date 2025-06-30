@@ -266,10 +266,12 @@ function TranslationAPI:setLanguage(languageCode)
     
     local oldLanguage = self.currentLanguage
     self.currentLanguage = languageCode
+    _G.msdoors_language = languageCode
     
     local saveSuccess = self:saveCurrentLanguage()
     if not saveSuccess then
         self.currentLanguage = oldLanguage
+        _G.msdoors_language = oldLanguage
         return false
     end
     
@@ -319,12 +321,13 @@ function TranslationAPI:createLanguageDropdown(tab, options)
         Text = self:getTranslate("LanguageSelector", "Language"),
         Tooltip = self:getTranslate("LanguageTooltip", "Select your preferred language"),
         Callback = function(selected)
-            local languageCode = languageOptions[selected]
-            
-            if languageCode then
-                local success = self:setLanguage(languageCode)
-                if success and options.Callback then
-                    options.Callback(languageCode, selected)
+            for displayName, languageCode in pairs(languageOptions) do
+                if displayName == selected then
+                    local success = self:setLanguage(languageCode)
+                    if success and options.Callback then
+                        options.Callback(languageCode, selected)
+                    end
+                    break
                 end
             end
         end
