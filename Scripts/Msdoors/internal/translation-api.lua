@@ -8,20 +8,11 @@ local CONFIG = {
     GITHUB_BASE_URL = "https://raw.githubusercontent.com/msdoors-gg/msdoors-translations/main",
     GITHUB_API_URL = "https://api.github.com/repos/msdoors-gg/msdoors-translations/contents/Languages",
     LANGUAGES_FOLDER = "Languages",
-    LOCAL_FOLDER = "msdoors/language",
     LOCAL_FILE = "language.txt",
     DEFAULT_LANGUAGE = "pt-br",
     CACHE_DURATION = 300,
     REQUEST_TIMEOUT = 10
 }
-
-local function createFolder(path)
-    if not isfolder(path) then
-        makefolder(path)
-        return true
-    end
-    return false
-end
 
 local function safeHttpGet(url, timeout)
     timeout = timeout or CONFIG.REQUEST_TIMEOUT
@@ -100,8 +91,6 @@ end
 function TranslationAPI:initialize()
     print("[TranslationAPI] Inicializando sistema de tradução...")
     
-    createFolder(CONFIG.LOCAL_FOLDER)
-    
     self:loadSavedLanguage()
     
     self:discoverAvailableLanguages()
@@ -113,10 +102,8 @@ function TranslationAPI:initialize()
 end
 
 function TranslationAPI:loadSavedLanguage()
-    local filePath = CONFIG.LOCAL_FOLDER .. "/" .. CONFIG.LOCAL_FILE
-    
-    if isfile(filePath) then
-        local savedLanguage = readfile(filePath):gsub("%s+", "")
+    if isfile(CONFIG.LOCAL_FILE) then
+        local savedLanguage = readfile(CONFIG.LOCAL_FILE):gsub("%s+", "")
         if savedLanguage and savedLanguage ~= "" then
             self.currentLanguage = savedLanguage
             _G.msdoors_language = savedLanguage
@@ -126,16 +113,13 @@ function TranslationAPI:loadSavedLanguage()
         print("[TranslationAPI] Nenhum idioma salvo encontrado, usando padrão:", CONFIG.DEFAULT_LANGUAGE)
         _G.msdoors_language = CONFIG.DEFAULT_LANGUAGE
         self.currentLanguage = CONFIG.DEFAULT_LANGUAGE
+        self:saveCurrentLanguage()
     end
 end
 
 function TranslationAPI:saveCurrentLanguage()
-    local filePath = CONFIG.LOCAL_FOLDER .. "/" .. CONFIG.LOCAL_FILE
-    
-    createFolder(CONFIG.LOCAL_FOLDER)
-    
     local success, error = pcall(function()
-        writefile(filePath, self.currentLanguage)
+        writefile(CONFIG.LOCAL_FILE, self.currentLanguage)
     end)
     
     if success then
