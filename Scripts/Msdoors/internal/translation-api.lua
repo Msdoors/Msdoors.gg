@@ -121,6 +121,7 @@ function TranslationAPI:saveCurrentLanguage()
     
     if success then
         _G.msdoors_language = self.currentLanguage
+        print("[msdoors - translation api] Idioma salvo com sucesso:", self.currentLanguage)
         return true
     else
         warn("[msdoors - translation api] Erro ao salvar idioma no arquivo:", error)
@@ -259,6 +260,8 @@ function TranslationAPI:setLanguage(languageCode)
         return false
     end
     
+    print("[msdoors - translation api] Tentando alterar idioma para:", languageCode)
+    
     if not self:loadLanguageTranslations(languageCode) then
         warn("[msdoors - translation api] Falha ao carregar idioma:", languageCode)
         return false
@@ -270,10 +273,14 @@ function TranslationAPI:setLanguage(languageCode)
     
     local saveSuccess = self:saveCurrentLanguage()
     if not saveSuccess then
+        warn("[msdoors - translation api] Falha ao salvar arquivo, revertendo mudança")
         self.currentLanguage = oldLanguage
         _G.msdoors_language = oldLanguage
         return false
     end
+    
+    print("[msdoors - translation api] Idioma alterado com sucesso de", oldLanguage, "para", languageCode)
+    print("[msdoors - translation api] _G.msdoors_language agora é:", _G.msdoors_language)
     
     self:executeLanguageChangedCallbacks(oldLanguage, languageCode)
     
@@ -299,36 +306,53 @@ function TranslationAPI:createLanguageDropdown(tab, options)
     options = options or {}
     
     local availableLanguages = self:getAvailableLanguages()
-    local languageOptions = {}
+    local dropdownValues = {}
+    local languageCodeMap = {} -- Mapa para converter nome de volta para código
     local defaultValue = nil
     
+    -- Criar valores para o dropdown e mapa de conversão
     for _, code in ipairs(availableLanguages) do
         local displayName = self:getLanguageDisplayName(code)
-        languageOptions[displayName] = code
+        table.insert(dropdownValues, displayName)
+        languageCodeMap[displayName] = code
+        
         if code == self.currentLanguage then
             defaultValue = displayName
         end
     end
     
+    -- Se não encontrou o idioma atual, usar o nome de exibição padrão
     if not defaultValue then
         defaultValue = self:getLanguageDisplayName(self.currentLanguage)
     end
     
+    print("[msdoors - translation api] Criando dropdown com valores:", table.concat(dropdownValues, ", "))
+    print("[msdoors - translation api] Valor padrão:", defaultValue)
+    
     local dropdown = tab:AddDropdown("LanguageSelector", {
-        Values = languageOptions,
+        Values = dropdownValues,
         Default = defaultValue,
         Multi = false,
         Text = self:getTranslate("LanguageSelector", "Language"),
         Tooltip = self:getTranslate("LanguageTooltip", "Select your preferred language"),
         Callback = function(selected)
-            for displayName, languageCode in pairs(languageOptions) do
-                if displayName == selected then
-                    local success = self:setLanguage(languageCode)
-                    if success and options.Callback then
+            print("[msdoors - translation api] Dropdown selecionado:", selected)
+            
+            local languageCode = languageCodeMap[selected]
+            if languageCode then
+                print("[msdoors - translation api] Código do idioma:", languageCode)
+                
+                local success = self:setLanguage(languageCode)
+                if success then
+                    print("[msdoors - translation api] Mudança de idioma bem-sucedida!")
+                    if options.Callback then
                         options.Callback(languageCode, selected)
                     end
-                    break
+                else
+                    warn("[msdoors - translation api] Falha ao alterar idioma!")
                 end
+            else
+                warn("[msdoors - translation api] Código de idioma não encontrado para:", selected)
             end
         end
     })
