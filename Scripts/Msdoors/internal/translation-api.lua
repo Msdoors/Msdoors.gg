@@ -1,6 +1,9 @@
 local TranslationAPI = {}
 TranslationAPI.__index = TranslationAPI
 
+_G.msdoors_language = _G.msdoors_language or "pt-br"
+_G.msdoors_config = _G.msdoors_config or {}
+
 local CONFIG = {
     GITHUB_BASE_URL = "https://raw.githubusercontent.com/msdoors-gg/msdoors-translations/main",
     GITHUB_API_URL = "https://api.github.com/repos/msdoors-gg/msdoors-translations/contents/Languages",
@@ -85,7 +88,7 @@ end
 function TranslationAPI.new()
     local self = setmetatable({}, TranslationAPI)
     
-    self.currentLanguage = CONFIG.DEFAULT_LANGUAGE
+    self.currentLanguage = _G.msdoors_language
     self.isInitialized = false
     self.languageChangedCallbacks = {}
     
@@ -116,22 +119,28 @@ function TranslationAPI:loadSavedLanguage()
         local savedLanguage = readfile(filePath):gsub("%s+", "")
         if savedLanguage and savedLanguage ~= "" then
             self.currentLanguage = savedLanguage
+            _G.msdoors_language = savedLanguage
             print("[TranslationAPI] Idioma carregado do arquivo local:", savedLanguage)
         end
     else
         print("[TranslationAPI] Nenhum idioma salvo encontrado, usando padrão:", CONFIG.DEFAULT_LANGUAGE)
+        _G.msdoors_language = CONFIG.DEFAULT_LANGUAGE
+        self.currentLanguage = CONFIG.DEFAULT_LANGUAGE
     end
 end
 
 function TranslationAPI:saveCurrentLanguage()
     local filePath = CONFIG.LOCAL_FOLDER .. "/" .. CONFIG.LOCAL_FILE
     
+    createFolder(CONFIG.LOCAL_FOLDER)
+    
     local success, error = pcall(function()
         writefile(filePath, self.currentLanguage)
     end)
     
     if success then
-        print("[TranslationAPI] Idioma salvo localmente:", self.currentLanguage)
+        _G.msdoors_language = self.currentLanguage
+        print("[TranslationAPI] Idioma salvo localmente e em variável global:", self.currentLanguage)
     else
         warn("[TranslationAPI] Erro ao salvar idioma:", error)
     end
@@ -357,6 +366,7 @@ end
 function TranslationAPI:getSystemInfo()
     return {
         currentLanguage = self.currentLanguage,
+        globalLanguage = _G.msdoors_language,
         availableLanguages = self:getAvailableLanguages(),
         cacheStatus = {
             lastUpdate = Cache.lastUpdate,
