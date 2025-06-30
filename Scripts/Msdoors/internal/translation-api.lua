@@ -7,7 +7,7 @@ local CONFIG = {
     LANGUAGES_FOLDER = "Languages",
     LOCAL_FOLDER = "msdoors/language",
     LOCAL_FILE = "language.txt",
-    DEFAULT_LANGUAGE = "en",
+    DEFAULT_LANGUAGE = "pt-br",
     CACHE_DURATION = 300,
     REQUEST_TIMEOUT = 10
 }
