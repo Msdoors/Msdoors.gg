@@ -23,7 +23,7 @@ local function safeHttpGet(url, timeout)
     if success then
         return result
     else
-        warn("[TranslationAPI] Erro na requisição HTTP:", result)
+        warn("[msdoors - translation api] Erro na requisição HTTP:", result)
         return nil
     end
 end
@@ -36,7 +36,7 @@ local function parseJSON(jsonString)
     if success then
         return result
     else
-        warn("[TranslationAPI] Erro ao decodificar JSON:", result)
+        warn("[msdoors - translation api] Erro ao decodificar JSON:", result)
         return nil
     end
 end
@@ -49,7 +49,7 @@ local function encodeJSON(table)
     if success then
         return result
     else
-        warn("[TranslationAPI] Erro ao codificar JSON:", result)
+        warn("[msdoors - translation api] Erro ao codificar JSON:", result)
         return "{}"
     end
 end
@@ -89,16 +89,10 @@ function TranslationAPI.new()
 end
 
 function TranslationAPI:initialize()
-    print("[TranslationAPI] Inicializando sistema de tradução...")
-    
     self:loadSavedLanguage()
-    
     self:discoverAvailableLanguages()
-    
     self:loadLanguageTranslations(self.currentLanguage)
-    
     self.isInitialized = true
-    print("[TranslationAPI] Sistema inicializado com sucesso! Idioma atual:", self.currentLanguage)
 end
 
 function TranslationAPI:loadSavedLanguage()
@@ -113,9 +107,7 @@ function TranslationAPI:loadSavedLanguage()
     if success and savedLanguage and savedLanguage ~= "" then
         self.currentLanguage = savedLanguage
         _G.msdoors_language = savedLanguage
-        print("[TranslationAPI] Idioma carregado do arquivo local:", savedLanguage)
     else
-        print("[TranslationAPI] Arquivo não encontrado ou erro ao ler. Criando com idioma padrão:", CONFIG.DEFAULT_LANGUAGE)
         self.currentLanguage = CONFIG.DEFAULT_LANGUAGE
         _G.msdoors_language = CONFIG.DEFAULT_LANGUAGE
         self:saveCurrentLanguage()
@@ -129,31 +121,27 @@ function TranslationAPI:saveCurrentLanguage()
     
     if success then
         _G.msdoors_language = self.currentLanguage
-        print("[TranslationAPI] Idioma salvo no arquivo '" .. CONFIG.LOCAL_FILE .. "' e em variável global:", self.currentLanguage)
         return true
     else
-        warn("[TranslationAPI] Erro ao salvar idioma no arquivo:", error)
+        warn("[msdoors - translation api] Erro ao salvar idioma no arquivo:", error)
         return false
     end
 end
 
 function TranslationAPI:discoverAvailableLanguages()
     if not Cache:isExpired() and #Cache.availableLanguages > 0 then
-        print("[TranslationAPI] Usando cache de idiomas disponíveis")
         return Cache.availableLanguages
     end
     
-    print("[TranslationAPI] Descobrindo idiomas disponíveis...")
-    
     local apiResponse = safeHttpGet(CONFIG.GITHUB_API_URL)
     if not apiResponse then
-        warn("[TranslationAPI] Falha ao acessar API do GitHub, usando idiomas em cache")
+        warn("[msdoors - translation api] Falha ao acessar API do GitHub")
         return Cache.availableLanguages
     end
     
     local files = parseJSON(apiResponse)
     if not files then
-        warn("[TranslationAPI] Falha ao decodificar resposta da API do GitHub")
+        warn("[msdoors - translation api] Falha ao decodificar resposta da API")
         return Cache.availableLanguages
     end
     
@@ -168,7 +156,6 @@ function TranslationAPI:discoverAvailableLanguages()
     
     Cache:updateTimestamp()
     
-    print("[TranslationAPI] Idiomas descobertos:", table.concat(Cache.availableLanguages, ", "))
     return Cache.availableLanguages
 end
 
@@ -208,30 +195,26 @@ end
 
 function TranslationAPI:loadLanguageTranslations(languageCode)
     if Cache.translations[languageCode] and not Cache:isExpired() then
-        print("[TranslationAPI] Usando traduções em cache para:", languageCode)
         return true
     end
-    
-    print("[TranslationAPI] Carregando traduções para:", languageCode)
     
     local url = CONFIG.GITHUB_BASE_URL .. "/" .. CONFIG.LANGUAGES_FOLDER .. "/" .. languageCode .. ".json"
     local response = safeHttpGet(url)
     
     if not response then
-        warn("[TranslationAPI] Falha ao carregar traduções para:", languageCode)
+        warn("[msdoors - translation api] Falha ao carregar traduções para:", languageCode)
         return false
     end
     
     local translations = parseJSON(response)
     if not translations then
-        warn("[TranslationAPI] Falha ao decodificar traduções para:", languageCode)
+        warn("[msdoors - translation api] Falha ao decodificar traduções para:", languageCode)
         return false
     end
     
     Cache.translations[languageCode] = translations
     Cache:updateTimestamp()
     
-    print("[TranslationAPI] Traduções carregadas com sucesso para:", languageCode)
     return true
 end
 
@@ -272,19 +255,12 @@ end
 
 function TranslationAPI:setLanguage(languageCode)
     if not languageCode or languageCode == "" then
-        warn("[TranslationAPI] Código de idioma inválido")
+        warn("[msdoors - translation api] Código de idioma inválido")
         return false
     end
     
-    if languageCode == self.currentLanguage then
-        print("[TranslationAPI] Idioma já está definido como:", languageCode)
-        return true
-    end
-    
-    print("[TranslationAPI] Alterando idioma para:", languageCode)
-    
     if not self:loadLanguageTranslations(languageCode) then
-        warn("[TranslationAPI] Falha ao carregar idioma:", languageCode)
+        warn("[msdoors - translation api] Falha ao carregar idioma:", languageCode)
         return false
     end
     
@@ -299,8 +275,6 @@ function TranslationAPI:setLanguage(languageCode)
     
     self:executeLanguageChangedCallbacks(oldLanguage, languageCode)
     
-    print("[TranslationAPI] Idioma alterado com sucesso para:", languageCode)
-    print("[TranslationAPI] Variável global atualizada:", _G.msdoors_language)
     return true
 end
 
@@ -314,7 +288,7 @@ function TranslationAPI:executeLanguageChangedCallbacks(oldLanguage, newLanguage
     for _, callback in ipairs(self.languageChangedCallbacks) do
         local success, error = pcall(callback, oldLanguage, newLanguage)
         if not success then
-            warn("[TranslationAPI] Erro em callback de mudança de idioma:", error)
+            warn("[msdoors - translation api] Erro em callback de mudança de idioma:", error)
         end
     end
 end
@@ -345,19 +319,12 @@ function TranslationAPI:createLanguageDropdown(tab, options)
         Text = self:getTranslate("LanguageSelector", "Language"),
         Tooltip = self:getTranslate("LanguageTooltip", "Select your preferred language"),
         Callback = function(selected)
-            print("[TranslationAPI] Dropdown callback chamado com:", selected)
             local languageCode = languageOptions[selected]
-            print("[TranslationAPI] Código do idioma selecionado:", languageCode)
             
-            if languageCode and languageCode ~= self.currentLanguage then
+            if languageCode then
                 local success = self:setLanguage(languageCode)
-                if success then
-                    print("[TranslationAPI] Mudança de idioma bem-sucedida!")
-                    if options.Callback then
-                        options.Callback(languageCode, selected)
-                    end
-                else
-                    warn("[TranslationAPI] Falha ao alterar idioma para:", languageCode)
+                if success and options.Callback then
+                    options.Callback(languageCode, selected)
                 end
             end
         end
@@ -372,7 +339,6 @@ end
 
 function TranslationAPI:clearCache()
     Cache:clear()
-    print("[TranslationAPI] Cache limpo")
 end
 
 function TranslationAPI:getSystemInfo()
@@ -412,13 +378,7 @@ function TranslationAPI:validateTranslations(languageCode)
 end
 
 function TranslationAPI:forceCreateFile()
-    print("[TranslationAPI] Forçando criação do arquivo...")
     local success = self:saveCurrentLanguage()
-    if success then
-        print("[TranslationAPI] Arquivo criado com sucesso!")
-    else
-        warn("[TranslationAPI] Falha ao criar arquivo!")
-    end
     return success
 end
 
