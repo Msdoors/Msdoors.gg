@@ -103,18 +103,22 @@ end
 
 function TranslationAPI:loadSavedLanguage()
     if isfile(CONFIG.LOCAL_FILE) then
-        local savedLanguage = readfile(CONFIG.LOCAL_FILE):gsub("%s+", "")
-        if savedLanguage and savedLanguage ~= "" then
+        local success, savedLanguage = pcall(function()
+            return readfile(CONFIG.LOCAL_FILE):gsub("%s+", "")
+        end)
+        
+        if success and savedLanguage and savedLanguage ~= "" then
             self.currentLanguage = savedLanguage
             _G.msdoors_language = savedLanguage
             print("[TranslationAPI] Idioma carregado do arquivo local:", savedLanguage)
+            return
         end
-    else
-        print("[TranslationAPI] Nenhum idioma salvo encontrado, usando padrão:", CONFIG.DEFAULT_LANGUAGE)
-        _G.msdoors_language = CONFIG.DEFAULT_LANGUAGE
-        self.currentLanguage = CONFIG.DEFAULT_LANGUAGE
-        self:saveCurrentLanguage()
     end
+    
+    print("[TranslationAPI] Nenhum idioma salvo encontrado, criando arquivo com idioma padrão:", CONFIG.DEFAULT_LANGUAGE)
+    _G.msdoors_language = CONFIG.DEFAULT_LANGUAGE
+    self.currentLanguage = CONFIG.DEFAULT_LANGUAGE
+    self:saveCurrentLanguage()
 end
 
 function TranslationAPI:saveCurrentLanguage()
@@ -124,9 +128,9 @@ function TranslationAPI:saveCurrentLanguage()
     
     if success then
         _G.msdoors_language = self.currentLanguage
-        print("[TranslationAPI] Idioma salvo localmente e em variável global:", self.currentLanguage)
+        print("[TranslationAPI] Idioma salvo no arquivo '" .. CONFIG.LOCAL_FILE .. "' e em variável global:", self.currentLanguage)
     else
-        warn("[TranslationAPI] Erro ao salvar idioma:", error)
+        warn("[TranslationAPI] Erro ao salvar idioma no arquivo:", error)
     end
 end
 
@@ -312,23 +316,34 @@ function TranslationAPI:createLanguageDropdown(tab, options)
     
     local availableLanguages = self:getAvailableLanguages()
     local languageOptions = {}
+    local defaultValue = nil
     
     for _, code in ipairs(availableLanguages) do
-        languageOptions[self:getLanguageDisplayName(code)] = code
+        local displayName = self:getLanguageDisplayName(code)
+        languageOptions[displayName] = code
+        if code == self.currentLanguage then
+            defaultValue = displayName
+        end
+    end
+    
+    if not defaultValue then
+        defaultValue = self:getLanguageDisplayName(self.currentLanguage)
     end
     
     local dropdown = tab:AddDropdown("LanguageSelector", {
         Values = languageOptions,
-        Default = self:getLanguageDisplayName(self.currentLanguage),
+        Default = defaultValue,
         Multi = false,
         Text = self:getTranslate("LanguageSelector", "Language"),
         Tooltip = self:getTranslate("LanguageTooltip", "Select your preferred language"),
         Callback = function(selected)
+            print("[TranslationAPI] Dropdown callback chamado com:", selected)
             local languageCode = languageOptions[selected]
-            if languageCode then
-                self:setLanguage(languageCode)
-                
-                if options.Callback then
+            print("[TranslationAPI] Código do idioma selecionado:", languageCode)
+            
+            if languageCode and languageCode ~= self.currentLanguage then
+                local success = self:setLanguage(languageCode)
+                if success and options.Callback then
                     options.Callback(languageCode, selected)
                 end
             end
