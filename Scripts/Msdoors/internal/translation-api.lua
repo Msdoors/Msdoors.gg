@@ -8,7 +8,7 @@ local CONFIG = {
     GITHUB_BASE_URL = "https://raw.githubusercontent.com/msdoors-gg/msdoors-translations/main",
     GITHUB_API_URL = "https://api.github.com/repos/msdoors-gg/msdoors-translations/contents/Languages",
     LANGUAGES_FOLDER = "Languages",
-    LOCAL_FILE = "language.txt",
+    LOCAL_FILE = "msdoors/language.txt",
     DEFAULT_LANGUAGE = "pt-br",
     CACHE_DURATION = 300,
     REQUEST_TIMEOUT = 10
@@ -307,10 +307,9 @@ function TranslationAPI:createLanguageDropdown(tab, options)
     
     local availableLanguages = self:getAvailableLanguages()
     local dropdownValues = {}
-    local languageCodeMap = {} -- Mapa para converter nome de volta para código
+    local languageCodeMap = {}
     local defaultValue = nil
     
-    -- Criar valores para o dropdown e mapa de conversão
     for _, code in ipairs(availableLanguages) do
         local displayName = self:getLanguageDisplayName(code)
         table.insert(dropdownValues, displayName)
@@ -321,7 +320,6 @@ function TranslationAPI:createLanguageDropdown(tab, options)
         end
     end
     
-    -- Se não encontrou o idioma atual, usar o nome de exibição padrão
     if not defaultValue then
         defaultValue = self:getLanguageDisplayName(self.currentLanguage)
     end
