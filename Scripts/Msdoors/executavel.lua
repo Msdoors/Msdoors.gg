@@ -215,7 +215,7 @@ local function createUI()
     iconText.Parent = icon
 
     spawn(function()
-        task.wait(1)
+        task.wait(0.1)
         if icon.Image == "" or not icon.IsLoaded then
             iconText.Visible = true
             icon.BackgroundTransparency = 0
