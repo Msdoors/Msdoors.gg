@@ -1,3 +1,5 @@
+--[[ YOUR WILL TO SKID IS BIGGER THAN YOU! LOL YOU SKIDDER! ]]--
+
 local TranslationAPI = {}
 TranslationAPI.__index = TranslationAPI
 
