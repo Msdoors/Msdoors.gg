@@ -1,7 +1,7 @@
 if _G.msdoors_checkexecutor then
     return
 end
-
+print(" Testing your executor... ")
 local ExecutorSupport = {}
 local ExecutorSupportInfo = {}
 local GlobalVariablePrefix = "msdoors_executorinfo_"
