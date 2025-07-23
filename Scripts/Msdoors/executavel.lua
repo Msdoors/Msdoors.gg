@@ -1,3 +1,8 @@
+if _G.msdoors_isloading then
+print(" O SCRIPT JÁ ESTÁ CARREGANDO!!! ")
+end
+_G.msdoors_isloading = true
+
 if _G.ObsidianaLib then
     warn("[Msdoors] • Script já está carregado!")
             game:GetService("StarterGui"):SetCore("SendNotification", {
@@ -17,13 +22,12 @@ end
         sound.Ended:Connect(function()
             sound:Destroy()
         end)
-
-pcall(function()
+--[[ Aqui começa o teste do seu executor]]--
+--(( MUDAR OS VALORES DAS VARIÁVEIS NÃO VAI FAZER CERTAS FUNÇÕES FUNCIONAREM EM SEU EXECUTOR RUIM! ))--
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/Scripts/Msdoors/internal/TestExecutor.lua"))()
-end)
 
+--[[ EXTRAI VERSÃO MAIS RECENTE PARA EXIBIR NA TELA DE CARREGAMENTO ]]--
 _G.msdoors_version = game:HttpGet("https://msdoors.vercel.app/version")
-_G.msdoors_keyeystem_keystatus = true
 
 --[[
 local exname = {"Xeno", "Solara", "Delta"}
@@ -474,6 +478,8 @@ local function startMsdoors()
         ui.updateStatus("Jogo não suportado")
         ui.updateProgress(1)
         wait(2.5)
+        _G.msdoors_isloading = false
+        print("[ Msdoors ] » Script não está mais carregando. ")
         ui.destroy()
         return
     end
@@ -490,17 +496,21 @@ local function startMsdoors()
     
     if success then
         ui.updateStatus("Carregamento concluído!")
+        _G.ObsidianaLib = true
         ui.updateProgress(1)
         notify("Sucesso", "Script executado com sucesso!")
         task.wait(1.2)
     else
         _G.ObsidianaLib = false
+        _G.msdoors_isloading = false
         ui.updateStatus("Falha no carregamento")
         ui.updateProgress(1)
         task.wait(2.5)
     end
     
     ui.destroy()
+    _G.msdoors_isloading = false
+    _G.ObsidianaLib = false
 end
 
 startMsdoors()
