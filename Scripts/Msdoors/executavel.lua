@@ -117,7 +117,7 @@ local function notify(title, message)
     pcall(function()
         Services.StarterGui:SetCore("SendNotification", {
             Title = "Msdoors | " .. title,
-            image = "95869322194132",
+            Image = "rbxassetid://95869322194132",
             Text = message,
             Duration = 5
         })
