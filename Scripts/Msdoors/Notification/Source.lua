@@ -22,13 +22,13 @@ local function Notify(options)
     end
 end
 
-local function MsdoorsNotify(title, description, reason, image, color, style, time)
+local function MsdoorsNotify(title, description, reason, image, color, Style, time)
     title = title or "Sem Título"
     description = description or "Sem Descrição"
     reason = reason or ""
     image = image or "rbxassetid://6023426923"
     color = color or Color3.new(1, 1, 1)
-    style = style or "NOTIFICATION"
+    Style = style or "NOTIFICATION"
     time = time or 5
 
     local mainUI = game.Players.LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("MainUI")
@@ -90,7 +90,7 @@ _G.msdoors_.Notify = function(options)
             options.Reason, 
             options.Image, 
             options.Color, 
-            options.style,
+            options.Style,
             options.Time
         )
     elseif notifyStyle == "Linoria" then
