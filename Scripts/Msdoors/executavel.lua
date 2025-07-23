@@ -19,7 +19,7 @@ end
         end)
 
 pcall(function()
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/Scripts/Msdoors/internal/TestExecutor.luau"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/Scripts/Msdoors/internal/TestExecutor.lua"))()
 end)
 
 _G.msdoors_version = game:HttpGet("https://msdoors.vercel.app/version")
@@ -46,8 +46,6 @@ for i, nome in pairs(exname) do
     end
 end
 ]]--
-
-_G.msdoors_keyeystem_keystatus = true
 
 local Services = {
     ReplicatedStorage = game:GetService("ReplicatedStorage"),
@@ -119,6 +117,7 @@ local function notify(title, message)
     pcall(function()
         Services.StarterGui:SetCore("SendNotification", {
             Title = "Msdoors | " .. title,
+            image = "95869322194132",
             Text = message,
             Duration = 5
         })
