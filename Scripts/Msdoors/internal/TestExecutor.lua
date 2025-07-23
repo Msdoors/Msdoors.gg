@@ -34,8 +34,10 @@ local executorVersion = "Desconhecido"
 local executorFullInfo = "Desconhecido"
 
 if pcall(function() 
-    executorFullInfo = identifyexecutor() or "None"
-    local parts = string.split(executorFullInfo, " ")
+    local parts = {}
+    for part in executorFullInfo:gmatch("%S+") do
+    table.insert(parts, part) 
+    end
     executorName = parts[1] or "Desconhecido"
     if #parts > 1 then
         table.remove(parts, 1)
