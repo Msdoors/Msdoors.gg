@@ -308,35 +308,31 @@ function TranslationAPI:createLanguageDropdown(tab, options)
     options = options or {}
     
     local availableLanguages = self:getAvailableLanguages()
-    local dropdownValues = {}
+    local dropdownValues = {"Select language"}
     local languageCodeMap = {}
-    local defaultValue = nil
     
     for _, code in ipairs(availableLanguages) do
         local displayName = self:getLanguageDisplayName(code)
         table.insert(dropdownValues, displayName)
         languageCodeMap[displayName] = code
-        
-        if code == self.currentLanguage then
-            defaultValue = displayName
-        end
-    end
-    
-    if not defaultValue then
-        defaultValue = self:getLanguageDisplayName(self.currentLanguage)
     end
     
     print("[msdoors - translation api] Criando dropdown com valores:", table.concat(dropdownValues, ", "))
-    print("[msdoors - translation api] Valor padrão:", defaultValue)
+    print("[msdoors - translation api] Valor padrão:", "Select language")
     
     local dropdown = tab:AddDropdown("LanguageSelector", {
         Values = dropdownValues,
-        Default = defaultValue,
+        Default = "Select language",
         Multi = false,
         Text = self:getTranslate("LanguageSelector", "Language"),
         Tooltip = self:getTranslate("LanguageTooltip", "Select your preferred language"),
         Callback = function(selected)
             print("[msdoors - translation api] Dropdown selecionado:", selected)
+            
+            if selected == "Select language" then
+                print("Select a language from the dropdown.")
+                return
+            end
             
             local languageCode = languageCodeMap[selected]
             if languageCode then
