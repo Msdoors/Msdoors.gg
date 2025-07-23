@@ -1,7 +1,6 @@
 if _G.msdoors_isloading then
 print(" O SCRIPT JÁ ESTÁ CARREGANDO!!! ")
 end
-_G.msdoors_isloading = true
 
 if _G.ObsidianaLib then
     warn("[Msdoors] • Script já está carregado!")
@@ -464,6 +463,7 @@ local function startMsdoors()
     local currentGame = game.PlaceId
 
     ui.updateStatus("Inicializando sistema...")
+    _G.msdoors_isloading = true
     ui.updateProgress(0.1)
     wait(0.6)
 
