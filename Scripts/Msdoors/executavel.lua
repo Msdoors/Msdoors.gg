@@ -2,7 +2,7 @@ if _G.msdoors_isloading then
 print(" O SCRIPT JÁ ESTÁ CARREGANDO!!! ")
 end
 
-if _G.ObsidianaLib then
+if shared.loaded then
     warn("[Msdoors] • Script já está carregado!")
             game:GetService("StarterGui"):SetCore("SendNotification", {
             Title = "Script já carregado!",
@@ -78,31 +78,6 @@ local function getHiddenParent()
     return Services.CoreGui
 end
 
-local placeIdList = {
-    [6839171747] = true,
-    [2440500124] = true,
-    [10549820578] = true,
-    [87716067947993] = true,
-    [110258689672367] = true
-}
-
-if placeIdList[placeId] then
-    local success, floor = pcall(function()
-        local gameData = Services.ReplicatedStorage:WaitForChild("GameData", 5)
-        return gameData and gameData:WaitForChild("Floor", 5) and gameData.Floor.Value
-    end)
-    
-    if success and floor then
-        local floornickname = {
-            ["Fools"] = "Super Hard Mode",
-            ["Party"] = "Ranked",
-            ["Retro"] = "Retro Mode"
-        }
-        _G.msdoors_floor = floornickname[floor] or floor
-        print("[ Msdoors ] » {DOORS} FLOOR DETECTADO: " .. _G.msdoors_floor)
-    end
-end
-
 local SCRIPT_URL = "https://raw.githubusercontent.com/Sc-Rhyan57/Msdoors/refs/heads/main/Src/Loaders/"
 local SUPPORTED_GAMES = {
     [6516141723] = "Doors/lobby/lobby.lua",
@@ -113,7 +88,7 @@ local SUPPORTED_GAMES = {
     [110258689672367] = "Doors/hotel.lua",
     [189707] = "Natural-Disaster/places/game.lua",
     [5275822877] = "Carrinho%2Bcart-para-Giganoob/game.lua",
-    [12552538292] = "pressure/game.lua"
+    [12552538292] = "pressure/game.lua" --[[ EASTER EGG EZ ]]--
 }
 
 local function notify(title, message)
@@ -473,7 +448,7 @@ local function startMsdoors()
 
     local scriptName = SUPPORTED_GAMES[currentGame]
     if not scriptName then
-        _G.ObsidianaLib = false
+        shared.loaded =  = false
         notify("Aviso", "Jogo não suportado")
         ui.updateStatus("Jogo não suportado")
         ui.updateProgress(1)
@@ -496,12 +471,12 @@ local function startMsdoors()
     
     if success then
         ui.updateStatus("Carregamento concluído!")
-        _G.ObsidianaLib = true
+        shared.loaded = true
         ui.updateProgress(1)
         notify("Sucesso", "Script executado com sucesso!")
         task.wait(1.2)
     else
-        _G.ObsidianaLib = false
+        shared.loaded = false
         _G.msdoors_isloading = false
         ui.updateStatus("Falha no carregamento")
         ui.updateProgress(1)
@@ -510,7 +485,6 @@ local function startMsdoors()
     
     ui.destroy()
     _G.msdoors_isloading = false
-    _G.ObsidianaLib = false
 end
 
 startMsdoors()
