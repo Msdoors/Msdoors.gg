@@ -1,14 +1,13 @@
-if _G.msdoors_checkexecutor then
-    return
+if shared.testexecutor then
+    return shared.testexecutor
 end
 
 print(" Testing your executor... ")
 
 local exec = {}
 local info = {}
-local pfx = "msdoors_executorinfo_"
 
-_G[pfx .. "timestamp"] = os.time()
+shared.testexecutor = {}
 
 local function getVersion()
     local ok, ver = pcall(function()
@@ -17,7 +16,8 @@ local function getVersion()
     return ok and ver or "unknown"
 end
 
-_G[pfx .. "version"] = getVersion()
+shared.testexecutor.timestamp = os.time()
+shared.testexecutor.version = getVersion()
 
 local function fmtTime()
     local t = os.date("*t")
@@ -46,9 +46,9 @@ if not ok then
     name, ver, full = "Desconhecido", "Desconhecido", "Desconhecido"
 end
 
-_G[pfx .. "name"] = name
-_G[pfx .. "version"] = ver
-_G[pfx .. "fullInfo"] = full
+shared.testexecutor.name = name
+shared.testexecutor.executorVersion = ver
+shared.testexecutor.fullInfo = full
 
 local broken = {
     Arceus = {require = true},
@@ -80,7 +80,7 @@ if identifyexecutor and typeof(identifyexecutor) == "function" then
     end
 end
 
-_G[pfx .. "osType"] = os_type
+shared.testexecutor.osType = os_type
 
 local function test(n, f, cb)
     if broken[name] and broken[name][n] then
@@ -94,9 +94,15 @@ local function test(n, f, cb)
         ok = typeof(f) == "function"
     end
     
-    info[n] = string.format("%s [%s]%s", (ok and "✅" or "❌"), n, (err and (": " .. tostring(err)) or ""))
+    local status = ok and "✅ SUPORTADO" or "❌ NÃO SUPORTADO"
+    local errorMsg = ""
+    if not ok and err then
+        errorMsg = " [ ERRO: " .. tostring(err) .. " ]"
+    end
+    
+    info[n] = n .. " " .. status .. errorMsg
     exec[n] = ok
-    _G[pfx .. "support" .. n] = ok
+    shared.testexecutor[n] = ok
     return ok
 end
 
@@ -105,8 +111,8 @@ local function safe(n, f)
         test(n, f, false)
     else
         exec[n] = false
-        info[n] = "❌ [" .. n .. "] (não disponível)"
-        _G[pfx .. "support" .. n] = false
+        info[n] = n .. " ❌ NÃO SUPORTADO [ ERRO: função não disponível ]"
+        shared.testexecutor[n] = false
     end
 end
 
@@ -141,12 +147,12 @@ safe("httprequest", httprequest)
 
 if syn and syn.request then
     exec["syn.request"] = true
-    info["syn.request"] = "✅ [syn.request]"
-    _G[pfx .. "supportsyn.request"] = true
+    info["syn.request"] = "syn.request ✅ SUPORTADO"
+    shared.testexecutor["syn.request"] = true
 else
     exec["syn.request"] = false
-    info["syn.request"] = "❌ [syn.request] (não disponível)"
-    _G[pfx .. "supportsyn.request"] = false
+    info["syn.request"] = "syn.request ❌ NÃO SUPORTADO [ ERRO: biblioteca syn não disponível ]"
+    shared.testexecutor["syn.request"] = false
 end
 
 safe("queue_on_teleport", queue_on_teleport)
@@ -163,25 +169,25 @@ safe("firesignal", firesignal)
 
 if Drawing then
     exec["Drawing"] = true
-    info["Drawing"] = "✅ [Drawing]"
-    _G[pfx .. "supportDrawing"] = true
+    info["Drawing"] = "Drawing ✅ SUPORTADO"
+    shared.testexecutor.Drawing = true
     
     if Drawing.new then
         exec["Drawing.new"] = true
-        info["Drawing.new"] = "✅ [Drawing.new]"
-        _G[pfx .. "supportDrawing.new"] = true
+        info["Drawing.new"] = "Drawing.new ✅ SUPORTADO"
+        shared.testexecutor["Drawing.new"] = true
     else
         exec["Drawing.new"] = false
-        info["Drawing.new"] = "❌ [Drawing.new] (não disponível)"
-        _G[pfx .. "supportDrawing.new"] = false
+        info["Drawing.new"] = "Drawing.new ❌ NÃO SUPORTADO [ ERRO: método new não disponível ]"
+        shared.testexecutor["Drawing.new"] = false
     end
 else
     exec["Drawing"] = false
     exec["Drawing.new"] = false
-    info["Drawing"] = "❌ [Drawing] (não disponível)"
-    info["Drawing.new"] = "❌ [Drawing.new] (não disponível)"
-    _G[pfx .. "supportDrawing"] = false
-    _G[pfx .. "supportDrawing.new"] = false
+    info["Drawing"] = "Drawing ❌ NÃO SUPORTADO [ ERRO: biblioteca Drawing não disponível ]"
+    info["Drawing.new"] = "Drawing.new ❌ NÃO SUPORTADO [ ERRO: biblioteca Drawing não disponível ]"
+    shared.testexecutor.Drawing = false
+    shared.testexecutor["Drawing.new"] = false
 end
 
 safe("fireclickdetector", fireclickdetector)
@@ -209,8 +215,8 @@ if getfenv()["require"] then
     end)
 else
     exec["require"] = false
-    info["require"] = "❌ [require] (não disponível)"
-    _G[pfx .. "supportrequire"] = false
+    info["require"] = "require ❌ NÃO SUPORTADO [ ERRO: função não disponível ]"
+    shared.testexecutor.require = false
 end
 
 if getfenv()["hookmetamethod"] then
@@ -222,8 +228,8 @@ if getfenv()["hookmetamethod"] then
     end)
 else
     exec["hookmetamethod"] = false
-    info["hookmetamethod"] = "❌ [hookmetamethod] (não disponível)"
-    _G[pfx .. "supporthookmetamethod"] = false
+    info["hookmetamethod"] = "hookmetamethod ❌ NÃO SUPORTADO [ ERRO: função não disponível ]"
+    shared.testexecutor.hookmetamethod = false
 end
 
 local canFire = test("fireproximityprompt", function()
@@ -236,7 +242,7 @@ local canFire = test("fireproximityprompt", function()
     assert(triggered, "Failed to fire proximity prompt")
 end)
 
-_G[pfx .. "supportfireProximityPrompt"] = canFire
+shared.testexecutor.fireProximityPrompt = canFire
 
 if not canFire then
     local function fireProx(p, look, instant)
@@ -298,8 +304,8 @@ elseif getfenv()["isnetowner"] then
     end
     
     exec.isnetworkowner = true
-    info.isnetworkowner = "✅ [isnetworkowner] (usando isnetowner)"
-    _G[pfx .. "supportisnetworkowner"] = true
+    info.isnetworkowner = "isnetworkowner ✅ SUPORTADO (usando isnetowner)"
+    shared.testexecutor.isnetworkowner = true
 else
     function isnetowner(p)
         if not p:IsA("BasePart") then
@@ -310,8 +316,8 @@ else
     
     exec.isnetworkowner = isnetowner
     exec.isnetowner = isnetowner
-    info.isnetworkowner = "⚠️ [isnetworkowner] (implementação alternativa)"
-    _G[pfx .. "supportisnetworkowner"] = false
+    info.isnetworkowner = "isnetworkowner ❌ NÃO SUPORTADO [ ERRO: implementação alternativa ]"
+    shared.testexecutor.isnetworkowner = false
 end
 
 if getfenv()["firetouchinterest"] then
@@ -356,18 +362,18 @@ elseif getfenv()["firetouchtransmitter"] then
     exec.firetouch = firetouchtransmitter
 else
     exec.firetouch = nil
-    info.firetouch = "❌ [firetouch] (não disponível)"
-    _G[pfx .. "supportfiretouch"] = false
+    info.firetouch = "firetouch ❌ NÃO SUPORTADO [ ERRO: função não disponível ]"
+    shared.testexecutor.firetouch = false
 end
 
 if getfenv()["debug"] and debug.info then
     exec.debugger = true
-    info.debugger = "✅ [debugger]"
-    _G[pfx .. "supportdebugger"] = true
+    info.debugger = "debugger ✅ SUPORTADO"
+    shared.testexecutor.debugger = true
 else
     exec.debugger = false
-    info.debugger = "❌ [debugger] (não disponível)"
-    _G[pfx .. "supportdebugger"] = false
+    info.debugger = "debugger ❌ NÃO SUPORTADO [ ERRO: debug.info não disponível ]"
+    shared.testexecutor.debugger = false
 end
 
 safe("newcclosure", newcclosure)
@@ -393,13 +399,13 @@ if ok then
     uid = res
 end
 
-_G[pfx .. "placeId"] = pid
-_G[pfx .. "universeId"] = uid
+shared.testexecutor.placeId = pid
+shared.testexecutor.universeId = uid
 
-_G[pfx .. "supportFileSystem"] = (exec["isfile"] and exec["delfile"] and exec["listfiles"] and exec["writefile"] and exec["makefolder"] and exec["isfolder"])
-_G[pfx .. "supportEditFiles"] = (exec["writefile"] and exec["appendfile"] and exec["delfile"])
-_G[pfx .. "supportDrawing"] = exec["Drawing.new"] or false
-_G[pfx .. "supportHTTP"] = (exec["request"] or exec["http_request"] or exec["syn.request"] or exec["httprequest"]) or false
+shared.testexecutor.supportFileSystem = (exec["isfile"] and exec["delfile"] and exec["listfiles"] and exec["writefile"] and exec["makefolder"] and exec["isfolder"])
+shared.testexecutor.supportEditFiles = (exec["writefile"] and exec["appendfile"] and exec["delfile"])
+shared.testexecutor.supportDrawing = exec["Drawing.new"] or false
+shared.testexecutor.supportHTTP = (exec["request"] or exec["http_request"] or exec["syn.request"] or exec["httprequest"]) or false
 
 local groups = {
     ["Sistema de Arquivos"] = {"readfile", "listfiles", "writefile", "makefolder", "appendfile", "isfile", "isfolder", "delfile", "delfolder", "loadfile"},
@@ -418,9 +424,9 @@ exec["_ExecutorName"] = name
 exec["_ExecutorVersion"] = ver
 exec["_ExecutorFullInfo"] = full
 exec["_OSType"] = os_type
-exec["_SupportsFileSystem"] = _G[pfx .. "supportFileSystem"]
-exec["_SupportsHTTP"] = _G[pfx .. "supportHTTP"]
-exec["_SupportsDrawing"] = _G[pfx .. "supportDrawing"]
+exec["_SupportsFileSystem"] = shared.testexecutor.supportFileSystem
+exec["_SupportsHTTP"] = shared.testexecutor.supportHTTP
+exec["_SupportsDrawing"] = shared.testexecutor.supportDrawing
 exec["_PlaceId"] = pid
 exec["_UniverseId"] = uid
 
@@ -452,7 +458,7 @@ local function save()
     end
 end
 
-_G[pfx .. "logPath"] = path
+shared.testexecutor.logPath = path
 
 log("\n\n")
 log("═════════════════════════════════════════════")
@@ -470,15 +476,13 @@ log("🆔 Place ID: " .. pid)
 if uid then
     log("🌌 Universe ID: " .. uid)
 end
-log("⏰ Timestamp: " .. os.date("%Y-%m-%d %H:%M:%S", _G[pfx .. "timestamp"]))
-log("═════════════════════════════════════════════")
+log("⏰ Timestamp: " .. os.date("%Y-%m-%d %H:%M:%S", shared.testexecutor.timestamp))
 
 log("\n📑 RESUMO DE CAPACIDADES:")
 log("✅ Sistema de Arquivos: " .. (exec["_SupportsFileSystem"] and "Suportado" or "Não suportado"))
 log("✅ HTTP: " .. (exec["_SupportsHTTP"] and "Suportado" or "Não suportado"))
 log("✅ Drawing: " .. (exec["_SupportsDrawing"] and "Suportado" or "Não suportado"))
 log("✅ ProximityPrompt: " .. (canFire and "Suportado" or "Implementação alternativa"))
-log("═════════════════════════════════════════════")
 
 for gn, feats in pairs(groups) do
     local gc = 0
@@ -509,15 +513,9 @@ for gn, feats in pairs(groups) do
     end
 end
 
-log("\n═════════════════════════════════════════════")
-log("📝 VARIÁVEIS GLOBAIS DEFINIDAS:")
-log("═════════════════════════════════════════════")
-
 local gvs = {}
-for k, v in pairs(_G) do
-    if string.find(k, pfx) then
-        table.insert(gvs, {key = k, value = v})
-    end
+for k, v in pairs(shared.testexecutor) do
+    table.insert(gvs, {key = k, value = v})
 end
 
 table.sort(gvs, function(a, b) return a.key < b.key end)
@@ -526,52 +524,6 @@ for _, gv in ipairs(gvs) do
     log(gv.key .. " = " .. tostring(gv.value))
 end
 
-log("\n═════════════════════════════════════════════")
-log("🔍 VERIFICAÇÃO COMPLETA!")
-log("═════════════════════════════════════════════")
+save()
 
-log("\n═════════════════════════════════════════════")
-log("ℹ️ INFORMAÇÕES ADICIONAIS DO SISTEMA")
-log("═════════════════════════════════════════════")
-
-pcall(function()
-    local stats = game:GetService("Stats")
-    local fps = stats.FrameRateManager.AverageFPS
-    if fps and fps.GetValue then
-        log("📈 FPS: " .. math.floor(1/fps:GetValue()))
-    end
-    local mem = stats.GetTotalMemoryUsageMb
-    if mem then
-        log("🧠 Uso de Memória: " .. math.floor(mem(stats)) .. " MB")
-    end
-    local ping = stats.Network.ServerStatsItem["Data Ping"]
-    if ping and ping.GetValue then
-        log("🔄 Ping: " .. math.floor(ping:GetValue()) .. " ms")
-    end
-end)
-
-pcall(function()
-    if getfenv()["getgenv"] and getgenv().debug_info then
-        for k, v in pairs(getgenv().debug_info) do
-            log("🖥️ " .. k .. ": " .. tostring(v))
-        end
-    end
-end)
-
-pcall(function()
-    local plr = game:GetService("Players").LocalPlayer
-    if plr then
-        log("👤 Nome do Jogador: " .. plr.Name)
-        log("🆔 ID do Jogador: " .. plr.UserId)
-        log("⭐ Idade da Conta: " .. plr.AccountAge .. " dias")
-    end
-end)
-
-log("\n═════════════════════════════════════════════")
-log("📋 LOG FINALIZADO: " .. dt)
-log("═════════════════════════════════════════════\n\n")
-
---[[ save() ]]--
-
-_G.msdoors_checkexecutor = true
-return exec
+return shared.testexecutor
