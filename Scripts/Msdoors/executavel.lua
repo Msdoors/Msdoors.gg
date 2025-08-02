@@ -448,7 +448,7 @@ local function startMsdoors()
 
     local scriptName = SUPPORTED_GAMES[currentGame]
     if not scriptName then
-        shared.loaded =  = false
+        shared.loaded = false
         notify("Aviso", "Jogo não suportado")
         ui.updateStatus("Jogo não suportado")
         ui.updateProgress(1)
