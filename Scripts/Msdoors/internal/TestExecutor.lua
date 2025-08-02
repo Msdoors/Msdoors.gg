@@ -524,6 +524,6 @@ for _, gv in ipairs(gvs) do
     log(gv.key .. " = " .. tostring(gv.value))
 end
 
-save()
+-- save()  PAROU!
 
 return shared.testexecutor
