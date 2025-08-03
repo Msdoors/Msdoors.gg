@@ -471,7 +471,6 @@ local function startMsdoors()
     
     if success then
         ui.updateStatus("Carregamento concluído!")
-        shared.loaded = true
         ui.updateProgress(1)
         notify("Sucesso", "Script executado com sucesso!")
         task.wait(1.2)
