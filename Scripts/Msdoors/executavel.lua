@@ -26,7 +26,7 @@ end
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/Scripts/Msdoors/internal/TestExecutor.lua"))()
 
 --[[ EXTRAI VERSÃO MAIS RECENTE PARA EXIBIR NA TELA DE CARREGAMENTO ]]--
-_G.msdoors_version = game:HttpGet("https://msdoors.vercel.app/version")
+_G.msdoors_version = game:HttpGet("https://www.msdoors.xyz/version")
 
 --[[
 local exname = {"Xeno", "Solara", "Delta"}
