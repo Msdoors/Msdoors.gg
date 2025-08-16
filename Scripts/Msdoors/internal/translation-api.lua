@@ -16,6 +16,34 @@ local CONFIG = {
     REQUEST_TIMEOUT = 10
 }
 
+local ROBLOX_LANGUAGE_MAP = {
+    ["en-us"] = "en",
+    ["en-gb"] = "en",
+    ["pt-br"] = "pt-br",
+    ["es-es"] = "es",
+    ["es-mx"] = "es",
+    ["fr-fr"] = "fr",
+    ["de-de"] = "de",
+    ["it-it"] = "it",
+    ["ru-ru"] = "ru",
+    ["ja-jp"] = "ja",
+    ["ko-kr"] = "ko",
+    ["zh-cn"] = "zh-cn",
+    ["zh-tw"] = "zh-tw",
+    ["ar-sa"] = "ar",
+    ["hi-in"] = "hi",
+    ["tr-tr"] = "tr",
+    ["pl-pl"] = "pl",
+    ["nl-nl"] = "nl",
+    ["sv-se"] = "sv",
+    ["no-no"] = "no",
+    ["da-dk"] = "da",
+    ["fi-fi"] = "fi",
+    ["th-th"] = "en",
+    ["vi-vn"] = "en",
+    ["id-id"] = "en",
+}
+
 local function safeHttpGet(url, timeout)
     timeout = timeout or CONFIG.REQUEST_TIMEOUT
     local success, result = pcall(function()
@@ -54,6 +82,27 @@ local function encodeJSON(table)
         warn("[msdoors - translation api] Erro ao codificar JSON:", result)
         return "{}"
     end
+end
+
+local function detectUserLanguage()
+    local success, localizationService = pcall(function()
+        return game:GetService("LocalizationService")
+    end)
+    
+    if success and localizationService then
+        local success2, robloxLocaleId = pcall(function()
+            return localizationService.RobloxLocaleId
+        end)
+        
+        if success2 and robloxLocaleId then
+            local mappedLanguage = ROBLOX_LANGUAGE_MAP[robloxLocaleId:lower()]
+            if mappedLanguage then
+                return mappedLanguage
+            end
+        end
+    end
+    
+    return CONFIG.DEFAULT_LANGUAGE
 end
 
 local Cache = {
@@ -110,8 +159,25 @@ function TranslationAPI:loadSavedLanguage()
         self.currentLanguage = savedLanguage
         _G.msdoors_language = savedLanguage
     else
-        self.currentLanguage = CONFIG.DEFAULT_LANGUAGE
-        _G.msdoors_language = CONFIG.DEFAULT_LANGUAGE
+        local detectedLanguage = detectUserLanguage()
+        
+        self:discoverAvailableLanguages()
+        local isLanguageAvailable = false
+        for _, lang in ipairs(Cache.availableLanguages) do
+            if lang == detectedLanguage then
+                isLanguageAvailable = true
+                break
+            end
+        end
+        
+        if isLanguageAvailable then
+            self.currentLanguage = detectedLanguage
+            _G.msdoors_language = detectedLanguage
+        else
+            self.currentLanguage = CONFIG.DEFAULT_LANGUAGE
+            _G.msdoors_language = CONFIG.DEFAULT_LANGUAGE
+        end
+        
         self:saveCurrentLanguage()
     end
 end
