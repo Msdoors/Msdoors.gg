@@ -11,7 +11,7 @@ shared.testexecutor = {}
 
 local function getVersion()
     local ok, ver = pcall(function()
-        return game:HttpGet("https://www.msdoors.xyz/version")
+        return _G.msdoors_version
     end)
     return ok and ver or "unknown"
 end
