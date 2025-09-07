@@ -23,10 +23,10 @@ end
         end)
 --[[ Aqui começa o teste do seu executor]]--
 --(( MUDAR OS VALORES DAS VARIÁVEIS NÃO VAI FAZER CERTAS FUNÇÕES FUNCIONAREM EM SEU EXECUTOR RUIM! ))--
+_G.msdoors_version = game:HttpGet("https://oficial.msdoors.xyz/msdoors/version")
+
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/Scripts/Msdoors/internal/TestExecutor.lua"))()
 
---[[ EXTRAI VERSÃO MAIS RECENTE PARA EXIBIR NA TELA DE CARREGAMENTO ]]--
-_G.msdoors_version = game:HttpGet("https://oficial.msdoors.xyz/msdoors/version")
 
 --[[
 local exname = {"Xeno", "Solara", "Delta"}
