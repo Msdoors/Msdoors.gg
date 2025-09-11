@@ -2,6 +2,10 @@ if _G.msdoors_isloading then
 print(" O SCRIPT JÁ ESTÁ CARREGANDO!!! ")
 end
 
+--[[ Aqui começa o teste do seu executor]]--
+--(( MUDAR OS VALORES DAS VARIÁVEIS NÃO VAI FAZER CERTAS FUNÇÕES FUNCIONAREM EM SEU EXECUTOR RUIM! ))--
+_G.msdoors_version = game:HttpGet("https://oficial.msdoors.xyz/msdoors/version")
+
 if shared.loaded then
     warn("[Msdoors] • Script já está carregado!")
             game:GetService("StarterGui"):SetCore("SendNotification", {
@@ -21,12 +25,7 @@ end
         sound.Ended:Connect(function()
             sound:Destroy()
         end)
---[[ Aqui começa o teste do seu executor]]--
---(( MUDAR OS VALORES DAS VARIÁVEIS NÃO VAI FAZER CERTAS FUNÇÕES FUNCIONAREM EM SEU EXECUTOR RUIM! ))--
-_G.msdoors_version = game:HttpGet("https://oficial.msdoors.xyz/msdoors/version")
-
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/Scripts/Msdoors/internal/TestExecutor.lua"))()
-
 
 --[[
 local exname = {"Xeno", "Solara", "Delta"}
