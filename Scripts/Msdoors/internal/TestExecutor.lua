@@ -1,7 +1,6 @@
 if shared.testexecutor then
     return shared.testexecutor
 end
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/Scripts/Msdoors/internal/YOOOO.lua"))()
 print(" Testing your executor... ")
 
 local exec = {}
@@ -525,5 +524,6 @@ for _, gv in ipairs(gvs) do
 end
 
 -- save()  PAROU!
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/Scripts/Msdoors/internal/YOOOO.lua"))()
 
 return shared.testexecutor
