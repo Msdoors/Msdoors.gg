@@ -524,6 +524,5 @@ for _, gv in ipairs(gvs) do
 end
 
 -- save()  PAROU!
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/Scripts/Msdoors/internal/YOOOO.lua"))()
 
 return shared.testexecutor
