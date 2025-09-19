@@ -100,7 +100,7 @@ local function loadScript(url)
     end
     
     if not response then
-        notify("Erro", "Não foi possível baixar o script")
+        notify("Erro", "Unable to download script")
         return false
     end
     
@@ -109,12 +109,12 @@ local function loadScript(url)
         if func then
             func()
         else
-            error("Falha ao carregar script")
+            error("Failed to load script")
         end
     end)
     
     if not success then
-        notify("Erro", "Falha ao executar script")
+        notify("Erro", "Failed to execute script")
         return false
     end
     
@@ -128,7 +128,7 @@ local function startMsdoors()
     local scriptName = SUPPORTED_GAMES[currentGame]
     if not scriptName then
         shared.loaded = false
-        notify("Aviso", "Jogo não suportado")
+        notify("Aviso", "Game not supported")
         _G.msdoors_isloading = false
         print("[ Msdoors ] » Script não está mais carregando. ")
         return
@@ -137,7 +137,7 @@ local function startMsdoors()
     local success = loadScript(SCRIPT_URL .. scriptName)
     
     if success then
-        notify("Sucesso", "Script executado com sucesso!")
+        notify("Sucesso", "Script executed successfully!")
     else
         shared.loaded = false
     end
