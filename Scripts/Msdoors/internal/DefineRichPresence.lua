@@ -3,59 +3,58 @@ local RunService = game:GetService("RunService")
 
 local CACHE_PATH = "msdoors/cache/"
 local TOKEN_FILE = CACHE_PATH .. "token.txt"
-local TEMPLATES_FILE = CACHE_PATH .. "templates.json"
-local CONFIG_FILE = CACHE_PATH .. "config.json"
 
-local function ensureDirectories()
+if not isfolder then
+    function isfolder() return false end
+    function makefolder() end
+    function writefile() end
+    function readfile() return "" end
+    function delfile() end
+    function isfile() return false end
+end
+
+do
     if not isfolder("msdoors") then makefolder("msdoors") end
     if not isfolder(CACHE_PATH) then makefolder(CACHE_PATH) end
 end
 
 local function getHttpMethod()
     if syn and syn.request then return syn.request
-    elseif http and http.request then return http.request
-    elseif http_request then return http_request
     elseif request then return request
-    else error("No HTTP method available") end
+    elseif http_request then return http_request
+    elseif http and http.request then return http.request
+    else
+        return function()
+            error("No HTTP method available in this executor")
+        end
+    end
 end
 
 local function createWebSocket(url)
-    if WebSocket and WebSocket.connect then return WebSocket.connect(url)
-    elseif syn and syn.websocket and syn.websocket.connect then return syn.websocket.connect(url)
-    else error("No WebSocket support available") end
+    if WebSocket and WebSocket.connect then 
+        return WebSocket.connect(url)
+    elseif syn and syn.websocket and syn.websocket.connect then 
+        return syn.websocket.connect(url)
+    else
+        error("No WebSocket support available in this executor")
+    end
 end
 
 local DiscordRPC = {}
 DiscordRPC.__index = DiscordRPC
 
 function DiscordRPC.new()
-    ensureDirectories()
-    return setmetatable({
-        token = nil,
-        user = nil,
-        ws = nil,
-        heartbeat = nil,
-        sequence = nil,
-        session_id = nil,
-        resume_url = nil,
-        request = getHttpMethod(),
-        activities = {},
-        templates = {},
-        config = {
-            auto_reconnect = true,
-            heartbeat_ack = true,
-            debug = false
-        },
-        connections = {},
-        start_time = tick(),
-        presence_history = {}
-    }, DiscordRPC)
-end
-
-function DiscordRPC:log(message, level)
-    if self.config.debug then
-        print(string.format("[DiscordRPC] [%s] %s", level or "INFO", message))
-    end
+    local self = setmetatable({}, DiscordRPC)
+    self.token = nil
+    self.user = nil
+    self.ws = nil
+    self.heartbeat_task = nil
+    self.sequence = nil
+    self.session_id = nil
+    self.request = getHttpMethod()
+    self.activities = {}
+    self.connected = false
+    return self
 end
 
 function DiscordRPC:authenticate(token)
@@ -63,63 +62,75 @@ function DiscordRPC:authenticate(token)
         return false, "Invalid token format"
     end
     
-    self:log("Authenticating with Discord API...")
     local success, response = pcall(self.request, {
         Url = "https://discord.com/api/v10/users/@me",
         Method = "GET",
         Headers = {
             Authorization = token,
-            ["Content-Type"] = "application/json",
-            ["User-Agent"] = "DiscordBot (https://github.com/discord/discord-api-docs, 1.0.0)"
+            ["Content-Type"] = "application/json"
         }
     })
     
-    if not success or response.StatusCode ~= 200 then
-        self:log("Authentication failed: " .. tostring(response and response.StatusCode or "Network error"), "ERROR")
-        return false, "Authentication failed"
+    if not success then
+        return false, "Request failed: " .. tostring(response)
+    end
+    
+    if response.StatusCode ~= 200 then
+        return false, "Authentication failed: " .. tostring(response.StatusCode)
     end
     
     local userData = HttpService:JSONDecode(response.Body)
     self.token = token
     self.user = userData
     
-    writefile(TOKEN_FILE, token)
-    self:log("Authenticated as " .. userData.username .. "#" .. userData.discriminator)
+    if writefile then
+        writefile(TOKEN_FILE, token)
+    end
+    
     return true, userData
 end
 
 function DiscordRPC:loadToken()
-    if isfile(TOKEN_FILE) then
+    if isfile and isfile(TOKEN_FILE) then
         local token = readfile(TOKEN_FILE)
         if token and #token > 0 then
             local success, user = self:authenticate(token)
-            if success then return true, user end
-            delfile(TOKEN_FILE)
+            if success then 
+                return true, user 
+            end
+            if delfile then delfile(TOKEN_FILE) end
         end
     end
     return false, "No cached token"
 end
 
 function DiscordRPC:connect()
-    if not self.token then return false, "No token set" end
+    if not self.token then 
+        return false, "No token set" 
+    end
     
-    self:log("Connecting to Discord Gateway...")
     local success, ws = pcall(createWebSocket, "wss://gateway.discord.gg/?v=10&encoding=json")
-    if not success then return false, "WebSocket creation failed" end
+    if not success then 
+        return false, "WebSocket creation failed: " .. tostring(ws)
+    end
     
     self.ws = ws
     
-    self.connections.message = ws.OnMessage:Connect(function(message)
-        self:handleMessage(message)
-    end)
+    if ws.OnMessage then
+        ws.OnMessage:Connect(function(message)
+            self:handleMessage(message)
+        end)
+    end
     
-    self.connections.close = ws.OnClose:Connect(function()
-        self:log("WebSocket closed", "WARN")
-        if self.config.auto_reconnect then
-            task.wait(5)
-            self:connect()
-        end
-    end)
+    if ws.OnClose then
+        ws.OnClose:Connect(function()
+            self.connected = false
+            if self.heartbeat_task then
+                task.cancel(self.heartbeat_task)
+                self.heartbeat_task = nil
+            end
+        end)
+    end
     
     return true, "Connected"
 end
@@ -128,141 +139,96 @@ function DiscordRPC:handleMessage(message)
     local success, data = pcall(HttpService.JSONDecode, HttpService, message)
     if not success then return end
     
-    local op, payload, event = data.op, data.d, data.t
+    local op = data.op
+    local payload = data.d
     
-    if data.s then self.sequence = data.s end
+    if data.s then 
+        self.sequence = data.s 
+    end
     
     if op == 10 then
-        self:log("Received HELLO, starting heartbeat...")
         self:identify()
         self:startHeartbeat(payload.heartbeat_interval)
-    elseif op == 11 then
-        self.config.heartbeat_ack = true
-    elseif op == 0 then
-        if event == "READY" then
-            self.session_id = payload.session_id
-            self.resume_url = payload.resume_gateway_url
-            self:log("Ready! Session ID: " .. self.session_id)
-        elseif event == "RESUMED" then
-            self:log("Session resumed successfully")
-        end
-    elseif op == 7 then
-        self:log("Reconnect requested by Discord", "WARN")
-        self:reconnect()
-    elseif op == 9 then
-        self:log("Invalid session, re-identifying...", "WARN")
-        self.session_id = nil
-        self:identify()
+        self.connected = true
+    elseif op == 0 and data.t == "READY" then
+        self.session_id = payload.session_id
     end
 end
 
 function DiscordRPC:identify()
+    if not self.ws or not self.token then return end
+    
     local payload = {
         op = 2,
         d = {
             token = self.token,
             properties = {
                 ["$os"] = "windows",
-                ["$browser"] = "chrome",
+                ["$browser"] = "chrome", 
                 ["$device"] = "desktop"
             },
             compress = false,
-            large_threshold = 50,
-            presence = self:getCurrentPresence()
+            large_threshold = 50
         }
     }
     
-    if self.session_id then
-        payload.op = 6
-        payload.d = {
-            token = self.token,
-            session_id = self.session_id,
-            seq = self.sequence
-        }
+    local success, encoded = pcall(HttpService.JSONEncode, HttpService, payload)
+    if success and self.ws.Send then
+        self.ws:Send(encoded)
     end
-    
-    self:send(payload)
 end
 
 function DiscordRPC:startHeartbeat(interval)
-    if self.heartbeat then task.cancel(self.heartbeat) end
+    if self.heartbeat_task then
+        task.cancel(self.heartbeat_task)
+    end
     
-    self.heartbeat = task.spawn(function()
-        while self.ws do
+    self.heartbeat_task = task.spawn(function()
+        while self.ws and self.connected do
             task.wait(interval / 1000)
-            if not self.config.heartbeat_ack then
-                self:log("Heartbeat ACK not received, reconnecting...", "WARN")
-                self:reconnect()
-                break
+            if self.ws and self.ws.Send then
+                local heartbeat = {op = 1, d = self.sequence}
+                local success, encoded = pcall(HttpService.JSONEncode, HttpService, heartbeat)
+                if success then
+                    self.ws:Send(encoded)
+                end
             end
-            
-            self.config.heartbeat_ack = false
-            self:send({op = 1, d = self.sequence})
         end
     end)
 end
 
-function DiscordRPC:send(data)
-    if self.ws then
-        local success, encoded = pcall(HttpService.JSONEncode, HttpService, data)
-        if success then
-            self.ws:Send(encoded)
-        end
-    end
-end
-
-function DiscordRPC:updatePresence(activities, status, since, afk)
-    activities = activities or {}
-    status = status or "online"
+function DiscordRPC:updatePresence(activities, status)
+    if not self.ws or not self.connected then return false end
     
     local presence = {
         op = 3,
         d = {
-            since = since,
-            activities = activities,
-            status = status,
-            afk = afk or false
+            since = nil,
+            activities = activities or {},
+            status = status or "online",
+            afk = false
         }
     }
     
-    self:send(presence)
-    
-    table.insert(self.presence_history, {
-        timestamp = tick(),
-        activities = activities,
-        status = status
-    })
-    
-    if #self.presence_history > 50 then
-        table.remove(self.presence_history, 1)
+    local success, encoded = pcall(HttpService.JSONEncode, HttpService, presence)
+    if success and self.ws.Send then
+        self.ws:Send(encoded)
+        return true
     end
-end
-
-function DiscordRPC:getCurrentPresence()
-    local latest = self.presence_history[#self.presence_history]
-    if latest then
-        return {
-            activities = latest.activities,
-            status = latest.status,
-            since = nil,
-            afk = false
-        }
-    end
-    return nil
+    return false
 end
 
 function DiscordRPC:setActivity(config)
-    config = config or {}
+    if not config then return nil end
     
     local activity = {
         name = config.name or "Custom Activity",
-        type = config.type or 0,
-        url = config.url,
-        created_at = math.floor(tick() * 1000)
+        type = config.type or 0
     }
     
     if config.details then activity.details = config.details end
     if config.state then activity.state = config.state end
+    if config.url then activity.url = config.url end
     
     if config.start_time or config.end_time then
         activity.timestamps = {}
@@ -282,17 +248,10 @@ function DiscordRPC:setActivity(config)
         end
     end
     
-    if config.party_current or config.party_max then
+    if config.party_current and config.party_max then
         activity.party = {
-            size = {config.party_current or 1, config.party_max or 1}
+            size = {config.party_current, config.party_max}
         }
-    end
-    
-    if config.match_secret or config.join_secret or config.spectate_secret then
-        activity.secrets = {}
-        if config.match_secret then activity.secrets.match = config.match_secret end
-        if config.join_secret then activity.secrets.join = config.join_secret end
-        if config.spectate_secret then activity.secrets.spectate = config.spectate_secret end
     end
     
     if config.buttons and type(config.buttons) == "table" then
@@ -369,11 +328,6 @@ function DiscordRPC:setElapsedTime(seconds, id)
     self:setTimestamp(start_time, nil, id)
 end
 
-function DiscordRPC:setRemainingTime(seconds, id)
-    local end_time = math.floor((tick() + seconds) * 1000)
-    self:setTimestamp(nil, end_time, id)
-end
-
 function DiscordRPC:addButton(label, url, id)
     id = id or "default"
     if self.activities[id] then
@@ -386,45 +340,10 @@ function DiscordRPC:addButton(label, url, id)
     end
 end
 
-function DiscordRPC:removeButton(index, id)
-    id = id or "default"
-    if self.activities[id] and self.activities[id].buttons then
-        table.remove(self.activities[id].buttons, index or 1)
-        self:refreshActivities()
-    end
-end
-
-function DiscordRPC:clearButtons(id)
-    id = id or "default"
-    if self.activities[id] then
-        self.activities[id].buttons = nil
-        self:refreshActivities()
-    end
-end
-
 function DiscordRPC:setParty(current, max, id)
     id = id or "default"
     if self.activities[id] then
         self.activities[id].party = {size = {current, max}}
-        self:refreshActivities()
-    end
-end
-
-function DiscordRPC:removeParty(id)
-    id = id or "default"
-    if self.activities[id] then
-        self.activities[id].party = nil
-        self:refreshActivities()
-    end
-end
-
-function DiscordRPC:setSecrets(match, join, spectate, id)
-    id = id or "default"
-    if self.activities[id] then
-        self.activities[id].secrets = {}
-        if match then self.activities[id].secrets.match = match end
-        if join then self.activities[id].secrets.join = join end
-        if spectate then self.activities[id].secrets.spectate = spectate end
         self:refreshActivities()
     end
 end
@@ -470,136 +389,18 @@ function DiscordRPC:turnOn()
     self:setUserStatus("online")
 end
 
-function DiscordRPC:saveTemplate(name, config)
-    self:loadTemplates()
-    self.templates[name] = config
-    writefile(TEMPLATES_FILE, HttpService:JSONEncode(self.templates))
-end
-
-function DiscordRPC:loadTemplate(name)
-    self:loadTemplates()
-    local template = self.templates[name]
-    if template then
-        return self:setActivity(template)
-    end
-    return nil
-end
-
-function DiscordRPC:loadTemplates()
-    if isfile(TEMPLATES_FILE) then
-        local success, data = pcall(function()
-            return HttpService:JSONDecode(readfile(TEMPLATES_FILE))
-        end)
-        if success then
-            self.templates = data
-        end
-    end
-end
-
-function DiscordRPC:listTemplates()
-    self:loadTemplates()
-    local names = {}
-    for name in pairs(self.templates) do
-        table.insert(names, name)
-    end
-    return names
-end
-
-function DiscordRPC:deleteTemplate(name)
-    self:loadTemplates()
-    self.templates[name] = nil
-    writefile(TEMPLATES_FILE, HttpService:JSONEncode(self.templates))
-end
-
-function DiscordRPC:exportTemplates()
-    self:loadTemplates()
-    return HttpService:JSONEncode(self.templates)
-end
-
-function DiscordRPC:importTemplates(json_data)
-    local success, data = pcall(HttpService.JSONDecode, HttpService, json_data)
-    if success and type(data) == "table" then
-        for name, template in pairs(data) do
-            self.templates[name] = template
-        end
-        writefile(TEMPLATES_FILE, HttpService:JSONEncode(self.templates))
-        return true
-    end
-    return false
-end
-
-function DiscordRPC:getHistory()
-    return self.presence_history
-end
-
-function DiscordRPC:clearHistory()
-    self.presence_history = {}
-end
-
-function DiscordRPC:getStats()
-    return {
-        uptime = tick() - self.start_time,
-        activities_count = #self.activities,
-        templates_count = self:countTemplates(),
-        history_count = #self.presence_history,
-        connected = self.ws ~= nil,
-        user = self.user,
-        session_id = self.session_id
-    }
-end
-
-function DiscordRPC:countTemplates()
-    self:loadTemplates()
-    local count = 0
-    for _ in pairs(self.templates) do count = count + 1 end
-    return count
-end
-
-function DiscordRPC:setConfig(key, value)
-    self.config[key] = value
-    writefile(CONFIG_FILE, HttpService:JSONEncode(self.config))
-end
-
-function DiscordRPC:getConfig()
-    if isfile(CONFIG_FILE) then
-        local success, data = pcall(function()
-            return HttpService:JSONDecode(readfile(CONFIG_FILE))
-        end)
-        if success then
-            for key, value in pairs(data) do
-                self.config[key] = value
-            end
-        end
-    end
-    return self.config
-end
-
-function DiscordRPC:reconnect()
-    self:disconnect()
-    task.wait(2)
-    self:connect()
-end
-
-function DiscordRPC:disconnect()
-    if self.heartbeat then task.cancel(self.heartbeat) end
-    
-    for _, connection in pairs(self.connections) do
-        if connection and connection.Disconnect then
-            connection:Disconnect()
-        end
+function DiscordRPC:reset()
+    if self.heartbeat_task then
+        task.cancel(self.heartbeat_task)
+        self.heartbeat_task = nil
     end
     
     if self.ws then
-        self.ws:Close()
+        if self.ws.Close then self.ws:Close() end
+        self.ws = nil
     end
     
-    self.ws = nil
-    self.heartbeat = nil
-    self.connections = {}
-end
-
-function DiscordRPC:reset()
-    self:disconnect()
+    self.connected = false
     self.activities = {}
     self.sequence = nil
     self.session_id = nil
@@ -610,11 +411,8 @@ function DiscordRPC:destroy()
     self.token = nil
     self.user = nil
     
-    local files = {TOKEN_FILE, TEMPLATES_FILE, CONFIG_FILE}
-    for _, file in ipairs(files) do
-        if isfile(file) then
-            delfile(file)
-        end
+    if delfile and isfile(TOKEN_FILE) then
+        delfile(TOKEN_FILE)
     end
 end
 
