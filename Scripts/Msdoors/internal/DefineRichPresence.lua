@@ -563,46 +563,35 @@ function DiscordRPC:updatePresenceHTTP(presence_data)
     local activity = presence_data.activities and presence_data.activities[1]
     if not activity then return false end
     
+    local VERCEL_API_URL = "https://msdoorsrpcauth.vercel.app/api/discord-rpc"
+    
     local success, response = pcall(function()
         return self.request({
-            Url = DISCORD_API .. "/users/@me/settings",
-            Method = "PATCH",
+            Url = VERCEL_API_URL,
+            Method = "POST",
             Headers = {
-                ["Authorization"] = self.token,
                 ["Content-Type"] = "application/json"
             },
             Body = HttpService:JSONEncode({
-                custom_status = {
-                    text = activity.state or activity.details or activity.name
-                }
+                token = self.token,
+                activity = activity
             })
         })
     end)
     
-    if success and (response.StatusCode == 200 or response.StatusCode == 204) then
-        local gateway_success = pcall(function()
-            local ws_payload = {
-                op = 3,
-                d = presence_data
-            }
-            
-            local gateway_data = HttpService:JSONEncode(ws_payload)
-            
-            self.request({
-                Url = "wss://gateway.discord.gg/?v=10&encoding=json",
-                Method = "POST",
-                Headers = {
-                    ["Authorization"] = self.token,
-                    ["Content-Type"] = "application/json"
-                },
-                Body = gateway_data
-            })
-        end)
-        
-        return true
+    if success and response.StatusCode == 200 then
+        local result = HttpService:JSONDecode(response.Body)
+        if result.success then
+            self:log("Rich Presence definido via Vercel API: " .. result.activity, "SUCCESS")
+            return true
+        else
+            self:log("Erro na API Vercel: " .. (result.message or "Erro desconhecido"), "ERROR")
+            return false
+        end
+    else
+        self:log("Falha ao conectar com API Vercel", "ERROR")
+        return false
     end
-    
-    return false
 end
 
 function DiscordRPC:setActivity(config)
