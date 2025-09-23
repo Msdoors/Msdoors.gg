@@ -563,59 +563,174 @@ function DiscordRPC:updatePresenceHTTP(presence_data)
     local activity = presence_data.activities and presence_data.activities[1]
     if not activity then return false end
     
-    local success, response = pcall(function()
-        return self.request({
-            Url = "https://msdoorsrpcauth.vercel.app/api/discord-rpc",
-            Method = "POST",
-            Headers = {
-                ["Content-Type"] = "application/json",
-                ["User-Agent"] = "RobloxDiscordRPC/2.0.0",
-                ["Accept"] = "application/json"
-            },
-            Body = HttpService:JSONEncode({
-                token = self.token,
-                activity = {
-                    name = activity.name or "Roblox Game",
-                    type = activity.type or 0,
-                    details = activity.details,
-                    state = activity.state,
-                    timestamps = activity.timestamps,
-                    assets = activity.assets,
-                    buttons = activity.buttons,
-                    url = activity.url
-                }
-            })
-        })
-    end)
+    local clean_activity = {
+        name = sanitizeString(activity.name, 128) or "Roblox Game",
+        type = tonumber(activity.type) or 0
+    }
     
-    if not success then
-        self:log("Erro na requisição HTTP: " .. tostring(response), "ERROR")
-        return false
+    if activity.details then
+        clean_activity.details = sanitizeString(activity.details, 128)
     end
     
-    if response.StatusCode == 200 then
-        local decode_success, result = pcall(function()
-            return HttpService:JSONDecode(response.Body)
+    if activity.state then
+        clean_activity.state = sanitizeString(activity.state, 128)
+    end
+    
+    if activity.url then
+        clean_activity.url = sanitizeString(activity.url, 512)
+    end
+    
+    if activity.timestamps then
+        clean_activity.timestamps = {}
+        if activity.timestamps.start then
+            clean_activity.timestamps.start = formatTimestamp(activity.timestamps.start)
+        end
+        if activity.timestamps["end"] then
+            clean_activity.timestamps["end"] = formatTimestamp(activity.timestamps["end"])
+        end
+    end
+    
+    if activity.assets then
+        clean_activity.assets = {}
+        if activity.assets.large_image then
+            clean_activity.assets.large_image = sanitizeString(activity.assets.large_image, 256)
+        end
+        if activity.assets.large_text then
+            clean_activity.assets.large_text = sanitizeString(activity.assets.large_text, 128)
+        end
+        if activity.assets.small_image then
+            clean_activity.assets.small_image = sanitizeString(activity.assets.small_image, 256)
+        end
+        if activity.assets.small_text then
+            clean_activity.assets.small_text = sanitizeString(activity.assets.small_text, 128)
+        end
+    end
+    
+    if activity.buttons and type(activity.buttons) == "table" then
+        clean_activity.buttons = {}
+        for i = 1, math.min(2, #activity.buttons) do
+            local button = activity.buttons[i]
+            if button and button.label and button.url then
+                local label = sanitizeString(button.label, 32)
+                local url = sanitizeString(button.url, 512)
+                if label and url and url:match("^https?://") then
+                    table.insert(clean_activity.buttons, {label = label, url = url})
+                end
+            end
+        end
+        if #clean_activity.buttons == 0 then
+            clean_activity.buttons = nil
+        end
+    end
+    
+    local max_retries = 3
+    local retry_delay = 1
+    
+    for attempt = 1, max_retries do
+        local success, response = pcall(function()
+            return self.request({
+                Url = "https://msdoorsrpcauth.vercel.app/api/discord-rpc",
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json",
+                    ["User-Agent"] = "RobloxDiscordRPC/3.0.0",
+                    ["Accept"] = "application/json",
+                    ["X-Requested-With"] = "XMLHttpRequest"
+                },
+                Body = HttpService:JSONEncode({
+                    token = self.token,
+                    activity = clean_activity
+                })
+            })
         end)
         
-        if decode_success and result and result.success then
-            self:log("Rich Presence definido via API: " .. (result.activity or activity.name), "SUCCESS")
-            return true
-        else
-            local error_msg = decode_success and result and result.error or "Resposta inválida"
-            self:log("Erro na API: " .. error_msg, "ERROR")
+        if not success then
+            self:log("Erro na requisição HTTP (tentativa " .. attempt .. "): " .. tostring(response), "ERROR")
+            if attempt < max_retries then
+                task.wait(retry_delay)
+                retry_delay = retry_delay * 2
+                continue
+            end
             return false
         end
-    elseif response.StatusCode == 429 then
-        self:log("Rate limit na API - aguarde antes de tentar novamente", "WARN")
-        return false
-    elseif response.StatusCode == 401 then
-        self:log("Token inválido ou expirado na API", "ERROR")
-        return false
-    else
-        self:log("Erro HTTP " .. response.StatusCode .. " na API", "ERROR")
-        return false
+        
+        if response.StatusCode == 200 then
+            local decode_success, result = pcall(function()
+                return HttpService:JSONDecode(response.Body)
+            end)
+            
+            if decode_success and result then
+                if result.success then
+                    local details = result.details or {}
+                    self:log("Rich Presence configurado com sucesso!", "SUCCESS")
+                    self:log("Atividade: " .. (result.activity or clean_activity.name), "SUCCESS")
+                    if details.gateway then
+                        self:log("Gateway usado: " .. details.gateway, "INFO")
+                    end
+                    return true
+                else
+                    local error_msg = result.error or "Erro desconhecido"
+                    local error_code = result.code or "UNKNOWN"
+                    self:log("API retornou erro: " .. error_msg .. " (" .. error_code .. ")", "ERROR")
+                    
+                    if error_code == "RATE_LIMITED" or error_code == "TOKEN_RATE_LIMITED" then
+                        local retry_after = result.retryAfter or 60
+                        self:log("Rate limit ativo. Reagendando para " .. retry_after .. "s", "WARN")
+                        return false
+                    end
+                    return false
+                end
+            else
+                self:log("Resposta inválida da API (tentativa " .. attempt .. ")", "ERROR")
+                if attempt < max_retries then
+                    task.wait(retry_delay)
+                    retry_delay = retry_delay * 2
+                    continue
+                end
+                return false
+            end
+            
+        elseif response.StatusCode == 429 then
+            self:log("Rate limit na API (tentativa " .. attempt .. ") - aguardando...", "WARN")
+            if attempt < max_retries then
+                task.wait(retry_delay * 2)
+                retry_delay = retry_delay * 2
+                continue
+            end
+            return false
+            
+        elseif response.StatusCode == 401 then
+            self:log("Token inválido ou expirado na API", "ERROR")
+            self:clearToken()
+            return false
+            
+        elseif response.StatusCode == 400 then
+            local decode_success, result = pcall(function()
+                return HttpService:JSONDecode(response.Body)
+            end)
+            
+            local error_msg = "Dados inválidos"
+            if decode_success and result and result.error then
+                error_msg = result.error
+            end
+            
+            self:log("Erro de validação: " .. error_msg, "ERROR")
+            return false
+            
+        else
+            self:log("Erro HTTP " .. response.StatusCode .. " (tentativa " .. attempt .. ")", "ERROR")
+            if attempt < max_retries then
+                task.wait(retry_delay)
+                retry_delay = retry_delay * 2
+                continue
+            end
+            return false
+        end
+        
+        break
     end
+    
+    return false
 end
 
 function DiscordRPC:setActivity(config)
