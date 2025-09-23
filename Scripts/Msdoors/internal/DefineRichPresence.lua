@@ -563,33 +563,57 @@ function DiscordRPC:updatePresenceHTTP(presence_data)
     local activity = presence_data.activities and presence_data.activities[1]
     if not activity then return false end
     
-    local VERCEL_API_URL = "https://msdoorsrpcauth.vercel.app/api/discord-rpc"
-    
     local success, response = pcall(function()
         return self.request({
-            Url = VERCEL_API_URL,
+            Url = "https://msdoorsrpcauth.vercel.app/api/discord-rpc",
             Method = "POST",
             Headers = {
-                ["Content-Type"] = "application/json"
+                ["Content-Type"] = "application/json",
+                ["User-Agent"] = "RobloxDiscordRPC/2.0.0",
+                ["Accept"] = "application/json"
             },
             Body = HttpService:JSONEncode({
                 token = self.token,
-                activity = activity
+                activity = {
+                    name = activity.name or "Roblox Game",
+                    type = activity.type or 0,
+                    details = activity.details,
+                    state = activity.state,
+                    timestamps = activity.timestamps,
+                    assets = activity.assets,
+                    buttons = activity.buttons,
+                    url = activity.url
+                }
             })
         })
     end)
     
-    if success and response.StatusCode == 200 then
-        local result = HttpService:JSONDecode(response.Body)
-        if result.success then
-            self:log("Rich Presence definido via Vercel API: " .. result.activity, "SUCCESS")
+    if not success then
+        self:log("Erro na requisição HTTP: " .. tostring(response), "ERROR")
+        return false
+    end
+    
+    if response.StatusCode == 200 then
+        local decode_success, result = pcall(function()
+            return HttpService:JSONDecode(response.Body)
+        end)
+        
+        if decode_success and result and result.success then
+            self:log("Rich Presence definido via API: " .. (result.activity or activity.name), "SUCCESS")
             return true
         else
-            self:log("Erro na API Vercel: " .. (result.message or "Erro desconhecido"), "ERROR")
+            local error_msg = decode_success and result and result.error or "Resposta inválida"
+            self:log("Erro na API: " .. error_msg, "ERROR")
             return false
         end
+    elseif response.StatusCode == 429 then
+        self:log("Rate limit na API - aguarde antes de tentar novamente", "WARN")
+        return false
+    elseif response.StatusCode == 401 then
+        self:log("Token inválido ou expirado na API", "ERROR")
+        return false
     else
-        self:log("Falha ao conectar com API Vercel", "ERROR")
+        self:log("Erro HTTP " .. response.StatusCode .. " na API", "ERROR")
         return false
     end
 end
