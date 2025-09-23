@@ -560,6 +560,9 @@ end
 function DiscordRPC:updatePresenceHTTP(presence_data)
     if not self.token then return false end
     
+    local activity = presence_data.activities and presence_data.activities[1]
+    if not activity then return false end
+    
     local success, response = pcall(function()
         return self.request({
             Url = DISCORD_API .. "/users/@me/settings",
@@ -569,12 +572,37 @@ function DiscordRPC:updatePresenceHTTP(presence_data)
                 ["Content-Type"] = "application/json"
             },
             Body = HttpService:JSONEncode({
-                custom_status = presence_data
+                custom_status = {
+                    text = activity.state or activity.details or activity.name
+                }
             })
         })
     end)
     
-    return success and (response.StatusCode == 200 or response.StatusCode == 204)
+    if success and (response.StatusCode == 200 or response.StatusCode == 204) then
+        local gateway_success = pcall(function()
+            local ws_payload = {
+                op = 3,
+                d = presence_data
+            }
+            
+            local gateway_data = HttpService:JSONEncode(ws_payload)
+            
+            self.request({
+                Url = "wss://gateway.discord.gg/?v=10&encoding=json",
+                Method = "POST",
+                Headers = {
+                    ["Authorization"] = self.token,
+                    ["Content-Type"] = "application/json"
+                },
+                Body = gateway_data
+            })
+        end)
+        
+        return true
+    end
+    
+    return false
 end
 
 function DiscordRPC:setActivity(config)
