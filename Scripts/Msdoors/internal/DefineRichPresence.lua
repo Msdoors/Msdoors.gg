@@ -261,7 +261,7 @@ function DiscordRPC:authenticate(token)
         return false, "Token inválido"
     end
     
-    local auth_header = token:sub(1, 3) == "Bot" and token or ("Bot " .. token)
+    local auth_header = token
     
     local success, response = pcall(function()
         return self.request({
