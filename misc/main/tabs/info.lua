@@ -1,5 +1,6 @@
 local misctabs = {} -- SOGMA EZ
 
+-- CREDITS, TRANSLATORS, ETC...
 function misctabs:AddMiscTab(Tab)
     local GroupCredits = Tab:AddLeftGroupbox(shared.translationapi:getTranslate("tab_Credits", "Desenvolvedores"))
     local GroupContributors = Tab:AddLeftGroupbox(shared.translationapi:getTranslate("tab_Credits_Contributors", "Contribuidores"))
@@ -17,6 +18,17 @@ function misctabs:AddMiscTab(Tab)
 
     --[[ TRANSLATORS ]]--
     -- SOOON
+end
+
+-- SUMMARY UPDATE: DOORS
+function SummaryTabDoors:AddWarnTab(Tab)
+    Tab:UpdateWarningBox({
+    Title = shared.translationapi:getTranslate("Update Summary", "Resumo de Atualizações"), "layout-grid" ,
+    Text = "[ » ] now the attack player function throws projectiles at nearby players instead of targeting\n[ ✓ ] Improved Auto Rooms v3\n[ + ] automatically target players (Battle MODE)\n[ + ] Automatically Kick Doors (Battle mode)\n[ + ] Player esp\n[ + ] Anti Cheat Manipulation (Ty Kardin & Mshax) \n » join our Discord to suggest more features! «",
+    IsNormal = true,
+    Visible = true,
+    LockSize = true,
+})
 end
 
 return misctabs
