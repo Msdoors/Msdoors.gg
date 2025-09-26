@@ -7,28 +7,29 @@ function misctabs:AddMiscTab(Tab)
     local GroupTranslators = Tab:AddRightGroupbox(shared.translationapi:getTranslate("tab_Credits_Translators", "Tradutores"))
 
     --[[ DEVS ]]--
-    local DevsCreditsRhyan = GroupCredits:AddLabel('<font color="#FFF700">[Rhyan57]</font> | OWNER ', true)
-    local DevsCreditsSeek = GroupCredits:AddLabel('<font color="#FFF700">[SeekAlegriaFla]</font> | SUB-OWNER ', true)
+    local DevsCreditsRhyan = GroupCredits:AddLabel('[Rhyan57] | OWNER ', true)
+    local DevsCreditsSeek = GroupCredits:AddLabel('[SeekAlegriaFla] | SUB-OWNER ', true)
 
     --[[ CONTRIBUTORS ]]--
-    local EspecialCreditsSeikoso = GroupContributors:AddLabel('<font color="#00FF00">[Seikoso]</font> | It helped me with tips and to not give up on this script.', true)
-    local EspecialCreditsJacob = GroupContributors:AddLabel('<font color="#00FF00">[Jacob]</font> | He is a great person and helped me with tips and optimizing some of the script functions.', true)
-    local EspecialCreditsKardinCat = GroupContributors:AddLabel('<font color="#00FF00">[TheHunterSolo1]</font> | This guy made several changes to the Msdoors code and optimized it a lot, and also gave me several tips.', true)
-    local EspecialCreditsG1gaBac0n = GroupContributors:AddLabel('<font color="#FF0000">[G1ga Bac0n]</font> | for a while he was my Tester and helped me find bugs in the script.', true)
+    local EspecialCreditsSeikoso = GroupContributors:AddLabel('[Seikoso] | It helped me with tips and to not give up on this script.', true)
+    local EspecialCreditsJacob = GroupContributors:AddLabel('[Jacob] | He is a great person and helped me with tips and optimizing some of the script functions.', true)
+    local EspecialCreditsKardinCat = GroupContributors:AddLabel('[TheHunterSolo1] | This guy made several changes to the Msdoors code and optimized it a lot, and also gave me several tips.', true)
+    local EspecialCreditsG1gaBac0n = GroupContributors:AddLabel('[G1ga Bac0n] | for a while he was my Tester and helped me find bugs in the script.', true)
 
     --[[ TRANSLATORS ]]--
     -- SOOON
 end
 
 -- SUMMARY UPDATE: DOORS
-function SummaryTabDoors:AddWarnTab(Tab)
+function misctabs:AddWarnTab(Tab)
     Tab:UpdateWarningBox({
-    Title = shared.translationapi:getTranslate("Update Summary", "Resumo de Atualizações"), "layout-grid" ,
-    Text = "[ » ] now the attack player function throws projectiles at nearby players instead of targeting\n[ ✓ ] Improved Auto Rooms v3\n[ + ] automatically target players (Battle MODE)\n[ + ] Automatically Kick Doors (Battle mode)\n[ + ] Player esp\n[ + ] Anti Cheat Manipulation (Ty Kardin & Mshax) \n » join our Discord to suggest more features! «",
-    IsNormal = true,
-    Visible = true,
-    LockSize = true,
-})
+        Title = shared.translationapi:getTranslate("Update Summary", "Resumo de Atualizações"),
+        Icon = "layout-grid",
+        Text = "[ » ] now the attack player function throws projectiles at nearby players instead of targeting\n[ ✓ ] Improved Auto Rooms v3\n[ + ] automatically target players (Battle MODE)\n[ + ] Automatically Kick Doors (Battle mode)\n[ + ] Player esp\n[ + ] Anti Cheat Manipulation (Ty Kardin & Mshax) \n » join our Discord to suggest more features! «",
+        IsNormal = true,
+        Visible = true,
+        LockSize = true,
+    })
 end
 
 return misctabs
