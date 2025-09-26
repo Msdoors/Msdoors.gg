@@ -21,7 +21,7 @@ function misctabs:AddMiscTab(Tab)
 end
 
 -- SUMMARY UPDATE: DOORS
-function misctabs:AddWarnTab(Tab)
+function misctabs:AddWarnTabDoors(Tab)
     Tab:UpdateWarningBox({
         Title = shared.translationapi:getTranslate("Update Summary", "Resumo de Atualizações"),
         Icon = "layout-grid",
