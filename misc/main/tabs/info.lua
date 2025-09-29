@@ -28,7 +28,7 @@ function misctabs:AddWarnTabDoors(Tab)
         Text = "<DOORS-THE HOTEL/THE MINES/THE BACKDOORS/THE GARDEN>\n[+]godmode,\n[+]Infinite items,\n[+]Upside Down,\n[+]Bruteforce Code,\n[+]Fixed Esp entitys,\n[+]Fixed lag on notify entitys,\n[+]Fixed detections,\n[+]Delete figure[FE](MINES ONLY),\n[+]No puzzle door,\n[+]Fixed anti seek obstructions,\n[+]Reset,\n[-]Beat Door 200(NOT TESTED YET,IN PRODUCTION!),\n[+]Upside Down(BETA!),\n[+]Fixed "Thought",\n[+]Addons,Credits and update information are now "external",\n[+]Third person now works when reviving,\n[+]Fly,\n[+]Added EXTREME optimization.\n<DOORS-OLD FLOORS>\n[+]Delete figure[FE],\n[+]No puzzle door,\n[+]Fixed Esp,\n[+]Anti Jeff(FE)Fixed,\n[+]Delete seek(FE)\n » join our Discord to suggest more features! «",
         IsNormal = true,
         Visible = true,
-        LockSize = false,
+        LockSize = true,
     })
 end
 
