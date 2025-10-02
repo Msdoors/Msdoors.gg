@@ -3,6 +3,14 @@ if _G.msdoors_isloading then
     return
 end
 
+game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Msdoors is unstable.",
+            Image = "",
+            Text = "We are applying an update to our server/Api, and this may cause the script to fail to load.",
+            Duration = 16
+})
+
+
 _G.msdoors_version = game:HttpGet("https://oficial.msdoors.xyz/msdoors/version")
 
 if shared.loaded then
