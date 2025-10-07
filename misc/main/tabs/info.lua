@@ -36,7 +36,7 @@ function misctabs:AddWarnTabNaturalDisaster(Tab)
     Tab:UpdateWarningBox({
         Title = shared.translationapi:getTranslate("Update Summary", "Resumo de Atualizações"),
         Icon = "layout-grid",
-        Text = "» join our Discord to suggest features! «",
+        Text = "[ ✓ ] FIXED NOTIFY DISASTERS\n[ ✓ ] FIXED ORBITAL PARTS\n[ ✓ ] FIXED TARGET PLAYERS\n[ ✓ ] OPTIMIZED\n» join our Discord to suggest features! «",
         IsNormal = true,
         Visible = true,
         LockSize = true,
