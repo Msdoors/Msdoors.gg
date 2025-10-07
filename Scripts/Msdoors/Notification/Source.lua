@@ -1,17 +1,23 @@
-if not _G.msdoors_ then
-    _G.msdoors_ = {}
+if not shared.notifyap then
+    shared.notifyap = {}
 end
+
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+
+local DEFAULT_SOUND = "rbxassetid://4590657391"
+local DOORS_SOUND = "rbxassetid://10469938989"
 
 local function Notify(options)
     options = options or {}
 
     if Library and Library.Notify then
-        
         local sound = Instance.new("Sound")
-        sound.SoundId = "rbxassetid://6023426923"
+        sound.SoundId = options.Sound or DEFAULT_SOUND
         sound.Parent = game.Workspace
         sound.Volume = 1
         sound:Play()
+        
         Library:Notify({
             Title = options.Title or "Sem Título",
             Description = options.Description or "Sem Descrição",
@@ -22,16 +28,8 @@ local function Notify(options)
     end
 end
 
-local function MsdoorsNotify(title, description, reason, image, color, style, time)
-    title = title or "Sem Título"
-    description = description or "Sem Descrição"
-    reason = reason or ""
-    image = image or "rbxassetid://6023426923"
-    color = color or Color3.new(1, 1, 1)
-    style = style or "NOTIFICATION"
-    time = time or 5
-
-    local mainUI = game.Players.LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("MainUI")
+local function MsdoorsNotify(title, description, reason, image, color, style, time, sound)
+    local mainUI = Players.LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("MainUI")
     if not mainUI then
         warn("MainUI não encontrada. Verifique se o jogo DOORS está carregado corretamente.")
         return
@@ -43,16 +41,16 @@ local function MsdoorsNotify(title, description, reason, image, color, style, ti
     achievement.Name = "LiveAchievement"
     achievement.Visible = true
 
-    achievement.Frame.TextLabel.Text = style
-    achievement.Frame.Details.Title.Text = title
-    achievement.Frame.Details.Desc.Text = description
-    achievement.Frame.Details.Reason.Text = reason
-    achievement.Frame.ImageLabel.Image = image
+    achievement.Frame.TextLabel.Text = style or "NOTIFICATION"
+    achievement.Frame.Details.Title.Text = title or "Sem Título"
+    achievement.Frame.Details.Desc.Text = description or "Sem Descrição"
+    achievement.Frame.Details.Reason.Text = reason or ""
+    achievement.Frame.ImageLabel.Image = "4590657391"
 
-
-    achievement.Frame.TextLabel.TextColor3 = color
-    achievement.Frame.UIStroke.Color = color
-    achievement.Frame.Glow.ImageColor3 = color
+    local notificationColor = color or Color3.new(1, 1, 1)
+    achievement.Frame.TextLabel.TextColor3 = notificationColor
+    achievement.Frame.UIStroke.Color = notificationColor
+    achievement.Frame.Glow.ImageColor3 = notificationColor
 
     achievement.Parent = mainUI.AchievementsHolder
     achievement.Sound.SoundId = "rbxassetid://10469938989"
@@ -61,16 +59,14 @@ local function MsdoorsNotify(title, description, reason, image, color, style, ti
 
     task.spawn(function()
         achievement:TweenSize(UDim2.new(1, 0, 0.2, 0), "In", "Quad", 0.8, true)
-        
         task.wait(0.8)
         
         achievement.Frame:TweenPosition(UDim2.new(0, 0, 0, 0), "Out", "Quad", 0.5, true)
-        
-        game:GetService("TweenService"):Create(achievement.Frame.Glow, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+        TweenService:Create(achievement.Frame.Glow, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
             ImageTransparency = 1
         }):Play()
         
-        task.wait(time)
+        task.wait(time or 5)
         
         achievement.Frame:TweenPosition(UDim2.new(1.1, 0, 0, 0), "In", "Quad", 0.5, true)
         task.wait(0.5)
@@ -80,7 +76,8 @@ local function MsdoorsNotify(title, description, reason, image, color, style, ti
     end)
 end
 
-_G.msdoors_.Notify = function(options)
+shared.notifyap.Notify = function(options)
+    options = options or {}
     local notifyStyle = options.NotifyStyle or "Linoria"
 
     if notifyStyle == "Doors" then
@@ -90,8 +87,9 @@ _G.msdoors_.Notify = function(options)
             options.Reason, 
             options.Image, 
             options.Color, 
-            options.style,
-            options.Time
+            options.Style,
+            options.Time,
+            options.Sound
         )
     elseif notifyStyle == "Linoria" then
         Notify(options)
@@ -100,4 +98,4 @@ _G.msdoors_.Notify = function(options)
     end
 end
 
-return _G.msdoors_.Notify
+return shared.notifyap.Notify
