@@ -3,14 +3,6 @@ if _G.msdoors_isloading then
     return
 end
 
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "BACK SOON!",
-        Image = "rbxassetid://95869322194132",
-        Text = "Msdoors is back soon!",
-        Duration = 30
-    })
-toclipboard("https://dsc.gg/msdoors")
-
 _G.msdoors_version = game:HttpGet("https://oficial.msdoors.xyz/msdoors/version")
 
 if shared.loaded then
