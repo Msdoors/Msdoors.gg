@@ -15,21 +15,33 @@ local function copyToClipboard(text)
 end
 
 local function notifyError(errorMessage)
-    local fullError = "[MSDOORS ERROR]\n" .. errorMessage .. "\n\nEntre no Discord para suporte: https://dsc.gg/msdoors"
+    local fullError = "[MSDOORS ERROR]\n" .. errorMessage .. "\n\n Join Discord for support: https://dsc.gg/msdoors"
     
     local copied = copyToClipboard(fullError)
     
+    warn(fullError)
+    
+    local bindableFunction = Instance.new("BindableFunction")
+    bindableFunction.OnInvoke = function(buttonText)
+        if buttonText == "Copy Discord" then
+            copyToClipboard("https://dsc.gg/msdoors")
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "Copied!",
+                Text = "Discord link copied to clipboard",
+                Duration = 3
+            })
+        end
+    end
+    
     pcall(function()
         game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "internal error",
-            Image = "rbxassetid://95869322194132",
-            Text = (copied and "Erro copiado! " or "") .. "Entre no Discord: dsc.gg/msdoors",
-            Duration = 20
+            Title = "Error in Msdoors",
+            Text = (copied and "Copied error! " or "") .. "Join Discord: dsc.gg/msdoors",
+            Duration = 20,
+            Button1 = "Copy Discord",
+            Callback = bindableFunction
         })
     end)
-    
-    warn(fullError)
-end
 
 local function mainScript()
     _G.msdoors_version = game:HttpGet("https://oficial.msdoors.xyz/msdoors/version")
