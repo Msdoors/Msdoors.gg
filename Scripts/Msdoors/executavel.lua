@@ -3,6 +3,14 @@ if _G.msdoors_isloading then
     return
 end
 
+
+game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "⚠️⚠️⚠️⚠️⚠️",
+        Image = "rbxassetid://95869322194132",
+        Text = "Msdoors will be offline for a while for API maintenance!",
+        Duration = 30
+    })
+
 _G.msdoors_version = game:HttpGet("https://oficial.msdoors.xyz/msdoors/version")
 
 if shared.loaded then
