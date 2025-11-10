@@ -25,7 +25,7 @@ function misctabs:AddWarnTabDoors(Tab)
     Tab:UpdateWarningBox({
         Title = shared.translationapi:getTranslate("Update Summary", "Resumo de Atualizações"),
         Icon = "layout-grid",
-        Text = "[ √ ] fixed issue with not notifying entities\n[ + ] Death Farm\n[ ✓ ] FIXED CRASH ON DEATH\n[ > ] IMPROVED SPEED BYPASS\n» join our Discord to suggest features! «",
+        Text = "[ ✓ ] It doesnt jump when using godmode.\n[ + ] Now the ESPs are fully synchronized.\n[ + ] We switched from MSESP to BOCAJESP (more optimized).\n[ + ] ESP subtitles no longer get smaller when the FOV is high (thanks to the new Library).\n[ + ] Now it doesnt glitch when finishing the circuit breaker game.\n[ + ] Optimized code\n[ + ] NOTIFY ANCHOR CODE\n[ + ] New auto-interaction (beta)\n» join our Discord to suggest features! «",
         IsNormal = true,
         Visible = true,
         LockSize = true,
