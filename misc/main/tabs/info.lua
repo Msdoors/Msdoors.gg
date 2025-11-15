@@ -70,4 +70,14 @@ function misctabs:AddWarnTabNaturalDisaster(Tab)
     })
 end
 
+function misctabs:AddWarnTabCamposFFa(Tab)
+    Tab:UpdateWarningBox({
+        Title = shared.translationapi:getTranslate("Update Summary", "Resumo de Atualizações"),
+        Icon = "layout-grid",
+        Text = "Testing\n» join our Discord to suggest features! «",
+        IsNormal = true,
+        Visible = true,
+        LockSize = true,
+    })
+end
 return misctabs
