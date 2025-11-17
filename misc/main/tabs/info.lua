@@ -52,7 +52,7 @@ function misctabs:AddWarnTabDoors(Tab)
     Tab:UpdateWarningBox({
         Title = shared.translationapi:getTranslate("Update Summary", "Resumo de Atualizações"),
         Icon = "layout-grid",
-        Text = "[ ✓ ] It doesnt jump when using godmode.\n[ + ] Now the ESPs are fully synchronized.\n[ + ] We switched from MSESP to BOCAJESP (more optimized).\n[ + ] ESP subtitles no longer get smaller when the FOV is high (thanks to the new Library).\n[ + ] Now it doesnt glitch when finishing the circuit breaker game.\n[ + ] Optimized code\n[ + ] NOTIFY ANCHOR CODE\n[ + ] New auto-interaction (beta)\n» join our Discord to suggest features! «",
+        Text = " DeathFarm \n[ ✓ ] All random crashes resolved.\n[ ✓ ] Now, if the script stops, just wait 10 seconds and it will resume.\n[ ✓ ] The issue of not automatically going to another match has been resolved.\n Updates \n[ ✓ ] It doesnt jump when using godmode.\n[ + ] Now the ESPs are fully synchronized.\n[ + ] We switched from MSESP to BOCAJESP (more optimized).\n[ + ] ESP subtitles no longer get smaller when the FOV is high (thanks to the new Library).\n[ + ] Now it doesnt glitch when finishing the circuit breaker game.\n[ + ] Optimized code\n[ + ] NOTIFY ANCHOR CODE\n[ + ] New auto-interaction (beta)\n» join our Discord to suggest features! «",
         IsNormal = true,
         Visible = true,
         LockSize = true,
