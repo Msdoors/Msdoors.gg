@@ -51,6 +51,7 @@ local SUPPORTED_GAMES = {
     [10549820578] = "Doors/hotel.lua",
     [110258689672367] = "Doors/hotel.lua",
     [189707] = "Natural-Disaster/places/game.lua",
+    [12137249458] = "Campos%20de%20armas%20FFA/game.lua",
     [5275822877] = "Carrinho%2Bcart-para-Giganoob/game.lua",
     [12552538292] = "pressure/game.lua"
 }
