@@ -3,7 +3,7 @@ if _G.msdoors_isloading then
     return
 end
 
-_G.msdoors_version = game:HttpGet("https://oficial.msdoors.xyz/msdoors/version")
+_G.msdoors_version = "2.0.14"
 
 if shared.loaded then
     warn("[Msdoors] • Script já está carregado!")
