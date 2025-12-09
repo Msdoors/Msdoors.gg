@@ -29,15 +29,17 @@ local function Notify(options)
 end
 
 local function MsdoorsNotify(title, description, reason, image, color, style, time, sound)
-    local globalUI = Players.LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("GlobalUI")
-    if not globalUI then
-        warn("GlobalUI não encontrada. Verifique se o jogo DOORS está carregado corretamente.")
+    local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+    local uiContainer = playerGui:FindFirstChild("GlobalUI") or playerGui:FindFirstChild("MainUI")
+    
+    if not uiContainer then
+        warn("GlobalUI ou MainUI não encontradas. Verifique se o jogo DOORS está carregado corretamente.")
         return
     end
 
-    local achievementsHolder = globalUI:FindFirstChild("AchievementsHolder")
+    local achievementsHolder = uiContainer:FindFirstChild("AchievementsHolder")
     if not achievementsHolder then
-        warn("AchievementsHolder não encontrado dentro de GlobalUI.")
+        warn("AchievementsHolder não encontrado.")
         return
     end
 
