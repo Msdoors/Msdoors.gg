@@ -53,7 +53,7 @@ local function MsdoorsNotify(title, description, reason, image, color, style, ti
     achievement.Frame.Details.Title.Text = title or "Sem Título"
     achievement.Frame.Details.Desc.Text = description or "Sem Descrição"
     achievement.Frame.Details.Reason.Text = reason or ""
-    achievement.Frame.ImageLabel.Image = image or "rbxassetid://4590657391"
+    achievement.Frame.ImageLabel.Image = image or "rbxassetid://6023426923"
 
     local notificationColor = color or Color3.new(1, 1, 1)
     achievement.Frame.TextLabel.TextColor3 = notificationColor
