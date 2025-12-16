@@ -52,7 +52,7 @@ function misctabs:AddWarnTabDoors(Tab)
     Tab:UpdateWarningBox({
         Title = shared.translationapi:getTranslate("Update Summary", "Resumo de Atualizações"),
         Icon = "layout-grid",
-        Text = " [ + ] Show improved seek path\n[ + ] The solve Library Code now works separately from the notify padlock.(Thanks: @g)\n[ + ] Extra optimization in certain functions.\n» join our Discord to suggest features! «",
+        Text = "16.12.2025\n[ + ] Auto Rooms Improved\n[ + ] Extra Optimization\n[ + ] Watermark Optimized\n[ + ] Noclip Bypass(BETA)\n[ + ] No Cutscenes bug fixed\n[ + ] Fixed No Aceleration\n[ + ] Extra optimization in certain functions.\n» join our Discord to suggest features! «",
         IsNormal = true,
         Visible = true,
         LockSize = true,
