@@ -10,6 +10,7 @@ function misctabs:AddMiscTab(Tab)
     local DevsCreditsSeek = GroupCredits:AddLabel('<font color="rgb(255, 165, 0)">[SeekAlegriaFla] | SUB-OWNER</font>', true)
 
     local EspecialCreditsSeikoso = GroupContributors:AddLabel('<font color="rgb(138, 43, 226)">[Seikoso]</font> | It helped me with tips and to not give up on this script.', true)
+    local EspecialCreditsSeikoso = GroupContributors:AddLabel('<font color="rgb(138, 43, 226)">[Jack]</font> | Noclip bypass was made available to me and helped me with several functions.', true)
     local EspecialCreditsJacob = GroupContributors:AddLabel('<font color="rgb(30, 144, 255)">[Jacob]</font> | He is a great person and helped me with tips and optimizing some of the script functions.', true)
     local EspecialCreditsKardinCat = GroupContributors:AddLabel('<font color="rgb(255, 20, 147)">[TheHunterSolo1]</font> | This guy made several changes to the Msdoors code and optimized it a lot, and also gave me several tips.', true)
     local EspecialCreditsG1gaBac0n = GroupContributors:AddLabel('<font color="rgb(50, 205, 50)">[G1ga Bac0n]</font> | for a while he was my Tester and helped me find bugs in the script.', true)
