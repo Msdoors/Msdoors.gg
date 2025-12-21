@@ -2,7 +2,6 @@ if shared.testexecutor then
     return shared.testexecutor
 end
 print(" Testing your executor... ")
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Msdoors/Msdoors.gg/refs/heads/main/Scripts/Msdoors/internal/makefolder(msdoors).luau"))()
 
 local exec = {}
 local info = {}
@@ -94,7 +93,7 @@ local function test(n, f, cb)
         ok = typeof(f) == "function"
     end
     
-    local status = ok and "✅ SUPORTADO" or "❌ NÃO SUPORTADO"
+    local status = ok and "✅ Supported" or "❌ NOT SUPPORTED"
     local errorMsg = ""
     if not ok and err then
         errorMsg = " [ ERRO: " .. tostring(err) .. " ]"
@@ -111,7 +110,7 @@ local function safe(n, f)
         test(n, f, false)
     else
         exec[n] = false
-        info[n] = n .. " ❌ NÃO SUPORTADO [ ERRO: função não disponível ]"
+        info[n] = n .. " ❌ NOT SUPPORTED [ ERRO: FUNCTION NOT AVAILABLE ]"
         shared.testexecutor[n] = false
     end
 end
@@ -147,11 +146,11 @@ safe("httprequest", httprequest)
 
 if syn and syn.request then
     exec["syn.request"] = true
-    info["syn.request"] = "syn.request ✅ SUPORTADO"
+    info["syn.request"] = "syn.request ✅ Supported"
     shared.testexecutor["syn.request"] = true
 else
     exec["syn.request"] = false
-    info["syn.request"] = "syn.request ❌ NÃO SUPORTADO [ ERRO: biblioteca syn não disponível ]"
+    info["syn.request"] = "syn.request ❌ NOT SUPPORTED [ ERRO: biblioteca syn não disponível ]"
     shared.testexecutor["syn.request"] = false
 end
 
@@ -169,23 +168,23 @@ safe("firesignal", firesignal)
 
 if Drawing then
     exec["Drawing"] = true
-    info["Drawing"] = "Drawing ✅ SUPORTADO"
+    info["Drawing"] = "Drawing ✅ Supported"
     shared.testexecutor.Drawing = true
     
     if Drawing.new then
         exec["Drawing.new"] = true
-        info["Drawing.new"] = "Drawing.new ✅ SUPORTADO"
+        info["Drawing.new"] = "Drawing.new ✅ Supported"
         shared.testexecutor["Drawing.new"] = true
     else
         exec["Drawing.new"] = false
-        info["Drawing.new"] = "Drawing.new ❌ NÃO SUPORTADO [ ERRO: método new não disponível ]"
+        info["Drawing.new"] = "Drawing.new ❌ NOT SUPPORTED [ ERRO: método new não disponível ]"
         shared.testexecutor["Drawing.new"] = false
     end
 else
     exec["Drawing"] = false
     exec["Drawing.new"] = false
-    info["Drawing"] = "Drawing ❌ NÃO SUPORTADO [ ERRO: biblioteca Drawing não disponível ]"
-    info["Drawing.new"] = "Drawing.new ❌ NÃO SUPORTADO [ ERRO: biblioteca Drawing não disponível ]"
+    info["Drawing"] = "Drawing ❌ NOT SUPPORTED [ ERRO: biblioteca Drawing não disponível ]"
+    info["Drawing.new"] = "Drawing.new ❌ NOT SUPPORTED [ ERRO: biblioteca Drawing não disponível ]"
     shared.testexecutor.Drawing = false
     shared.testexecutor["Drawing.new"] = false
 end
@@ -215,7 +214,7 @@ if getfenv()["require"] then
     end)
 else
     exec["require"] = false
-    info["require"] = "require ❌ NÃO SUPORTADO [ ERRO: função não disponível ]"
+    info["require"] = "require ❌ NOT SUPPORTED [ ERRO: função não disponível ]"
     shared.testexecutor.require = false
 end
 
@@ -228,7 +227,7 @@ if getfenv()["hookmetamethod"] then
     end)
 else
     exec["hookmetamethod"] = false
-    info["hookmetamethod"] = "hookmetamethod ❌ NÃO SUPORTADO [ ERRO: função não disponível ]"
+    info["hookmetamethod"] = "hookmetamethod ❌ NOT SUPPORTED [ ERRO: função não disponível ]"
     shared.testexecutor.hookmetamethod = false
 end
 
@@ -304,7 +303,7 @@ elseif getfenv()["isnetowner"] then
     end
     
     exec.isnetworkowner = true
-    info.isnetworkowner = "isnetworkowner ✅ SUPORTADO (usando isnetowner)"
+    info.isnetworkowner = "isnetworkowner ✅ Supported (usando isnetowner)"
     shared.testexecutor.isnetworkowner = true
 else
     function isnetowner(p)
@@ -316,7 +315,7 @@ else
     
     exec.isnetworkowner = isnetowner
     exec.isnetowner = isnetowner
-    info.isnetworkowner = "isnetworkowner ❌ NÃO SUPORTADO [ ERRO: implementação alternativa ]"
+    info.isnetworkowner = "isnetworkowner ❌ NOT SUPPORTED [ ERRO: implementação alternativa ]"
     shared.testexecutor.isnetworkowner = false
 end
 
@@ -362,17 +361,17 @@ elseif getfenv()["firetouchtransmitter"] then
     exec.firetouch = firetouchtransmitter
 else
     exec.firetouch = nil
-    info.firetouch = "firetouch ❌ NÃO SUPORTADO [ ERRO: função não disponível ]"
+    info.firetouch = "firetouch ❌ NOT SUPPORTED [ ERRO: função não disponível ]"
     shared.testexecutor.firetouch = false
 end
 
 if getfenv()["debug"] and debug.info then
     exec.debugger = true
-    info.debugger = "debugger ✅ SUPORTADO"
+    info.debugger = "debugger ✅ Supported"
     shared.testexecutor.debugger = true
 else
     exec.debugger = false
-    info.debugger = "debugger ❌ NÃO SUPORTADO [ ERRO: debug.info não disponível ]"
+    info.debugger = "debugger ❌ NOT SUPPORTED [ ERRO: debug.info não disponível ]"
     shared.testexecutor.debugger = false
 end
 
@@ -462,24 +461,24 @@ shared.testexecutor.logPath = path
 
 log("\n\n")
 log("═════════════════════════════════════════════")
-log("📊 ANÁLISE DE COMPATIBILIDADE DO EXECUTOR 📊")
+log("EXECUTOR COMPATIBILITY ANALYSIS")
 log("═════════════════════════════════════════════")
-log("✨ Executor: " .. full)
-log("🖥️ Sistema: " .. os_type)
+log("> Executor: " .. full)
+log("> Sistema: " .. os_type)
 
 local gameInfo = "Desconhecido"
 pcall(function()
     gameInfo = game:GetService("MarketplaceService"):GetProductInfo(pid).Name
 end)
-log("🎮 Jogo: " .. gameInfo)
-log("🆔 Place ID: " .. pid)
+log("> Game: " .. gameInfo)
+log("> Place ID: " .. pid)
 if uid then
     log("🌌 Universe ID: " .. uid)
 end
 log("⏰ Timestamp: " .. os.date("%Y-%m-%d %H:%M:%S", shared.testexecutor.timestamp))
 
-log("\n📑 RESUMO DE CAPACIDADES:")
-log("✅ Sistema de Arquivos: " .. (exec["_SupportsFileSystem"] and "Suportado" or "Não suportado"))
+log("\n CAPABILITY SUMMARY: ")
+log("✅ File System: " .. (exec["_SupportsFileSystem"] and "Suportado" or "Não suportado"))
 log("✅ HTTP: " .. (exec["_SupportsHTTP"] and "Suportado" or "Não suportado"))
 log("✅ Drawing: " .. (exec["_SupportsDrawing"] and "Suportado" or "Não suportado"))
 log("✅ ProximityPrompt: " .. (canFire and "Suportado" or "Implementação alternativa"))
@@ -499,7 +498,7 @@ for gn, feats in pairs(groups) do
     local fb = math.floor((pct / 100) * bl)
     local bar = string.rep("█", fb) .. string.rep("░", bl - fb)
     
-    log("\n📋 " .. gn .. " (" .. pct .. "%)")
+    log("\n " .. gn .. " (" .. pct .. "%)")
     log(bar .. " " .. gc .. "/" .. tf)
     
     for _, fn in ipairs(feats) do
