@@ -53,7 +53,7 @@ function misctabs:AddWarnTabDoors(Tab)
     Tab:UpdateWarningBox({
         Title = shared.translationapi:getTranslate("Update Summary", "Resumo de Atualizações"),
         Icon = "layout-grid",
-        Text = "18.12.2025\n[ » ] Improved speed bypass and lag issue resolved.\n[ ✓ ] Noclip Bypass Fixed (THIS IS IN BETA, DO NOT USE WITH SPEED BYPASS!)\n[ ✓ ] Auto rooms Fixed(Improved and faster)\n[ + ] Now Max Activation Distance is called Prompt Range (To enable the Slider, activate the toggle).\n[ ✓ ] The bug in the Xeno Executor that prevented users from interacting with prompts has likely been resolved.\n[ ✓ ] Optimization in Notify Entities\n[ + ] Godmode is more unstable\n[ + ] Now, by activating Less Lag in Speed Bypass, the maximum speed will be 200.\n[ ✓ ] Prioritization of Rarities improved in *Auto Rooms*\n» join our Discord to suggest features! «",
+        Text = "31.12.2025\n [ + ] REVIVE FRIENDS\n[ + ] KNOB FARM\n[ + ] NO CAMERA SHAKE ISSUE FIXED\n [ + ] WALKSPEED BUG FIXED\n\n» join our Discord to suggest features! «",
         IsNormal = true,
         Visible = true,
         LockSize = true,
