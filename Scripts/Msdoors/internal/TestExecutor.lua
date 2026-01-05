@@ -29,12 +29,12 @@ local file = "log-msdoors" .. dt .. ".txt"
 local path = dir .. "/" .. file
 local logs = {}
 
-local name, ver, full = "Desconhecido", "Desconhecido", "Desconhecido"
+local name, ver, full = "Unknown", "Unknown", "Unknown"
 
 local ok = pcall(function()
     full = identifyexecutor() or "None"
     local parts = string.split(full, " ")
-    name = parts[1] or "Desconhecido"
+    name = parts[1] or "Unknown"
     if #parts > 1 then
         table.remove(parts, 1)
         ver = table.concat(parts, " ")
@@ -42,7 +42,7 @@ local ok = pcall(function()
 end)
 
 if not ok then
-    name, ver, full = "Desconhecido", "Desconhecido", "Desconhecido"
+    name, ver, full = "Unknown", "Unknown", "Unknown"
 end
 
 shared.testexecutor.name = name
@@ -63,7 +63,7 @@ local broken = {
     Temple = {require = true, hookmetamethod = true}
 }
 
-local os_type = "Desconhecido"
+local os_type = "Unknown"
 if identifyexecutor and typeof(identifyexecutor) == "function" then
     local ei = string.lower(identifyexecutor() or "")
     if string.find(ei, "windows") then
@@ -96,7 +96,7 @@ local function test(n, f, cb)
     local status = ok and "✅ Supported" or "❌ NOT SUPPORTED"
     local errorMsg = ""
     if not ok and err then
-        errorMsg = " [ ERRO: " .. tostring(err) .. " ]"
+        errorMsg = " [ ERROR: " .. tostring(err) .. " ]"
     end
     
     info[n] = n .. " " .. status .. errorMsg
@@ -110,7 +110,7 @@ local function safe(n, f)
         test(n, f, false)
     else
         exec[n] = false
-        info[n] = n .. " ❌ NOT SUPPORTED [ ERRO: FUNCTION NOT AVAILABLE ]"
+        info[n] = n .. " ❌ NOT SUPPORTED [ ERROR: FUNCTION NOT AVAILABLE ]"
         shared.testexecutor[n] = false
     end
 end
@@ -150,8 +150,31 @@ if syn and syn.request then
     shared.testexecutor["syn.request"] = true
 else
     exec["syn.request"] = false
-    info["syn.request"] = "syn.request ❌ NOT SUPPORTED [ ERRO: biblioteca syn não disponível ]"
+    info["syn.request"] = "syn.request ❌ NOT SUPPORTED [ ERROR: syn library not available ]"
     shared.testexecutor["syn.request"] = false
+end
+
+if WebSocket then
+    exec["WebSocket"] = true
+    info["WebSocket"] = "WebSocket ✅ Supported"
+    shared.testexecutor["WebSocket"] = true
+    
+    if typeof(WebSocket.connect) == "function" then
+        exec["WebSocket.connect"] = true
+        info["WebSocket.connect"] = "WebSocket.connect ✅ Supported"
+        shared.testexecutor["WebSocket.connect"] = true
+    else
+        exec["WebSocket.connect"] = false
+        info["WebSocket.connect"] = "WebSocket.connect ❌ NOT SUPPORTED [ ERROR: connect method not available ]"
+        shared.testexecutor["WebSocket.connect"] = false
+    end
+else
+    exec["WebSocket"] = false
+    exec["WebSocket.connect"] = false
+    info["WebSocket"] = "WebSocket ❌ NOT SUPPORTED [ ERROR: WebSocket library not available ]"
+    info["WebSocket.connect"] = "WebSocket.connect ❌ NOT SUPPORTED [ ERROR: WebSocket library not available ]"
+    shared.testexecutor["WebSocket"] = false
+    shared.testexecutor["WebSocket.connect"] = false
 end
 
 safe("queue_on_teleport", queue_on_teleport)
@@ -177,14 +200,14 @@ if Drawing then
         shared.testexecutor["Drawing.new"] = true
     else
         exec["Drawing.new"] = false
-        info["Drawing.new"] = "Drawing.new ❌ NOT SUPPORTED [ ERRO: método new não disponível ]"
+        info["Drawing.new"] = "Drawing.new ❌ NOT SUPPORTED [ ERROR: new method not available ]"
         shared.testexecutor["Drawing.new"] = false
     end
 else
     exec["Drawing"] = false
     exec["Drawing.new"] = false
-    info["Drawing"] = "Drawing ❌ NOT SUPPORTED [ ERRO: biblioteca Drawing não disponível ]"
-    info["Drawing.new"] = "Drawing.new ❌ NOT SUPPORTED [ ERRO: biblioteca Drawing não disponível ]"
+    info["Drawing"] = "Drawing ❌ NOT SUPPORTED [ ERROR: Drawing library not available ]"
+    info["Drawing.new"] = "Drawing.new ❌ NOT SUPPORTED [ ERROR: Drawing library not available ]"
     shared.testexecutor.Drawing = false
     shared.testexecutor["Drawing.new"] = false
 end
@@ -206,15 +229,15 @@ if getfenv()["require"] then
             if ms then
                 require(ms)
             else
-                error("ModuleScript não encontrado")
+                error("ModuleScript not found")
             end
         else
-            error("PlayerScripts não encontrado")
+            error("PlayerScripts not found")
         end
     end)
 else
     exec["require"] = false
-    info["require"] = "require ❌ NOT SUPPORTED [ ERRO: função não disponível ]"
+    info["require"] = "require ❌ NOT SUPPORTED [ ERROR: function not available ]"
     shared.testexecutor.require = false
 end
 
@@ -227,7 +250,7 @@ if getfenv()["hookmetamethod"] then
     end)
 else
     exec["hookmetamethod"] = false
-    info["hookmetamethod"] = "hookmetamethod ❌ NOT SUPPORTED [ ERRO: função não disponível ]"
+    info["hookmetamethod"] = "hookmetamethod ❌ NOT SUPPORTED [ ERROR: function not available ]"
     shared.testexecutor.hookmetamethod = false
 end
 
@@ -246,7 +269,7 @@ shared.testexecutor.fireProximityPrompt = canFire
 if not canFire then
     local function fireProx(p, look, instant)
         if not p:IsA("ProximityPrompt") then
-            error("ProximityPrompt esperado, recebeu " .. typeof(p))
+            error("ProximityPrompt expected, received " .. typeof(p))
         end
         
         local pos = p.Parent:GetPivot().Position
@@ -297,25 +320,25 @@ elseif getfenv()["isnetowner"] then
     
     function isnetworkowner(p)
         if not p:IsA("BasePart") then
-            error("BasePart esperado, recebeu " .. typeof(p))
+            error("BasePart expected, received " .. typeof(p))
         end
         return isnetowner(p)
     end
     
     exec.isnetworkowner = true
-    info.isnetworkowner = "isnetworkowner ✅ Supported (usando isnetowner)"
+    info.isnetworkowner = "isnetworkowner ✅ Supported (using isnetowner)"
     shared.testexecutor.isnetworkowner = true
 else
     function isnetowner(p)
         if not p:IsA("BasePart") then
-            error("BasePart esperado, recebeu " .. typeof(p))
+            error("BasePart expected, received " .. typeof(p))
         end
         return p.ReceiveAge == 0
     end
     
     exec.isnetworkowner = isnetowner
     exec.isnetowner = isnetowner
-    info.isnetworkowner = "isnetworkowner ❌ NOT SUPPORTED [ ERRO: implementação alternativa ]"
+    info.isnetworkowner = "isnetworkowner ❌ NOT SUPPORTED [ ERROR: alternative implementation ]"
     shared.testexecutor.isnetworkowner = false
 end
 
@@ -361,7 +384,7 @@ elseif getfenv()["firetouchtransmitter"] then
     exec.firetouch = firetouchtransmitter
 else
     exec.firetouch = nil
-    info.firetouch = "firetouch ❌ NOT SUPPORTED [ ERRO: função não disponível ]"
+    info.firetouch = "firetouch ❌ NOT SUPPORTED [ ERROR: function not available ]"
     shared.testexecutor.firetouch = false
 end
 
@@ -371,7 +394,7 @@ if getfenv()["debug"] and debug.info then
     shared.testexecutor.debugger = true
 else
     exec.debugger = false
-    info.debugger = "debugger ❌ NOT SUPPORTED [ ERRO: debug.info não disponível ]"
+    info.debugger = "debugger ❌ NOT SUPPORTED [ ERROR: debug.info not available ]"
     shared.testexecutor.debugger = false
 end
 
@@ -389,6 +412,81 @@ safe("getprotos", getprotos)
 safe("getstack", getstack)
 safe("setstack", setstack)
 
+safe("getthreadidentity", getthreadidentity)
+safe("setthreadidentity", setthreadidentity)
+safe("getidentity", getidentity)
+safe("setidentity", setidentity)
+
+if crypt then
+    exec["crypt"] = true
+    info["crypt"] = "crypt ✅ Supported"
+    shared.testexecutor["crypt"] = true
+    
+    if typeof(crypt.encrypt) == "function" then
+        exec["crypt.encrypt"] = true
+        info["crypt.encrypt"] = "crypt.encrypt ✅ Supported"
+        shared.testexecutor["crypt.encrypt"] = true
+    else
+        exec["crypt.encrypt"] = false
+        info["crypt.encrypt"] = "crypt.encrypt ❌ NOT SUPPORTED"
+        shared.testexecutor["crypt.encrypt"] = false
+    end
+    
+    if typeof(crypt.decrypt) == "function" then
+        exec["crypt.decrypt"] = true
+        info["crypt.decrypt"] = "crypt.decrypt ✅ Supported"
+        shared.testexecutor["crypt.decrypt"] = true
+    else
+        exec["crypt.decrypt"] = false
+        info["crypt.decrypt"] = "crypt.decrypt ❌ NOT SUPPORTED"
+        shared.testexecutor["crypt.decrypt"] = false
+    end
+    
+    if typeof(crypt.base64encode) == "function" or typeof(crypt.base64_encode) == "function" then
+        exec["crypt.base64encode"] = true
+        info["crypt.base64encode"] = "crypt.base64encode ✅ Supported"
+        shared.testexecutor["crypt.base64encode"] = true
+    else
+        exec["crypt.base64encode"] = false
+        info["crypt.base64encode"] = "crypt.base64encode ❌ NOT SUPPORTED"
+        shared.testexecutor["crypt.base64encode"] = false
+    end
+    
+    if typeof(crypt.base64decode) == "function" or typeof(crypt.base64_decode) == "function" then
+        exec["crypt.base64decode"] = true
+        info["crypt.base64decode"] = "crypt.base64decode ✅ Supported"
+        shared.testexecutor["crypt.base64decode"] = true
+    else
+        exec["crypt.base64decode"] = false
+        info["crypt.base64decode"] = "crypt.base64decode ❌ NOT SUPPORTED"
+        shared.testexecutor["crypt.base64decode"] = false
+    end
+else
+    exec["crypt"] = false
+    exec["crypt.encrypt"] = false
+    exec["crypt.decrypt"] = false
+    exec["crypt.base64encode"] = false
+    exec["crypt.base64decode"] = false
+    info["crypt"] = "crypt ❌ NOT SUPPORTED [ ERROR: crypt library not available ]"
+    info["crypt.encrypt"] = "crypt.encrypt ❌ NOT SUPPORTED [ ERROR: crypt library not available ]"
+    info["crypt.decrypt"] = "crypt.decrypt ❌ NOT SUPPORTED [ ERROR: crypt library not available ]"
+    info["crypt.base64encode"] = "crypt.base64encode ❌ NOT SUPPORTED [ ERROR: crypt library not available ]"
+    info["crypt.base64decode"] = "crypt.base64decode ❌ NOT SUPPORTED [ ERROR: crypt library not available ]"
+    shared.testexecutor["crypt"] = false
+    shared.testexecutor["crypt.encrypt"] = false
+    shared.testexecutor["crypt.decrypt"] = false
+    shared.testexecutor["crypt.base64encode"] = false
+    shared.testexecutor["crypt.base64decode"] = false
+end
+
+safe("rconsoleprint", rconsoleprint)
+safe("rconsoleclear", rconsoleclear)
+safe("rconsolecreate", rconsolecreate)
+safe("rconsoledestroy", rconsoledestroy)
+safe("rconsoleinput", rconsoleinput)
+safe("rconsolename", rconsolename)
+safe("rconsolesettitle", rconsolesettitle)
+
 local pid = game.PlaceId
 local uid = nil
 local ok, res = pcall(function()
@@ -405,18 +503,23 @@ shared.testexecutor.supportFileSystem = (exec["isfile"] and exec["delfile"] and 
 shared.testexecutor.supportEditFiles = (exec["writefile"] and exec["appendfile"] and exec["delfile"])
 shared.testexecutor.supportDrawing = exec["Drawing.new"] or false
 shared.testexecutor.supportHTTP = (exec["request"] or exec["http_request"] or exec["syn.request"] or exec["httprequest"]) or false
+shared.testexecutor.supportWebSocket = exec["WebSocket"] or false
+shared.testexecutor.supportCrypt = exec["crypt"] or false
 
 local groups = {
-    ["Sistema de Arquivos"] = {"readfile", "listfiles", "writefile", "makefolder", "appendfile", "isfile", "isfolder", "delfile", "delfolder", "loadfile"},
-    ["Acesso ao Ambiente"] = {"getrenv", "getgenv", "getsenv", "getfenv", "getrawmetatable", "setrawmetatable", "setreadonly", "getnamecallmethod", "isluau", "checkcaller"},
-    ["HTTP e Rede"] = {"request", "http_request", "syn.request", "httprequest"},
-    ["Interface e Usuário"] = {"gethui", "getgc", "getinstances", "getnilinstances", "sethiddenproperty", "gethiddenproperty", "saveinstance", "setclipboard", "getcustomasset", "getsynasset"},
-    ["Interação"] = {"fireclickdetector", "fireproximityprompt", "firetouchinterest", "firetouchtransmitter", "mouse1click", "mouse1press", "mouse1release", "mouse2click", "keypress", "keyrelease"},
-    ["Eventos e Conexões"] = {"getconnections", "firesignal", "hookmetamethod", "queue_on_teleport"},
-    ["Desenho"] = {"Drawing", "Drawing.new"},
-    ["Scripts e Módulos"] = {"require", "getcallingscript", "debugger", "newcclosure", "clonefunction", "getscriptbytecode", "getscripthash", "getloadedmodules", "getrunningscripts", "getscripts"},
-    ["Física e Rede"] = {"isnetworkowner", "isnetowner"},
-    ["Debugging"] = {"getconstants", "getupvalues", "setupvalue", "getprotos", "getstack", "setstack"}
+    ["File System"] = {"readfile", "listfiles", "writefile", "makefolder", "appendfile", "isfile", "isfolder", "delfile", "delfolder", "loadfile"},
+    ["Environment Access"] = {"getrenv", "getgenv", "getsenv", "getfenv", "getrawmetatable", "setrawmetatable", "setreadonly", "getnamecallmethod", "isluau", "checkcaller"},
+    ["HTTP & Network"] = {"request", "http_request", "syn.request", "httprequest", "WebSocket", "WebSocket.connect"},
+    ["Interface & User"] = {"gethui", "getgc", "getinstances", "getnilinstances", "sethiddenproperty", "gethiddenproperty", "saveinstance", "setclipboard", "getcustomasset", "getsynasset"},
+    ["Interaction"] = {"fireclickdetector", "fireproximityprompt", "firetouchinterest", "firetouchtransmitter", "mouse1click", "mouse1press", "mouse1release", "mouse2click", "keypress", "keyrelease"},
+    ["Events & Connections"] = {"getconnections", "firesignal", "hookmetamethod", "queue_on_teleport"},
+    ["Drawing"] = {"Drawing", "Drawing.new"},
+    ["Scripts & Modules"] = {"require", "getcallingscript", "debugger", "newcclosure", "clonefunction", "getscriptbytecode", "getscripthash", "getloadedmodules", "getrunningscripts", "getscripts"},
+    ["Physics & Network"] = {"isnetworkowner", "isnetowner"},
+    ["Debugging"] = {"getconstants", "getupvalues", "setupvalue", "getprotos", "getstack", "setstack"},
+    ["Identity"] = {"getthreadidentity", "setthreadidentity", "getidentity", "setidentity"},
+    ["Cryptography"] = {"crypt", "crypt.encrypt", "crypt.decrypt", "crypt.base64encode", "crypt.base64decode"},
+    ["Console"] = {"rconsoleprint", "rconsoleclear", "rconsolecreate", "rconsoledestroy", "rconsoleinput", "rconsolename", "rconsolesettitle"}
 }
 
 exec["_ExecutorName"] = name
@@ -426,6 +529,8 @@ exec["_OSType"] = os_type
 exec["_SupportsFileSystem"] = shared.testexecutor.supportFileSystem
 exec["_SupportsHTTP"] = shared.testexecutor.supportHTTP
 exec["_SupportsDrawing"] = shared.testexecutor.supportDrawing
+exec["_SupportsWebSocket"] = shared.testexecutor.supportWebSocket
+exec["_SupportsCrypt"] = shared.testexecutor.supportCrypt
 exec["_PlaceId"] = pid
 exec["_UniverseId"] = uid
 
@@ -436,7 +541,7 @@ end
 
 local function save()
     if not exec["writefile"] or not exec["makefolder"] then
-        print("\n⚠️ Não foi possível salvar o log: sistema de arquivos não suportado")
+        print("\n⚠️ Cannot save log: file system not supported")
         return false
     end
     
@@ -449,10 +554,10 @@ local function save()
     end)
     
     if ok then
-        print("\n✅ Log salvo em: " .. path)
+        print("\n✅ Log saved at: " .. path)
         return true
     else
-        print("\n⚠️ Erro ao salvar log: " .. tostring(err))
+        print("\n⚠️ Error saving log: " .. tostring(err))
         return false
     end
 end
@@ -464,9 +569,9 @@ log("═════════════════════════
 log("EXECUTOR COMPATIBILITY ANALYSIS")
 log("═════════════════════════════════════════════")
 log("> Executor: " .. full)
-log("> Sistema: " .. os_type)
+log("> System: " .. os_type)
 
-local gameInfo = "Desconhecido"
+local gameInfo = "Unknown"
 pcall(function()
     gameInfo = game:GetService("MarketplaceService"):GetProductInfo(pid).Name
 end)
@@ -478,10 +583,12 @@ end
 log("⏰ Timestamp: " .. os.date("%Y-%m-%d %H:%M:%S", shared.testexecutor.timestamp))
 
 log("\n CAPABILITY SUMMARY: ")
-log("✅ File System: " .. (exec["_SupportsFileSystem"] and "Suportado" or "Não suportado"))
-log("✅ HTTP: " .. (exec["_SupportsHTTP"] and "Suportado" or "Não suportado"))
-log("✅ Drawing: " .. (exec["_SupportsDrawing"] and "Suportado" or "Não suportado"))
-log("✅ ProximityPrompt: " .. (canFire and "Suportado" or "Implementação alternativa"))
+log("✅ File System: " .. (exec["_SupportsFileSystem"] and "Supported" or "Not supported"))
+log("✅ HTTP: " .. (exec["_SupportsHTTP"] and "Supported" or "Not supported"))
+log("✅ Drawing: " .. (exec["_SupportsDrawing"] and "Supported" or "Not supported"))
+log("✅ WebSocket: " .. (exec["_SupportsWebSocket"] and "Supported" or "Not supported"))
+log("✅ Cryptography: " .. (exec["_SupportsCrypt"] and "Supported" or "Not supported"))
+log("✅ ProximityPrompt: " .. (canFire and "Supported" or "Alternative implementation"))
 
 for gn, feats in pairs(groups) do
     local gc = 0
@@ -507,7 +614,7 @@ for gn, feats in pairs(groups) do
         elseif exec[fn] ~= nil then
             log((exec[fn] and "✅" or "❌") .. " [" .. fn .. "]")
         else
-            log("❓ [" .. fn .. "] (não testado)")
+            log("❓ [" .. fn .. "] (not tested)")
         end
     end
 end
@@ -522,7 +629,5 @@ table.sort(gvs, function(a, b) return a.key < b.key end)
 for _, gv in ipairs(gvs) do
     log(gv.key .. " = " .. tostring(gv.value))
 end
-
--- save()  PAROU!
 
 return shared.testexecutor
