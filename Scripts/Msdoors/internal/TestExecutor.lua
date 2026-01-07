@@ -60,7 +60,9 @@ local broken = {
     ["Script-Ware"] = {},
     Oxygen = {fireclickdetector = true},
     Hydrogen = {fireclickdetector = true},
-    Temple = {require = true, hookmetamethod = true}
+    Temple = {require = true, hookmetamethod = true},
+    Xeno = {require = true},
+    Solara = {require = true}
 }
 
 local os_type = "Unknown"
