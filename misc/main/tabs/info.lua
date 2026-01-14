@@ -11,7 +11,7 @@ function misctabs:AddMiscTab(Tab)
     local DevsCreditsSeek = GroupCredits:AddLabel('<font color="rgb(255, 165, 0)">[SeekAlegriaFla] | SUB-OWNER</font>', true)
 
     local EspecialCreditsMspaint = GroupInspirations:AddLabel('<font color="rgb(138, 43, 226)">[ mspaint by Upio ]</font>', true)
-    local EspecialCreditsMsdoors = GroupInspirations:AddLabel('<font color="rgb(138, 43, 226)">[ original msdoors by Mstudio45 ]', true)
+    local EspecialCreditsMsdoors = GroupInspirations:AddLabel('<font color="rgb(138, 43, 226)">[ original msdoors by Mstudio45 ]</font>', true)
     
     local EspecialCreditsSeikoso = GroupContributors:AddLabel('<font color="rgb(138, 43, 226)">[Seikoso]</font> | It helped me with tips and to not give up on this script.', true)
     local EspecialCreditsSeikoso = GroupContributors:AddLabel('<font color="rgb(138, 43, 226)">[Jack]</font> | Noclip bypass was made available to me and helped me with several functions.', true)
