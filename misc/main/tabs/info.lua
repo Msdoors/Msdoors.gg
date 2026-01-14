@@ -3,12 +3,16 @@ local HttpService = game:GetService("HttpService")
 
 function misctabs:AddMiscTab(Tab)
     local GroupCredits = Tab:AddLeftGroupbox(shared.translationapi:getTranslate("tab_Credits", "Desenvolvedores"))
+    local GroupInspirations = Tab:AddLeftGroupbox(shared.translationapi:getTranslate("tab_Credits_inspirations", "Inspirações"))
     local GroupContributors = Tab:AddLeftGroupbox(shared.translationapi:getTranslate("tab_Credits_Contributors", "Contribuidores"))
     local GroupTranslators = Tab:AddRightGroupbox(shared.translationapi:getTranslate("tab_Credits_Translators", "Tradutores"))
 
     local DevsCreditsRhyan = GroupCredits:AddLabel('<font color="rgb(255, 87, 87)">[Rhyan57] | OWNER</font>', true)
     local DevsCreditsSeek = GroupCredits:AddLabel('<font color="rgb(255, 165, 0)">[SeekAlegriaFla] | SUB-OWNER</font>', true)
 
+    local EspecialCreditsMspaint = GroupInspirations:AddLabel('<font color="rgb(138, 43, 226)">[ mspaint by Upio ]</font>', true)
+    local EspecialCreditsMsdoors = GroupInspirations:AddLabel('<font color="rgb(138, 43, 226)">[ original msdoors by Mstudio45 ]', true)
+    
     local EspecialCreditsSeikoso = GroupContributors:AddLabel('<font color="rgb(138, 43, 226)">[Seikoso]</font> | It helped me with tips and to not give up on this script.', true)
     local EspecialCreditsSeikoso = GroupContributors:AddLabel('<font color="rgb(138, 43, 226)">[Jack]</font> | Noclip bypass was made available to me and helped me with several functions.', true)
     local EspecialCreditsJacob = GroupContributors:AddLabel('<font color="rgb(30, 144, 255)">[Jacob]</font> | He is a great person and helped me with tips and optimizing some of the script functions.', true)
