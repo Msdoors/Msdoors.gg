@@ -7,7 +7,7 @@ local Players = game:GetService("Players")
 
 local DEFAULT_SOUND = "rbxassetid://4590657391"
 local DOORS_SOUND = "rbxassetid://10469938989"
-local MSDOORS_SOUND_URL = "https://github.com/Msdoors/Msdoors.gg/raw/refs/heads/main/Scripts/Msdoors/Notification/DOORS-ACHIEVIMENT.mp3""
+local MSDOORS_SOUND_URL = "https://github.com/Msdoors/Msdoors.gg/raw/refs/heads/main/Scripts/Msdoors/Notification/DOORS-ACHIEVIMENT.mp3"
 local MSDOORS_SOUND_PATH = "msdoors/DOORS-ACHIEVEMENT.mp3"
 
 shared.ACHIDATA = shared.ACHIDATA or {template = nil, gui = nil, queue = {}, processing = false, defaultSound = nil}
@@ -16,34 +16,30 @@ local d = shared.ACHIDATA
 local function InitMsdoorsSound()
     if d.defaultSound then return d.defaultSound end
     
-    task.spawn(function()
-        if not isfolder("msdoors") then
-            makefolder("msdoors")
-        end
-        
-        if not isfile(MSDOORS_SOUND_PATH) then
-            local success, audioData = pcall(function()
-                return game:HttpGet(MSDOORS_SOUND_URL)
-            end)
-            
-            if success then
-                writefile(MSDOORS_SOUND_PATH, audioData)
-                local assetFunc = getcustomasset or getsynasset
-                d.defaultSound = assetFunc(MSDOORS_SOUND_PATH)
-            else
-                warn("Falha ao baixar som padrão do msdoors")
-                d.defaultSound = "rbxassetid://10469938989"
-            end
-        else
-            local assetFunc = getcustomasset or getsynasset
-            d.defaultSound = assetFunc(MSDOORS_SOUND_PATH)
-        end
-    end)
+    if not isfolder("msdoors") then
+        makefolder("msdoors")
+    end
     
     if isfile(MSDOORS_SOUND_PATH) then
         local assetFunc = getcustomasset or getsynasset
-        return assetFunc(MSDOORS_SOUND_PATH)
+        d.defaultSound = assetFunc(MSDOORS_SOUND_PATH)
+        return d.defaultSound
     end
+    
+    task.spawn(function()
+        local success, audioData = pcall(function()
+            return game:HttpGet(MSDOORS_SOUND_URL)
+        end)
+        
+        if success then
+            writefile(MSDOORS_SOUND_PATH, audioData)
+            local assetFunc = getcustomasset or getsynasset
+            d.defaultSound = assetFunc(MSDOORS_SOUND_PATH)
+        else
+            warn("Falha ao baixar som padrão do msdoors")
+            d.defaultSound = "rbxassetid://10469938989"
+        end
+    end)
     
     return "rbxassetid://10469938989"
 end
