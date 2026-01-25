@@ -7,7 +7,7 @@ local Players = game:GetService("Players")
 
 local DEFAULT_SOUND = "rbxassetid://4590657391"
 local DOORS_SOUND = "rbxassetid://10469938989"
-local MSDOORS_SOUND_URL = "https://github.com/Msdoors/Msdoors.gg/raw/refs/heads/main/Scripts/Msdoors/Notification/DOORS-ACHIEVIMENT.mp3"
+local MSDOORS_SOUND_URL = "https://github.com/Msdoors/Msdoors.gg/raw/refs/heads/main/Scripts/Msdoors/Notification/DOORS-ACHIEVIMENT.mp3""
 local MSDOORS_SOUND_PATH = "msdoors/DOORS-ACHIEVEMENT.mp3"
 
 shared.ACHIDATA = shared.ACHIDATA or {template = nil, gui = nil, queue = {}, processing = false, defaultSound = nil}
@@ -16,26 +16,36 @@ local d = shared.ACHIDATA
 local function InitMsdoorsSound()
     if d.defaultSound then return d.defaultSound end
     
-    if not isfolder("msdoors") then
-        makefolder("msdoors")
-    end
-    
-    if not isfile(MSDOORS_SOUND_PATH) then
-        local success, audioData = pcall(function()
-            return game:HttpGet(MSDOORS_SOUND_URL)
-        end)
-        
-        if success then
-            writefile(MSDOORS_SOUND_PATH, audioData)
-        else
-            warn("Falha ao baixar som padrão do msdoors")
-            return "rbxassetid://10469938989"
+    task.spawn(function()
+        if not isfolder("msdoors") then
+            makefolder("msdoors")
         end
+        
+        if not isfile(MSDOORS_SOUND_PATH) then
+            local success, audioData = pcall(function()
+                return game:HttpGet(MSDOORS_SOUND_URL)
+            end)
+            
+            if success then
+                writefile(MSDOORS_SOUND_PATH, audioData)
+                local assetFunc = getcustomasset or getsynasset
+                d.defaultSound = assetFunc(MSDOORS_SOUND_PATH)
+            else
+                warn("Falha ao baixar som padrão do msdoors")
+                d.defaultSound = "rbxassetid://10469938989"
+            end
+        else
+            local assetFunc = getcustomasset or getsynasset
+            d.defaultSound = assetFunc(MSDOORS_SOUND_PATH)
+        end
+    end)
+    
+    if isfile(MSDOORS_SOUND_PATH) then
+        local assetFunc = getcustomasset or getsynasset
+        return assetFunc(MSDOORS_SOUND_PATH)
     end
     
-    local assetFunc = getcustomasset or getsynasset
-    d.defaultSound = assetFunc(MSDOORS_SOUND_PATH)
-    return d.defaultSound
+    return "rbxassetid://10469938989"
 end
 
 local function ProcessSoundParameter(soundpar)
@@ -51,19 +61,18 @@ local function ProcessSoundParameter(soundpar)
     end
     
     if soundpar:match("^https?://") then
-        local tempPath = "msdoors/temp_sound_" .. tick() .. ".mp3"
-        local success, audioData = pcall(function()
-            return game:HttpGet(soundpar)
+        task.spawn(function()
+            local tempPath = "msdoors/temp_sound_" .. tick() .. ".mp3"
+            local success, audioData = pcall(function()
+                return game:HttpGet(soundpar)
+            end)
+            
+            if success then
+                writefile(tempPath, audioData)
+            else
+                warn("Falha ao baixar som do link: " .. soundpar)
+            end
         end)
-        
-        if success then
-            writefile(tempPath, audioData)
-            local assetFunc = getcustomasset or getsynasset
-            return assetFunc(tempPath)
-        else
-            warn("Falha ao baixar som do link: " .. soundpar)
-            return InitMsdoorsSound()
-        end
     end
     
     return InitMsdoorsSound()
@@ -267,9 +276,13 @@ local function showMsdoors(opts)
     if opts.soundpar then
         achi.Snd.SoundId = ProcessSoundParameter(opts.soundpar)
     end
-    achi.Snd:Play()
     
-    achi.F:TweenPosition(UDim2.new(0, 0, 0, 0), "Out", "Quad", 0.5, true)
+    task.spawn(function()
+        task.wait(0.1)
+        achi.Snd:Play()
+    end)
+    
+    achi.F:TweenPosition(UDim2.new(0, 0, 0, 0), "Out", "Sine", 0.8, true)
     
     TweenService:Create(achi.Glow, TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
         ImageTransparency = 1
@@ -278,8 +291,8 @@ local function showMsdoors(opts)
     task.spawn(function()
         task.wait(opts.Time or 5)
         
-        achi.F:TweenPosition(UDim2.new(1.1, 0, 0, 0), "In", "Quad", 0.5, true)
-        task.wait(0.5)
+        achi.F:TweenPosition(UDim2.new(1.1, 0, 0, 0), "In", "Sine", 0.6, true)
+        task.wait(0.6)
         achi:Destroy()
     end)
 end
