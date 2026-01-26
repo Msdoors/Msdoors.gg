@@ -64,6 +64,17 @@ function misctabs:AddWarnTabDoors(Tab)
     })
 end
 
+function misctabs:AddWarnTabPressure(Tab)
+    Tab:UpdateWarningBox({
+        Title = shared.translationapi:getTranslate("Update Summary", "Resumo de Atualizações"),
+        Icon = "layout-grid",
+        Text = "25.01.2026\n[ ! ] BETA\n» join our Discord to suggest features! «",
+        IsNormal = true,
+        Visible = true,
+        LockSize = true,
+    })
+end
+
 function misctabs:AddWarnTabNaturalDisaster(Tab)
     Tab:UpdateWarningBox({
         Title = shared.translationapi:getTranslate("Update Summary", "Resumo de Atualizações"),
