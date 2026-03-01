@@ -394,7 +394,11 @@ shared.notifyap.Notify = function(options)
             options.Time,
             options.Sound
         )
-    elseif notifyStyle == "Linoria" or notifyStyle == "Obsidian" or notifyStyle == "Obisdian" then
+    elseif notifyStyle == "Linoria" then
+        Notify(options)
+    elseif notifyStyle == "Obsidian" then
+        Notify(options)
+    elseif notifyStyle == "Obsdian" then
         Notify(options)
     elseif notifyStyle == "msdoors" then
         initMsdoorsUI()
