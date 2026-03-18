@@ -346,6 +346,7 @@ local function ParadoxNotify(opts)
     local achievementHolder = playerGui:WaitForChild("MainUI"):WaitForChild("AchievementHolder")
 
     local clone = template:Clone()
+    clone.Name = "msdoosAchievimentNotify"
     clone.Parent = achievementHolder
 
     local achievement = clone:WaitForChild("Achievement")
@@ -370,6 +371,7 @@ local function ParadoxNotify(opts)
 
     if sound then
         sound.SoundId = "rbxassetid://91986934883173"
+        sound.Volume = 5
         sound:Play()
     end
 
