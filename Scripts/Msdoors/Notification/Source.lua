@@ -6,7 +6,6 @@ local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 
 local DEFAULT_SOUND = "rbxassetid://4590657391"
-local DOORS_SOUND = "rbxassetid://10469938989"
 local MSDOORS_SOUND_URL = "https://github.com/Msdoors/Msdoors.gg/raw/refs/heads/main/Scripts/Msdoors/Notification/DOORS-ACHIEVIMENT.mp3"
 local MSDOORS_SOUND_PATH = "msdoors/DOORS-ACHIEVEMENT.mp3"
 
@@ -38,26 +37,14 @@ local function InitMsdoorsSound()
 end
 
 local function ProcessSoundParameter(soundpar)
-    if not soundpar or soundpar == "" then
-        return InitMsdoorsSound()
-    end
-    if soundpar:match("^rbxassetid://") or soundpar:match("^%d+$") then
-        if soundpar:match("^%d+$") then
-            return "rbxassetid://" .. soundpar
-        end
-        return soundpar
-    end
+    if not soundpar or soundpar == "" then return InitMsdoorsSound() end
+    if soundpar:match("^rbxassetid://") then return soundpar end
+    if soundpar:match("^%d+$") then return "rbxassetid://" .. soundpar end
     if soundpar:match("^https?://") then
         task.spawn(function()
             local tempPath = "msdoors/temp_sound_" .. tick() .. ".mp3"
-            local success, audioData = pcall(function()
-                return game:HttpGet(soundpar)
-            end)
-            if success then
-                writefile(tempPath, audioData)
-            else
-                warn("Falha ao baixar som do link: " .. soundpar)
-            end
+            local success, audioData = pcall(function() return game:HttpGet(soundpar) end)
+            if success then writefile(tempPath, audioData) else warn("Falha ao baixar som: " .. soundpar) end
         end)
     end
     return InitMsdoorsSound()
@@ -258,9 +245,7 @@ local function showMsdoors(opts)
     achi.F.UIStroke.Color = col
     achi.Glow.ImageColor3 = col
 
-    if opts.soundpar then
-        achi.Snd.SoundId = ProcessSoundParameter(opts.soundpar)
-    end
+    if opts.soundpar then achi.Snd.SoundId = ProcessSoundParameter(opts.soundpar) end
 
     task.spawn(function()
         task.wait(0.1)
@@ -268,10 +253,7 @@ local function showMsdoors(opts)
     end)
 
     achi.F:TweenPosition(UDim2.new(0, 0, 0, 0), "Out", "Sine", 0.8, true)
-
-    TweenService:Create(achi.Glow, TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
-        ImageTransparency = 1
-    }):Play()
+    TweenService:Create(achi.Glow, TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {ImageTransparency = 1}):Play()
 
     task.spawn(function()
         task.wait(opts.Time or 5)
@@ -322,19 +304,13 @@ local function paradox_tweenIn(obj)
     local ti = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     if obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
         TweenService:Create(obj, ti, {ImageTransparency = data.ImageTransparency or 0}):Play()
-        if obj:FindFirstChildOfClass("UIStroke") then
-            TweenService:Create(obj.UIStroke, ti, {Transparency = data.StrokeTransparency or 0}):Play()
-        end
+        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, {Transparency = data.StrokeTransparency or 0}):Play() end
     elseif obj:IsA("TextLabel") or obj:IsA("TextButton") then
         TweenService:Create(obj, ti, {TextTransparency = data.TextTransparency or 0, BackgroundTransparency = data.BackgroundTransparency or 1}):Play()
-        if obj:FindFirstChildOfClass("UIStroke") then
-            TweenService:Create(obj.UIStroke, ti, {Transparency = data.StrokeTransparency or 0}):Play()
-        end
+        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, {Transparency = data.StrokeTransparency or 0}):Play() end
     elseif obj:IsA("Frame") or obj:IsA("ScrollingFrame") or obj:IsA("ViewportFrame") then
         TweenService:Create(obj, ti, {BackgroundTransparency = data.BackgroundTransparency or 0}):Play()
-        if obj:FindFirstChildOfClass("UIStroke") then
-            TweenService:Create(obj.UIStroke, ti, {Transparency = data.StrokeTransparency or 0}):Play()
-        end
+        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, {Transparency = data.StrokeTransparency or 0}):Play() end
     end
 end
 
@@ -342,19 +318,13 @@ local function paradox_tweenOut(obj)
     local ti = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     if obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
         TweenService:Create(obj, ti, {ImageTransparency = 1}):Play()
-        if obj:FindFirstChildOfClass("UIStroke") then
-            TweenService:Create(obj.UIStroke, ti, {Transparency = 1}):Play()
-        end
+        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, {Transparency = 1}):Play() end
     elseif obj:IsA("TextLabel") or obj:IsA("TextButton") then
         TweenService:Create(obj, ti, {TextTransparency = 1, BackgroundTransparency = 1}):Play()
-        if obj:FindFirstChildOfClass("UIStroke") then
-            TweenService:Create(obj.UIStroke, ti, {Transparency = 1}):Play()
-        end
+        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, {Transparency = 1}):Play() end
     elseif obj:IsA("Frame") or obj:IsA("ScrollingFrame") or obj:IsA("ViewportFrame") then
         TweenService:Create(obj, ti, {BackgroundTransparency = 1}):Play()
-        if obj:FindFirstChildOfClass("UIStroke") then
-            TweenService:Create(obj.UIStroke, ti, {Transparency = 1}):Play()
-        end
+        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, {Transparency = 1}):Play() end
     end
 end
 
@@ -362,30 +332,24 @@ local function ParadoxNotify(opts)
     opts = opts or {}
 
     local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
-    local mainUI = playerGui:FindFirstChild("MainUI")
-    if not mainUI then
-        warn("[Paradox] MainUI não encontrado.")
-        return
-    end
 
-    local achievementHolder = mainUI:FindFirstChild("AchievementHolder")
-    if not achievementHolder then
-        warn("[Paradox] AchievementHolder não encontrado.")
-        return
-    end
+    local achievementGui = playerGui
+        :WaitForChild("Initiate")
+        :WaitForChild("Library")
+        :WaitForChild("GUI")
+        :WaitForChild("Achievement")
 
-    local template = achievementHolder:FindFirstChild("Template")
-    if not template then
-        warn("[Paradox] Template não encontrado dentro de AchievementHolder.")
-        return
-    end
+    local template = achievementGui:WaitForChild("Template")
+    local soundFrame = achievementGui:WaitForChild("Achievement")
+    local sound = soundFrame:FindFirstChildWhichIsA("Sound")
+
+    local achievementHolder = playerGui:WaitForChild("MainUI"):WaitForChild("AchievementHolder")
 
     local clone = template:Clone()
     clone.Parent = achievementHolder
 
     local achievement = clone:WaitForChild("Achievement")
-
-    local sound = clone:FindFirstChildWhichIsA("Sound") or achievementHolder:FindFirstChildWhichIsA("Sound")
+    local glow = clone:WaitForChild("Glow")
 
     paradox_save(clone)
     for _, obj in clone:GetDescendants() do
@@ -394,26 +358,24 @@ local function ParadoxNotify(opts)
 
     achievement.Position = UDim2.new(0.5, 0, 1.25, 0)
 
-    local title = achievement:FindFirstChild("Title")
-    local desc = achievement:FindFirstChild("Description")
-    local action = achievement:FindFirstChild("Action")
-    local icon = achievement:FindFirstChild("Icon")
+    local titleLabel = achievement:FindFirstChild("Title")
+    local descLabel = achievement:FindFirstChild("Description")
+    local actionLabel = achievement:FindFirstChild("Action")
+    local iconImage = achievement:FindFirstChild("Icon")
 
-    if title then title.Text = opts.Title or "Achievement" end
-    if desc then desc.Text = opts.Description or "" end
-    if action then action.Text = opts.Action or "" end
-    if icon then icon.Image = opts.Image or "rbxassetid://6023426923" end
+    if titleLabel then titleLabel.Text = opts.Title or "Achievement" end
+    if descLabel then descLabel.Text = opts.Description or "" end
+    if actionLabel then actionLabel.Text = opts.Action or "" end
+    if iconImage then iconImage.Image = opts.Image or "rbxassetid://6023426923" end
 
     if sound then
-        sound.SoundId = opts.Sound and ProcessSoundParameter(opts.Sound) or "rbxassetid://10469938989"
-        sound.Volume = 1
+        if opts.Sound then sound.SoundId = ProcessSoundParameter(opts.Sound) end
+        sound:Play()
     end
 
     local moveTween = TweenService:Create(achievement, TweenInfo.new(0.8, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
         Position = UDim2.new(0.5, 0, 0.5, 0)
     })
-
-    if sound then sound:Play() end
 
     task.wait(0.5)
 
@@ -425,12 +387,7 @@ local function ParadoxNotify(opts)
     moveTween:Play()
 
     task.delay(0.8, function()
-        local glow = clone:FindFirstChild("Glow") or achievement:FindFirstChild("Glow")
-        if glow then
-            TweenService:Create(glow, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                ImageTransparency = 1
-            }):Play()
-        end
+        TweenService:Create(glow, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {ImageTransparency = 1}):Play()
     end)
 
     task.wait(opts.Time or 5)
@@ -466,7 +423,7 @@ local function MsdoorsNotify(title, description, reason, image, color, style, ti
     local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
     local uiContainer = playerGui:FindFirstChild("GlobalUI") or playerGui:FindFirstChild("MainUI")
     if not uiContainer then
-        warn("GlobalUI ou MainUI não encontradas. Verifique se o jogo DOORS está carregado corretamente.")
+        warn("GlobalUI ou MainUI não encontradas.")
         return
     end
 
@@ -502,9 +459,7 @@ local function MsdoorsNotify(title, description, reason, image, color, style, ti
         achievement:TweenSize(UDim2.new(1, 0, 0.2, 0), "In", "Quad", 0.8, true)
         task.wait(0.8)
         achievement.Frame:TweenPosition(UDim2.new(0, 0, 0, 0), "Out", "Quad", 0.5, true)
-        TweenService:Create(achievement.Frame.Glow, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-            ImageTransparency = 1
-        }):Play()
+        TweenService:Create(achievement.Frame.Glow, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {ImageTransparency = 1}):Play()
         task.wait(time or 5)
         achievement.Frame:TweenPosition(UDim2.new(1.1, 0, 0, 0), "In", "Quad", 0.5, true)
         task.wait(0.5)
@@ -519,16 +474,7 @@ shared.notifyap.Notify = function(options)
     local notifyStyle = options.NotifyStyle or "Linoria"
 
     if notifyStyle == "Doors" then
-        MsdoorsNotify(
-            options.Title,
-            options.Description,
-            options.Reason,
-            options.Image,
-            options.Color,
-            options.Style,
-            options.Time,
-            options.Sound
-        )
+        MsdoorsNotify(options.Title, options.Description, options.Reason, options.Image, options.Color, options.Style, options.Time, options.Sound)
     elseif notifyStyle == "Linoria" then
         Notify(options)
     elseif notifyStyle == "Obsidian" then
