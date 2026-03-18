@@ -15,22 +15,16 @@ local d = shared.ACHIDATA
 
 local function InitMsdoorsSound()
     if d.defaultSound then return d.defaultSound end
-    
-    if not isfolder("msdoors") then
-        makefolder("msdoors")
-    end
-    
+    if not isfolder("msdoors") then makefolder("msdoors") end
     if isfile(MSDOORS_SOUND_PATH) then
         local assetFunc = getcustomasset or getsynasset
         d.defaultSound = assetFunc(MSDOORS_SOUND_PATH)
         return d.defaultSound
     end
-    
     task.spawn(function()
         local success, audioData = pcall(function()
             return game:HttpGet(MSDOORS_SOUND_URL)
         end)
-        
         if success then
             writefile(MSDOORS_SOUND_PATH, audioData)
             local assetFunc = getcustomasset or getsynasset
@@ -40,7 +34,6 @@ local function InitMsdoorsSound()
             d.defaultSound = "rbxassetid://10469938989"
         end
     end)
-    
     return "rbxassetid://10469938989"
 end
 
@@ -48,21 +41,18 @@ local function ProcessSoundParameter(soundpar)
     if not soundpar or soundpar == "" then
         return InitMsdoorsSound()
     end
-    
     if soundpar:match("^rbxassetid://") or soundpar:match("^%d+$") then
         if soundpar:match("^%d+$") then
             return "rbxassetid://" .. soundpar
         end
         return soundpar
     end
-    
     if soundpar:match("^https?://") then
         task.spawn(function()
             local tempPath = "msdoors/temp_sound_" .. tick() .. ".mp3"
             local success, audioData = pcall(function()
                 return game:HttpGet(soundpar)
             end)
-            
             if success then
                 writefile(tempPath, audioData)
             else
@@ -70,7 +60,6 @@ local function ProcessSoundParameter(soundpar)
             end
         end)
     end
-    
     return InitMsdoorsSound()
 end
 
@@ -82,13 +71,13 @@ local function initMsdoorsUI()
         sg.ResetOnSpawn = false
         sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
         sg.Parent = pg
-        
+
         local holder = Instance.new("Frame")
         holder.Name = "Holder"
         holder.Size = UDim2.new(1, 0, 1, 0)
         holder.BackgroundTransparency = 1
         holder.Parent = sg
-        
+
         local layout = Instance.new("UIListLayout")
         layout.Padding = UDim.new(0, 25)
         layout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -96,12 +85,12 @@ local function initMsdoorsUI()
         layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
         layout.VerticalAlignment = Enum.VerticalAlignment.Top
         layout.Parent = holder
-        
+
         local pad = Instance.new("UIPadding")
         pad.PaddingTop = UDim.new(0, 15)
         pad.PaddingRight = UDim.new(0, 15)
         pad.Parent = holder
-        
+
         d.gui = holder
     end
 
@@ -114,13 +103,13 @@ local function initMsdoorsUI()
         a.BackgroundTransparency = 1
         a.ZIndex = 2000
         a.Visible = true
-        
+
         local snd = Instance.new("Sound")
         snd.Name = "Snd"
         snd.SoundId = InitMsdoorsSound()
         snd.Volume = 0.575
         snd.Parent = a
-        
+
         local f = Instance.new("Frame")
         f.Name = "F"
         f.Size = UDim2.new(1, 0, 1, 0)
@@ -130,16 +119,16 @@ local function initMsdoorsUI()
         f.BorderSizePixel = 0
         f.ZIndex = 2000
         f.Parent = a
-        
+
         local stroke = Instance.new("UIStroke")
         stroke.Color = Color3.fromRGB(255, 222, 189)
         stroke.Thickness = 3
         stroke.Parent = f
-        
+
         local corner = Instance.new("UICorner")
         corner.CornerRadius = UDim.new(0, 10)
         corner.Parent = f
-        
+
         local glow = Instance.new("ImageLabel")
         glow.Name = "Glow"
         glow.Size = UDim2.new(2, 0, 4, 0)
@@ -151,7 +140,7 @@ local function initMsdoorsUI()
         glow.BackgroundTransparency = 1
         glow.ZIndex = 1999
         glow.Parent = a
-        
+
         local top = Instance.new("TextLabel")
         top.Name = "Top"
         top.Size = UDim2.new(1, -10, 0.22, 0)
@@ -166,7 +155,7 @@ local function initMsdoorsUI()
         top.ZIndex = 2001
         top.TextTruncate = Enum.TextTruncate.AtEnd
         top.Parent = f
-        
+
         local img = Instance.new("ImageLabel")
         img.Name = "Img"
         img.Size = UDim2.new(0.2, 0, 0.85, 0)
@@ -176,7 +165,7 @@ local function initMsdoorsUI()
         img.ScaleType = Enum.ScaleType.Fit
         img.ZIndex = 2001
         img.Parent = f
-        
+
         local det = Instance.new("Frame")
         det.Name = "Det"
         det.Size = UDim2.new(0.73, 0, 0.95, 0)
@@ -184,12 +173,12 @@ local function initMsdoorsUI()
         det.BackgroundTransparency = 1
         det.ZIndex = 2001
         det.Parent = f
-        
+
         local detl = Instance.new("UIListLayout")
         detl.Padding = UDim.new(0, 2)
         detl.SortOrder = Enum.SortOrder.LayoutOrder
         detl.Parent = det
-        
+
         local title = Instance.new("TextLabel")
         title.Name = "Title"
         title.Size = UDim2.new(1, 0, 0.38, 0)
@@ -204,12 +193,12 @@ local function initMsdoorsUI()
         title.LayoutOrder = 1
         title.TextTruncate = Enum.TextTruncate.AtEnd
         title.Parent = det
-        
+
         local tp = Instance.new("UIPadding")
         tp.PaddingLeft = UDim.new(0, 5)
         tp.PaddingTop = UDim.new(0, 3)
         tp.Parent = title
-        
+
         local desc = Instance.new("TextLabel")
         desc.Name = "Desc"
         desc.Size = UDim2.new(1, 0, 0.28, 0)
@@ -224,11 +213,11 @@ local function initMsdoorsUI()
         desc.LayoutOrder = 2
         desc.TextTruncate = Enum.TextTruncate.AtEnd
         desc.Parent = det
-        
+
         local dp = Instance.new("UIPadding")
         dp.PaddingLeft = UDim.new(0, 5)
         dp.Parent = desc
-        
+
         local reason = Instance.new("TextLabel")
         reason.Name = "Reason"
         reason.Size = UDim2.new(1, 0, 0.28, 0)
@@ -243,11 +232,11 @@ local function initMsdoorsUI()
         reason.LayoutOrder = 3
         reason.TextTruncate = Enum.TextTruncate.AtEnd
         reason.Parent = det
-        
+
         local rp = Instance.new("UIPadding")
         rp.PaddingLeft = UDim.new(0, 5)
         rp.Parent = reason
-        
+
         d.template = a
     end
 end
@@ -257,36 +246,35 @@ local function showMsdoors(opts)
     local achi = d.template:Clone()
     achi.Parent = d.gui
     achi.LayoutOrder = tick()
-    
+
     achi.F.Top.Text = opts.Style or "UNLOCKED ACHIEVEMENT"
     achi.F.Det.Title.Text = opts.Title or "Achievement"
     achi.F.Det.Desc.Text = opts.Description or ""
     achi.F.Det.Reason.Text = opts.Reason or ""
     achi.F.Img.Image = opts.Image or "rbxassetid://6023426923"
-    
+
     local col = opts.Color or Color3.fromRGB(255, 222, 189)
     achi.F.Top.TextColor3 = col
     achi.F.UIStroke.Color = col
     achi.Glow.ImageColor3 = col
-    
+
     if opts.soundpar then
         achi.Snd.SoundId = ProcessSoundParameter(opts.soundpar)
     end
-    
+
     task.spawn(function()
         task.wait(0.1)
         achi.Snd:Play()
     end)
-    
+
     achi.F:TweenPosition(UDim2.new(0, 0, 0, 0), "Out", "Sine", 0.8, true)
-    
+
     TweenService:Create(achi.Glow, TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
         ImageTransparency = 1
     }):Play()
-    
+
     task.spawn(function()
         task.wait(opts.Time or 5)
-        
         achi.F:TweenPosition(UDim2.new(1.1, 0, 0, 0), "In", "Sine", 0.6, true)
         task.wait(0.6)
         achi:Destroy()
@@ -303,16 +291,167 @@ local function processMsdoorsQueue()
     d.processing = false
 end
 
+local paradoxCache = {}
+
+local function paradox_save(obj)
+    local data = {}
+    if obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
+        data.ImageTransparency = obj.ImageTransparency
+        if obj:FindFirstChildOfClass("UIStroke") then data.StrokeTransparency = obj.UIStroke.Transparency end
+        obj.ImageTransparency = 1
+        if obj:FindFirstChildOfClass("UIStroke") then obj.UIStroke.Transparency = 1 end
+    elseif obj:IsA("TextLabel") or obj:IsA("TextButton") then
+        data.TextTransparency = obj.TextTransparency
+        data.BackgroundTransparency = obj.BackgroundTransparency
+        if obj:FindFirstChildOfClass("UIStroke") then data.StrokeTransparency = obj.UIStroke.Transparency end
+        obj.TextTransparency = 1
+        obj.BackgroundTransparency = 1
+        if obj:FindFirstChildOfClass("UIStroke") then obj.UIStroke.Transparency = 1 end
+    elseif obj:IsA("Frame") or obj:IsA("ScrollingFrame") or obj:IsA("ViewportFrame") then
+        data.BackgroundTransparency = obj.BackgroundTransparency
+        if obj:FindFirstChildOfClass("UIStroke") then data.StrokeTransparency = obj.UIStroke.Transparency end
+        obj.BackgroundTransparency = 1
+        if obj:FindFirstChildOfClass("UIStroke") then obj.UIStroke.Transparency = 1 end
+    end
+    paradoxCache[obj] = data
+end
+
+local function paradox_tweenIn(obj)
+    local data = paradoxCache[obj]
+    if not data then return end
+    local ti = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    if obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
+        TweenService:Create(obj, ti, {ImageTransparency = data.ImageTransparency or 0}):Play()
+        if obj:FindFirstChildOfClass("UIStroke") then
+            TweenService:Create(obj.UIStroke, ti, {Transparency = data.StrokeTransparency or 0}):Play()
+        end
+    elseif obj:IsA("TextLabel") or obj:IsA("TextButton") then
+        TweenService:Create(obj, ti, {TextTransparency = data.TextTransparency or 0, BackgroundTransparency = data.BackgroundTransparency or 1}):Play()
+        if obj:FindFirstChildOfClass("UIStroke") then
+            TweenService:Create(obj.UIStroke, ti, {Transparency = data.StrokeTransparency or 0}):Play()
+        end
+    elseif obj:IsA("Frame") or obj:IsA("ScrollingFrame") or obj:IsA("ViewportFrame") then
+        TweenService:Create(obj, ti, {BackgroundTransparency = data.BackgroundTransparency or 0}):Play()
+        if obj:FindFirstChildOfClass("UIStroke") then
+            TweenService:Create(obj.UIStroke, ti, {Transparency = data.StrokeTransparency or 0}):Play()
+        end
+    end
+end
+
+local function paradox_tweenOut(obj)
+    local ti = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    if obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
+        TweenService:Create(obj, ti, {ImageTransparency = 1}):Play()
+        if obj:FindFirstChildOfClass("UIStroke") then
+            TweenService:Create(obj.UIStroke, ti, {Transparency = 1}):Play()
+        end
+    elseif obj:IsA("TextLabel") or obj:IsA("TextButton") then
+        TweenService:Create(obj, ti, {TextTransparency = 1, BackgroundTransparency = 1}):Play()
+        if obj:FindFirstChildOfClass("UIStroke") then
+            TweenService:Create(obj.UIStroke, ti, {Transparency = 1}):Play()
+        end
+    elseif obj:IsA("Frame") or obj:IsA("ScrollingFrame") or obj:IsA("ViewportFrame") then
+        TweenService:Create(obj, ti, {BackgroundTransparency = 1}):Play()
+        if obj:FindFirstChildOfClass("UIStroke") then
+            TweenService:Create(obj.UIStroke, ti, {Transparency = 1}):Play()
+        end
+    end
+end
+
+local function ParadoxNotify(opts)
+    opts = opts or {}
+
+    local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+    local mainUI = playerGui:FindFirstChild("MainUI")
+    if not mainUI then
+        warn("[Paradox] MainUI não encontrado.")
+        return
+    end
+
+    local achievementHolder = mainUI:FindFirstChild("AchievementHolder")
+    if not achievementHolder then
+        warn("[Paradox] AchievementHolder não encontrado.")
+        return
+    end
+
+    local template = achievementHolder:FindFirstChild("Template")
+    if not template then
+        warn("[Paradox] Template não encontrado dentro de AchievementHolder.")
+        return
+    end
+
+    local clone = template:Clone()
+    clone.Parent = achievementHolder
+
+    local achievement = clone:WaitForChild("Achievement")
+
+    local sound = clone:FindFirstChildWhichIsA("Sound") or achievementHolder:FindFirstChildWhichIsA("Sound")
+
+    paradox_save(clone)
+    for _, obj in clone:GetDescendants() do
+        paradox_save(obj)
+    end
+
+    achievement.Position = UDim2.new(0.5, 0, 1.25, 0)
+
+    local title = achievement:FindFirstChild("Title")
+    local desc = achievement:FindFirstChild("Description")
+    local action = achievement:FindFirstChild("Action")
+    local icon = achievement:FindFirstChild("Icon")
+
+    if title then title.Text = opts.Title or "Achievement" end
+    if desc then desc.Text = opts.Description or "" end
+    if action then action.Text = opts.Action or "" end
+    if icon then icon.Image = opts.Image or "rbxassetid://6023426923" end
+
+    if sound then
+        sound.SoundId = opts.Sound and ProcessSoundParameter(opts.Sound) or "rbxassetid://10469938989"
+        sound.Volume = 1
+    end
+
+    local moveTween = TweenService:Create(achievement, TweenInfo.new(0.8, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0.5, 0, 0.5, 0)
+    })
+
+    if sound then sound:Play() end
+
+    task.wait(0.5)
+
+    paradox_tweenIn(clone)
+    for _, obj in clone:GetDescendants() do
+        paradox_tweenIn(obj)
+    end
+
+    moveTween:Play()
+
+    task.delay(0.8, function()
+        local glow = clone:FindFirstChild("Glow") or achievement:FindFirstChild("Glow")
+        if glow then
+            TweenService:Create(glow, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                ImageTransparency = 1
+            }):Play()
+        end
+    end)
+
+    task.wait(opts.Time or 5)
+
+    paradox_tweenOut(clone)
+    for _, obj in clone:GetDescendants() do
+        paradox_tweenOut(obj)
+    end
+
+    task.wait(0.5)
+    clone:Destroy()
+end
+
 local function Notify(options)
     options = options or {}
-
     if Library and Library.Notify then
         local sound = Instance.new("Sound")
         sound.SoundId = options.Sound or DEFAULT_SOUND
         sound.Parent = game.Workspace
         sound.Volume = 1
         sound:Play()
-        
         Library:Notify({
             Title = options.Title or "Sem Título",
             Description = options.Description or "Sem Descrição",
@@ -326,7 +465,6 @@ end
 local function MsdoorsNotify(title, description, reason, image, color, style, time, sound)
     local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
     local uiContainer = playerGui:FindFirstChild("GlobalUI") or playerGui:FindFirstChild("MainUI")
-    
     if not uiContainer then
         warn("GlobalUI ou MainUI não encontradas. Verifique se o jogo DOORS está carregado corretamente.")
         return
@@ -363,14 +501,11 @@ local function MsdoorsNotify(title, description, reason, image, color, style, ti
     task.spawn(function()
         achievement:TweenSize(UDim2.new(1, 0, 0.2, 0), "In", "Quad", 0.8, true)
         task.wait(0.8)
-        
         achievement.Frame:TweenPosition(UDim2.new(0, 0, 0, 0), "Out", "Quad", 0.5, true)
         TweenService:Create(achievement.Frame.Glow, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
             ImageTransparency = 1
         }):Play()
-        
         task.wait(time or 5)
-        
         achievement.Frame:TweenPosition(UDim2.new(1.1, 0, 0, 0), "In", "Quad", 0.5, true)
         task.wait(0.5)
         achievement:TweenSize(UDim2.new(1, 0, -0.1, 0), "InOut", "Quad", 0.5, true)
@@ -385,11 +520,11 @@ shared.notifyap.Notify = function(options)
 
     if notifyStyle == "Doors" then
         MsdoorsNotify(
-            options.Title, 
-            options.Description, 
-            options.Reason, 
-            options.Image, 
-            options.Color, 
+            options.Title,
+            options.Description,
+            options.Reason,
+            options.Image,
+            options.Color,
             options.Style,
             options.Time,
             options.Sound
@@ -404,6 +539,10 @@ shared.notifyap.Notify = function(options)
         initMsdoorsUI()
         table.insert(d.queue, options)
         processMsdoorsQueue()
+    elseif notifyStyle == "Paradox" then
+        task.spawn(function()
+            ParadoxNotify(options)
+        end)
     else
         warn("Estilo de notificação inválido: " .. tostring(notifyStyle))
     end
