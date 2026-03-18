@@ -369,7 +369,7 @@ local function ParadoxNotify(opts)
     if iconImage then iconImage.Image = opts.Image or "rbxassetid://6023426923" end
 
     if sound then
-        if opts.Sound then sound.SoundId = ProcessSoundParameter(opts.Sound) end
+        sound.SoundId = "rbxassetid://91986934883173"
         sound:Play()
     end
 
