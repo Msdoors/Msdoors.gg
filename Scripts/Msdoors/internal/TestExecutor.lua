@@ -1,10 +1,11 @@
+-- Based on: https://github.com/mspaint-cc/mspaint/blob/main/Src/Utils/ExecutorSupport.luau
+
 if shared.testexecutor then
     return shared.testexecutor
 end
-print(" Testing your executor... ")
 
 local exec = {}
-local info = {}
+local errors = {}
 
 shared.testexecutor = {}
 
@@ -14,6 +15,7 @@ local REQUIRED_FUNCTIONS = {
     "isnetworkowner",
     "firesignal",
     "require",
+    "fireproximityprompt"
 }
 
 local function isRequired(n)
@@ -22,16 +24,6 @@ local function isRequired(n)
     end
     return false
 end
-
-local function getVersion()
-    local ok, ver = pcall(function()
-        return _G.msdoors_version
-    end)
-    return ok and ver or "unknown"
-end
-
-shared.testexecutor.timestamp = os.time()
-shared.testexecutor.version = getVersion()
 
 local function fmtTime()
     local t = os.date("*t")
@@ -42,27 +34,16 @@ local dt = fmtTime()
 local dir = "msdoors/executorlog"
 local file = "log-msdoors" .. dt .. ".txt"
 local path = dir .. "/" .. file
-local logs = {}
 
-local name, ver, full = "Unknown", "Unknown", "Unknown"
+local name = "Unknown"
 
-local ok = pcall(function()
-    full = identifyexecutor() or "None"
+pcall(function()
+    local full = identifyexecutor() or "None"
     local parts = string.split(full, " ")
     name = parts[1] or "Unknown"
-    if #parts > 1 then
-        table.remove(parts, 1)
-        ver = table.concat(parts, " ")
-    end
 end)
 
-if not ok then
-    name, ver, full = "Unknown", "Unknown", "Unknown"
-end
-
 shared.testexecutor.name = name
-shared.testexecutor.executorVersion = ver
-shared.testexecutor.fullInfo = full
 
 local broken = {
     Arceus = {require = true},
@@ -80,47 +61,24 @@ local broken = {
     Solara = {require = true}
 }
 
-local os_type = "Unknown"
-if identifyexecutor and typeof(identifyexecutor) == "function" then
-    local ei = string.lower(identifyexecutor() or "")
-    if string.find(ei, "windows") then
-        os_type = "Windows"
-    elseif string.find(ei, "mac") or string.find(ei, "macos") then
-        os_type = "MacOS"
-    elseif string.find(ei, "ios") or string.find(ei, "iphone") or string.find(ei, "ipad") then
-        os_type = "iOS"
-    elseif string.find(ei, "android") then
-        os_type = "Android"
-    elseif string.find(ei, "linux") then
-        os_type = "Linux"
-    end
-end
-
-shared.testexecutor.osType = os_type
-
 local function test(n, f, cb)
-    if not isRequired(n) then return end
-    if broken[name] and broken[name][n] then
-        return false
-    end
-    
-    local ok, err = false, nil
+    if not isRequired(n) then return false end
+    if broken[name] and broken[name][n] then return false end
+
+    local success, err = false, nil
     if cb ~= false then
-        ok, err = pcall(f)
+        success, err = pcall(f)
     else
-        ok = typeof(f) == "function"
+        success = typeof(f) == "function"
     end
-    
-    local status = ok and "✅ Supported" or "❌ NOT SUPPORTED"
-    local errorMsg = ""
-    if not ok and err then
-        errorMsg = " [ ERROR: " .. tostring(err) .. " ]"
+
+    if not success then
+        table.insert(errors, "[" .. n .. "] " .. (err and tostring(err) or "FAILED"))
     end
-    
-    info[n] = n .. " " .. status .. errorMsg
-    exec[n] = ok
-    shared.testexecutor[n] = ok
-    return ok
+
+    exec[n] = success
+    shared.testexecutor[n] = success
+    return success
 end
 
 local function safe(n, f)
@@ -129,71 +87,59 @@ local function safe(n, f)
         test(n, f, false)
     else
         exec[n] = false
-        info[n] = n .. " ❌ NOT SUPPORTED [ ERROR: FUNCTION NOT AVAILABLE ]"
         shared.testexecutor[n] = false
+        table.insert(errors, "[" .. n .. "] FUNCTION NOT AVAILABLE")
     end
 end
 
+safe("readfile", readfile)
+safe("listfiles", listfiles)
+safe("writefile", writefile)
+safe("makefolder", makefolder)
+safe("appendfile", appendfile)
+safe("isfile", isfile)
+safe("isfolder", isfolder)
+safe("delfile", delfile)
+safe("delfolder", delfolder)
+safe("loadfile", loadfile)
+
+safe("getrenv", getrenv)
+safe("getgenv", getgenv)
+safe("getsenv", getsenv)
+safe("getfenv", getfenv)
+safe("getrawmetatable", getrawmetatable)
+safe("setrawmetatable", setrawmetatable)
+safe("setreadonly", setreadonly)
+safe("getnamecallmethod", getnamecallmethod)
+safe("setclipboard", setclipboard)
+safe("getcustomasset", getcustomasset)
+safe("getsynasset", getsynasset)
+safe("isluau", isluau)
+safe("checkcaller", checkcaller)
+
+safe("request", request)
+safe("http_request", http_request)
+safe("httprequest", httprequest)
+
+safe("queue_on_teleport", queue_on_teleport)
+safe("getcallingscript", getcallingscript)
+safe("gethui", gethui)
+safe("getgc", getgc)
+safe("getinstances", getinstances)
+safe("getnilinstances", getnilinstances)
+safe("sethiddenproperty", sethiddenproperty)
+safe("gethiddenproperty", gethiddenproperty)
+safe("saveinstance", saveinstance)
+safe("getconnections", getconnections)
 safe("firesignal", firesignal)
-safe("replicatesignal", replicatesignal)
 
-if isRequired("hookmetamethod") then
-    if getfenv()["hookmetamethod"] then
-        test("hookmetamethod", function()
-            local obj = setmetatable({}, {__index = newcclosure(function() return false end), __metatable = "Locked!"})
-            local ref = hookmetamethod(obj, "__index", function() return true end)
-            assert(obj.test == true, "Failed to hook a metamethod and change the return value")
-            assert(ref() == false, "Did not return the original function")
-        end)
-    else
-        exec["hookmetamethod"] = false
-        info["hookmetamethod"] = "hookmetamethod ❌ NOT SUPPORTED [ ERROR: function not available ]"
-        shared.testexecutor.hookmetamethod = false
-    end
-end
-
-if isRequired("isnetworkowner") then
-    if getfenv()["isnetworkowner"] then
-        test("isnetworkowner", function()
-            local p = Instance.new("Part", workspace)
-            p.Anchored = true
-            local r = isnetworkowner(p)
-            p:Destroy()
-            return typeof(r) == "boolean"
-        end)
-    elseif getfenv()["isnetowner"] then
-        test("isnetowner", function()
-            local p = Instance.new("Part", workspace)
-            p.Anchored = true
-            local r = isnetowner(p)
-            p:Destroy()
-            return typeof(r) == "boolean"
-        end)
-        
-        function isnetworkowner(p)
-            if not p:IsA("BasePart") then
-                error("BasePart expected, received " .. typeof(p))
-            end
-            return isnetowner(p)
-        end
-        
-        exec.isnetworkowner = true
-        info.isnetworkowner = "isnetworkowner ✅ Supported (using isnetowner)"
-        shared.testexecutor.isnetworkowner = true
-    else
-        function isnetowner(p)
-            if not p:IsA("BasePart") then
-                error("BasePart expected, received " .. typeof(p))
-            end
-            return p.ReceiveAge == 0
-        end
-        
-        exec.isnetworkowner = isnetowner
-        exec.isnetowner = isnetowner
-        info.isnetworkowner = "isnetworkowner ❌ NOT SUPPORTED [ ERROR: alternative implementation ]"
-        shared.testexecutor.isnetworkowner = false
-    end
-end
+safe("fireclickdetector", fireclickdetector)
+safe("mouse1click", mouse1click)
+safe("mouse1press", mouse1press)
+safe("mouse1release", mouse1release)
+safe("mouse2click", mouse2click)
+safe("keypress", keypress)
+safe("keyrelease", keyrelease)
 
 if isRequired("require") then
     if getfenv()["require"] then
@@ -213,98 +159,194 @@ if isRequired("require") then
         end)
     else
         exec["require"] = false
-        info["require"] = "require ❌ NOT SUPPORTED [ ERROR: function not available ]"
         shared.testexecutor.require = false
+        table.insert(errors, "[require] FUNCTION NOT AVAILABLE")
     end
 end
 
-local pid = game.PlaceId
-local uid = nil
-local ok, res = pcall(function()
-    return game:GetService("MarketplaceService"):GetProductInfo(pid).UniverseId
-end)
-if ok then
-    uid = res
+if isRequired("hookmetamethod") then
+    if getfenv()["hookmetamethod"] then
+        test("hookmetamethod", function()
+            local obj = setmetatable({}, {__index = newcclosure(function() return false end), __metatable = "Locked!"})
+            local ref = hookmetamethod(obj, "__index", function() return true end)
+            assert(obj.test == true, "Failed to hook a metamethod and change the return value")
+            assert(ref() == false, "Did not return the original function")
+        end)
+    else
+        exec["hookmetamethod"] = false
+        shared.testexecutor.hookmetamethod = false
+        table.insert(errors, "[hookmetamethod] FUNCTION NOT AVAILABLE")
+    end
 end
 
-shared.testexecutor.placeId = pid
-shared.testexecutor.universeId = uid
+local canFire = false
+if isRequired("fireproximityprompt") then
+    canFire = test("fireproximityprompt", function()
+        local p = Instance.new("ProximityPrompt", Instance.new("Part", workspace))
+        local triggered = false
+        p.Triggered:Once(function() triggered = true end)
+        fireproximityprompt(p)
+        task.wait(0.1)
+        p.Parent:Destroy()
+        assert(triggered, "Failed to fire proximity prompt")
+    end)
+    shared.testexecutor.fireProximityPrompt = canFire
+end
 
-exec["_ExecutorName"] = name
-exec["_ExecutorVersion"] = ver
-exec["_ExecutorFullInfo"] = full
-exec["_OSType"] = os_type
-exec["_PlaceId"] = pid
-exec["_UniverseId"] = uid
+local function fireProx(p, look, instant)
+    if not p:IsA("ProximityPrompt") then
+        error("ProximityPrompt expected, received " .. typeof(p))
+    end
 
-local function log(txt)
-    print(txt)
-    table.insert(logs, txt)
+    local pos = p.Parent:GetPivot().Position
+    local oe, oh, ol = p.Enabled, p.HoldDuration, p.RequiresLineOfSight
+    local oc = workspace.CurrentCamera.CFrame
+
+    p.Enabled = true
+    p.RequiresLineOfSight = false
+    if instant ~= true then
+        p.HoldDuration = 0
+    end
+
+    if look then
+        workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, pos)
+        task.wait()
+    end
+
+    p:InputHoldBegin()
+    task.wait(p.HoldDuration + 0.05)
+    p:InputHoldEnd()
+
+    p.Enabled = oe
+    p.HoldDuration = oh
+    p.RequiresLineOfSight = ol
+    workspace.CurrentCamera.CFrame = oc
+end
+
+if canFire then
+    getgenv().msdoors_fireprompt = function(prompt, look)
+        return fireproximityprompt(prompt, look)
+    end
+else
+    getgenv().msdoors_fireprompt = function(prompt, look)
+        return fireProx(prompt, look)
+    end
+    getgenv().fireproximityprompt = getgenv().msdoors_fireprompt
+end
+
+if isRequired("isnetworkowner") then
+    if getfenv()["isnetworkowner"] then
+        test("isnetworkowner", function()
+            local p = Instance.new("Part", workspace)
+            p.Anchored = true
+            local r = isnetworkowner(p)
+            p:Destroy()
+            assert(typeof(r) == "boolean", "Expected boolean")
+        end)
+    elseif getfenv()["isnetowner"] then
+        local ok2, err2 = pcall(function()
+            local p = Instance.new("Part", workspace)
+            p.Anchored = true
+            local r = isnetowner(p)
+            p:Destroy()
+            assert(typeof(r) == "boolean", "Expected boolean")
+        end)
+        exec["isnetworkowner"] = ok2
+        shared.testexecutor.isnetworkowner = ok2
+        if not ok2 then
+            table.insert(errors, "[isnetworkowner] " .. (err2 and tostring(err2) or "FAILED"))
+        end
+        getgenv().isnetworkowner = function(p)
+            if not p:IsA("BasePart") then
+                error("BasePart expected, received " .. typeof(p))
+            end
+            return isnetowner(p)
+        end
+    else
+        exec["isnetworkowner"] = false
+        shared.testexecutor.isnetworkowner = false
+        table.insert(errors, "[isnetworkowner] FUNCTION NOT AVAILABLE - fallback active")
+        getgenv().isnetworkowner = function(p)
+            if not p:IsA("BasePart") then
+                error("BasePart expected, received " .. typeof(p))
+            end
+            return p.ReceiveAge == 0
+        end
+    end
+end
+
+safe("getrunningscripts", getrunningscripts)
+safe("getscripts", getscripts)
+safe("getconstants", getconstants)
+safe("getupvalues", getupvalues)
+safe("setupvalue", setupvalue)
+safe("getprotos", getprotos)
+safe("getstack", getstack)
+safe("setstack", setstack)
+safe("getthreadidentity", getthreadidentity)
+safe("setthreadidentity", setthreadidentity)
+safe("getidentity", getidentity)
+safe("setidentity", setidentity)
+safe("rconsoleprint", rconsoleprint)
+safe("rconsoleclear", rconsoleclear)
+safe("rconsolecreate", rconsolecreate)
+safe("rconsoledestroy", rconsoledestroy)
+safe("rconsoleinput", rconsoleinput)
+safe("rconsolename", rconsolename)
+safe("rconsolesettitle", rconsolesettitle)
+safe("newcclosure", newcclosure)
+safe("clonefunction", clonefunction)
+safe("getscriptbytecode", getscriptbytecode)
+safe("getscripthash", getscripthash)
+safe("getloadedmodules", getloadedmodules)
+
+shared.testexecutor.logPath = path
+shared.testexecutor.supportFileSystem = (exec["isfile"] and exec["delfile"] and exec["listfiles"] and exec["writefile"] and exec["makefolder"] and exec["isfolder"])
+
+for n, result in pairs(exec) do
+    if result == true then
+        print("✅ [" .. n .. "]")
+    end
 end
 
 local function save()
-    if not exec["writefile"] or not exec["makefolder"] then
-        print("\n⚠️ Cannot save log: file system not supported")
-        return false
-    end
-    
+    if not exec["writefile"] or not exec["makefolder"] then return false end
+
     if not isfolder(dir) then
         pcall(function() makefolder(dir) end)
     end
-    
-    local ok, err = pcall(function()
-        writefile(path, table.concat(logs, "\n"))
+
+    local lines = {}
+
+    for n, result in pairs(exec) do
+        if result == true then
+            table.insert(lines, "✅ [" .. n .. "]")
+        end
+    end
+
+    if #errors > 0 then
+        table.insert(lines, "")
+        table.insert(lines, "--- ERRORS ---")
+        for _, errMsg in ipairs(errors) do
+            table.insert(lines, "❌ " .. errMsg)
+        end
+    end
+
+    local saveOk, saveErr = pcall(function()
+        writefile(path, table.concat(lines, "\n"))
     end)
-    
-    if ok then
-        print("\n✅ Log saved at: " .. path)
-        return true
-    else
-        print("\n⚠️ Error saving log: " .. tostring(err))
+
+    if not saveOk then
+        table.insert(errors, "[save] " .. (saveErr and tostring(saveErr) or "FAILED"))
+        for _, errMsg in ipairs(errors) do
+            print("❌ " .. errMsg)
+        end
         return false
     end
+
+    return true
 end
 
-shared.testexecutor.logPath = path
-
-log("\n\n")
-log("═════════════════════════════════════════════")
-log("EXECUTOR COMPATIBILITY ANALYSIS")
-log("═════════════════════════════════════════════")
-log("> Executor: " .. full)
-log("> System: " .. os_type)
-
-local gameInfo = "Unknown"
-pcall(function()
-    gameInfo = game:GetService("MarketplaceService"):GetProductInfo(pid).Name
-end)
-log("> Game: " .. gameInfo)
-log("> Place ID: " .. pid)
-if uid then
-    log("🌌 Universe ID: " .. uid)
-end
-log("⏰ Timestamp: " .. os.date("%Y-%m-%d %H:%M:%S", shared.testexecutor.timestamp))
-
-log("\n TESTED FUNCTIONS: ")
-for _, fn in ipairs(REQUIRED_FUNCTIONS) do
-    if info[fn] then
-        log(info[fn])
-    elseif exec[fn] ~= nil then
-        log((exec[fn] and "✅" or "❌") .. " [" .. fn .. "]")
-    else
-        log("❓ [" .. fn .. "] (not tested)")
-    end
-end
-
-local gvs = {}
-for k, v in pairs(shared.testexecutor) do
-    table.insert(gvs, {key = k, value = v})
-end
-
-table.sort(gvs, function(a, b) return a.key < b.key end)
-
-for _, gv in ipairs(gvs) do
-    log(gv.key .. " = " .. tostring(gv.value))
-end
+save()
 
 return shared.testexecutor
