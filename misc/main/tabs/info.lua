@@ -58,7 +58,7 @@ function misctabs:AddWarnTabDoors(Tab)
     Tab:UpdateWarningBox({
         Title = shared.translationapi:getTranslate("Update Summary", "Resumo de Atualizações"),
         Icon = "layout-grid",
-        Text = "31.12.2025\n [ + ] REVIVE FRIENDS\n[ + ] KNOB FARM\n[ + ] NO CAMERA SHAKE ISSUE FIXED\n [ + ] WALKSPEED BUG FIXED\n\n» join our Discord to suggest features! «",
+        Text = "13.04.2026\n[ > ] Speed bypass improved\n[ ✓ ] Auto revive fixed\n[ + ] Added Seek Helper[BETA]\n[ ✓ ] It now loads even if its not on door 1.\n[ + ] Hint paper added on esp objectives\n[ > ] improved performance\n THANK YOU FOR YOUR HELP, ZESCRIPT OWNER!\n» join our Discord to suggest features! «",
         IsNormal = true,
         Visible = true,
         LockSize = true,
