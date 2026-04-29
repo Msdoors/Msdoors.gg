@@ -15,6 +15,7 @@ function misctabs:AddMiscTab(Tab)
     
     local EspecialCreditsSeikoso = GroupContributors:AddLabel('<font color="rgb(138, 43, 226)">[Seikoso]</font> | It helped me with tips and to not give up on this script.', true)
     local EspecialCreditsJack = GroupContributors:AddLabel('<font color="rgb(138, 43, 226)">[Jack]</font> | Noclip bypass was made available to me and helped me with several functions.', true)
+    local EspecialCreditsnahhthatscrazy = GroupContributors:AddLabel('<font color="rgb(138, 43, 226)">[nahhthatscrazy]</font> | creator of the new Speed Bypass used in Less Lagback', true)
     local EspecialCreditsXason = GroupContributors:AddLabel('<font color="rgb(255, 255, 0)">[Xason]</font> | It helped me solve a problem with Speed Bypass where the user was rolling back on seek.', true)
     local EspecialCreditsJacob = GroupContributors:AddLabel('<font color="rgb(30, 144, 255)">[Jacob]</font> | He is a great person and helped me with tips and optimizing some of the script functions.', true)
     local EspecialCreditsKardinCat = GroupContributors:AddLabel('<font color="rgb(255, 20, 147)">[TheHunterSolo1]</font> | This guy made several changes to the Msdoors code and optimized it a lot, and also gave me several tips.', true)
