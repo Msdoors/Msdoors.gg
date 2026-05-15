@@ -12,10 +12,6 @@ local function checkFileSystem()
         return shared.testexecutor.supportFileSystem == true
     end
     
-    if type(wax) == "table" and wax.shared and wax.shared.ExecutorSupport then
-        return wax.shared.ExecutorSupport["_SupportsFileSystem"] == true
-    end
-    
     return (type(isfolder) == "function" and type(listfiles) == "function" and type(readfile) == "function")
 end
 
@@ -45,18 +41,15 @@ end
 
 function AddonsAPI:ValidateAddon(addon, fileName)
     if type(addon) ~= "table" then
-        warn(string.format("[msdoors] '%s' returned invalid type", fileName))
-        return false
+        return false, "Returned invalid type"
     end
 
     if type(addon.Name) ~= "string" or #addon.Name == 0 then
-        warn(string.format("[msdoors] '%s' missing valid Name", fileName))
-        return false
+        return false, "Missing valid Name"
     end
 
     if type(addon.Elements) ~= "table" then
-        warn(string.format("[msdoors] '%s' missing Elements table", fileName))
-        return false
+        return false, "Missing Elements table"
     end
 
     if addon.Game then
@@ -75,7 +68,7 @@ function AddonsAPI:ValidateAddon(addon, fileName)
         end
 
         if not gameMatches then
-            return false
+            return false, "Game ID mismatch"
         end
     end
 
@@ -92,7 +85,7 @@ function AddonsAPI:AddElement(container, addonName, element)
     local name = element.Name and (addonName .. "_" .. element.Name) or nil
 
     if elemType == "Label" then
-        return container:AddLabel(args.Text or "Label", args.DoesWrap)
+        return container:AddLabel(args.Text or "Label", args.DoesWrap, name)
     elseif elemType == "BlankSpace" then
         return container:AddBlankSpace()
     elseif elemType == "Divider" then
@@ -126,6 +119,7 @@ function AddonsAPI:AddElement(container, addonName, element)
             Tooltip = args.Tooltip,
             DisabledTooltip = args.DisabledTooltip,
             Callback = args.Callback or args.Changed,
+            Risky = args.Risky,
             Disabled = args.Disabled,
             Visible = args.Visible
         })
@@ -158,6 +152,7 @@ function AddonsAPI:AddElement(container, addonName, element)
             Placeholder = args.Placeholder,
             AllowEmpty = args.AllowEmpty,
             EmptyReset = args.EmptyReset,
+            MaxLength = args.MaxLength,
             VerifyValue = args.VerifyValue,
             Tooltip = args.Tooltip,
             DisabledTooltip = args.DisabledTooltip,
@@ -167,11 +162,20 @@ function AddonsAPI:AddElement(container, addonName, element)
         })
     elseif elemType == "Dropdown" and name then
         return container:AddDropdown(name, {
+            Text = args.Text,
             Values = args.Values or {},
             DisabledValues = args.DisabledValues or {},
             Default = args.Default,
             Multi = args.Multi,
+            AllowNull = args.AllowNull,
+            Searchable = args.Searchable,
             MaxVisibleDropdownItems = args.MaxVisibleDropdownItems,
+            SpecialType = args.SpecialType,
+            ExcludeLocalPlayer = args.ExcludeLocalPlayer,
+            EnablePlayerImages = args.EnablePlayerImages,
+            FormatDisplayValue = args.FormatDisplayValue,
+            FormatListValue = args.FormatListValue,
+            ValueImages = args.ValueImages,
             Tooltip = args.Tooltip,
             DisabledTooltip = args.DisabledTooltip,
             Callback = args.Callback or args.Changed,
@@ -181,6 +185,8 @@ function AddonsAPI:AddElement(container, addonName, element)
     elseif elemType == "ColorPicker" and name then
         return container:AddColorPicker(name, {
             Default = args.Default or Color3.new(1, 1, 1),
+            Title = args.Title,
+            Transparency = args.Transparency,
             Tooltip = args.Tooltip,
             DisabledTooltip = args.DisabledTooltip,
             Callback = args.Callback or args.Changed,
@@ -191,13 +197,15 @@ function AddonsAPI:AddElement(container, addonName, element)
             Text = args.Text,
             Default = args.Default or "None",
             DefaultModifiers = args.DefaultModifiers or {},
-            Blacklisted = args.Blacklisted or {},
-            BlacklistedModifiers = args.BlacklistedModifiers or {},
-            Whitelisted = args.Whitelisted or {},
-            WhitelistedModifiers = args.WhitelistedModifiers or {},
             Mode = args.Mode or "Toggle",
             Modes = args.Modes or {"Always", "Toggle", "Hold"},
             SyncToggleState = args.SyncToggleState,
+            WaitForCallback = args.WaitForCallback,
+            Blacklist = args.Blacklist or args.Blacklisted,
+            Whitelisted = args.Whitelisted,
+            BlacklistModifiers = args.BlacklistModifiers or args.BlacklistedModifiers,
+            WhitelistedModifiers = args.WhitelistedModifiers,
+            NoUI = args.NoUI,
             Tooltip = args.Tooltip,
             DisabledTooltip = args.DisabledTooltip,
             Callback = args.Callback or args.Changed,
@@ -263,6 +271,39 @@ function AddonsAPI:LoadElements(container, addonName, elements)
     end
 end
 
+function AddonsAPI:CreateErrorUI(tab, addonName, errorMsg)
+    local side = LastGroupSide
+    local groupbox
+    
+    if side == "Left" then
+        groupbox = tab:AddLeftGroupbox("❌ " .. addonName, "alert-circle")
+        LastGroupSide = "Right"
+    else
+        groupbox = tab:AddRightGroupbox("❌ " .. addonName, "alert-circle")
+        LastGroupSide = "Left"
+    end
+
+    groupbox:AddLabel("Erro ao carregar addon", false)
+    groupbox:AddBlankSpace()
+    
+    local errorLabel = groupbox:AddLabel(errorMsg, true)
+    errorLabel:SetSize(12)
+    
+    groupbox:AddBlankSpace()
+    groupbox:AddButton({
+        Text = "Copy Error",
+        Func = function()
+            if setclipboard then
+                setclipboard(errorMsg)
+                print("[msdoors] Error copied to clipboard")
+            else
+                print("[msdoors] The setclipboard function is not available.")
+            end
+        end,
+        Risky = false
+    })
+end
+
 function AddonsAPI:CreateAddonContainer(addon)
     local tab = self:CreateAddonTab()
     local side = addon.Side or LastGroupSide
@@ -309,60 +350,31 @@ function AddonsAPI:LoadAddon(filePath)
             error("Syntax error: " .. tostring(loadErr))
         end
 
-        local addonEnv = setmetatable({
-            game = game,
-            workspace = workspace,
-            script = nil,
-            shared = shared,
-            getgenv = getgenv,
-            print = print,
-            warn = warn,
-            error = error,
-            task = task,
-            coroutine = coroutine,
-            require = require,
-            pcall = pcall,
-            xpcall = xpcall,
-            type = type,
-            typeof = typeof,
-            tonumber = tonumber,
-            tostring = tostring,
-            pairs = pairs,
-            ipairs = ipairs,
-            next = next,
-            select = select,
-            unpack = unpack or table.unpack,
-            Instance = Instance,
-            Vector2 = Vector2,
-            Vector3 = Vector3,
-            CFrame = CFrame,
-            Color3 = Color3,
-            UDim2 = UDim2,
-            Enum = Enum,
-            TweenInfo = TweenInfo,
-            math = math,
-            string = string,
-            table = table,
-            bit32 = bit32,
-            utf8 = utf8,
-            os = {time = os.time, date = os.date, clock = os.clock, difftime = os.difftime},
-        }, {
-            __index = function(_, k)
-                error(string.format("[msdoors] Addon '%s' tried to access blocked global: %s", fileName, tostring(k)), 2)
-            end
-        })
-
-        setfenv(addonFunc, addonEnv)
+        setfenv(addonFunc, _G)
         return addonFunc()
     end)
 
     if not success then
-        warn(string.format("[msdoors] Failed to load '%s': %s", fileName, tostring(result)))
+        local errorMsg = string.format("[msdoors] Failed to load '%s':\n%s", fileName, tostring(result))
+        warn(errorMsg)
+        
+        local tab = self:CreateAddonTab()
+        local addonName = fileName:gsub("%.luau?$", ""):gsub("%.txt$", "")
+        self:CreateErrorUI(tab, addonName, tostring(result))
+        
         return false
     end
 
     local addon = result
-    if not self:ValidateAddon(addon, fileName) then
+    local isValid, validError = self:ValidateAddon(addon, fileName)
+    if not isValid then
+        local errorMsg = string.format("[msdoors] Validation failed '%s': %s", fileName, validError)
+        warn(errorMsg)
+        
+        local tab = self:CreateAddonTab()
+        local addonName = fileName:gsub("%.luau?$", ""):gsub("%.txt$", "")
+        self:CreateErrorUI(tab, addonName, validError)
+        
         return false
     end
 
@@ -375,7 +387,12 @@ function AddonsAPI:LoadAddon(filePath)
     end)
 
     if not containerSuccess then
-        warn(string.format("[msdoors] Failed to create UI for '%s': %s", fileName, tostring(containerErr)))
+        local errorMsg = string.format("[msdoors] Failed to create UI for '%s':\n%s", fileName, tostring(containerErr))
+        warn(errorMsg)
+        
+        local tab = self:CreateAddonTab()
+        self:CreateErrorUI(tab, addon.Name, tostring(containerErr))
+        
         return false
     end
 
