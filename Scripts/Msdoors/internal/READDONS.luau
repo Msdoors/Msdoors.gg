@@ -4,6 +4,20 @@ end
 
 getgenv().lib = getgenv().Linoria or getgenv().Library
 
+if getgenv().lib then
+    if not getgenv().lib.Toggles then
+        getgenv().lib.Toggles = shared.Toggles
+    end
+    if not getgenv().lib.Options then
+        getgenv().lib.Options = shared.Options
+    end
+end
+
+if getgenv().Linoria then
+    if not getgenv().Linoria.Toggles then getgenv().Linoria.Toggles = shared.Toggles end
+    if not getgenv().Linoria.Options then getgenv().Linoria.Options = shared.Options end
+end
+
 local AddonsAPI = {}
 local AddonTab = nil
 local LastGroupSide = "Right"
@@ -21,13 +35,6 @@ local function waitForLoaded()
         return
     end
     repeat task.wait() until getgenv().mspaint_loaded == true
-end
-
-local function getAddonTab(self)
-    if not AddonTab then
-        AddonTab = self.Window:AddTab("Addons", "puzzle-piece")
-    end
-    return AddonTab
 end
 
 local function validateGame(addon, fileName)
@@ -72,11 +79,7 @@ local function addElement(container, addonName, element)
     local name = element.Name and (addonName .. "_" .. element.Name) or nil
 
     if elemType == "Divider" then
-        return container:AddDivider()
-    end
-
-    if elemType == "BlankSpace" then
-        return container:AddBlankSpace()
+        return container:AddDivider(args.Text)
     end
 
     if elemType == "DependencyBox" then
@@ -290,33 +293,39 @@ end
 local function loadElements(container, addonName, elements)
     if not elements or type(elements) ~= "table" then return end
     for _, element in pairs(elements) do
-        local created = addElement(container, addonName, element)
-        if created then
-            loadElements(created, addonName, element.Elements)
+        local ok, err = pcall(function()
+            local created = addElement(container, addonName, element)
+            if created then
+                loadElements(created, addonName, element.Elements)
+            end
+        end)
+        if not ok then
+            warn("[msdoors] Element error in '" .. addonName .. "': " .. tostring(err))
         end
     end
 end
 
-local function createErrorUI(self, addonName, errorMsg)
-    local tab = getAddonTab(self)
+local function createErrorUI(addonName, errorMsg)
     local groupbox
     if LastGroupSide == "Right" then
-        groupbox = tab:AddLeftGroupbox("❌ " .. addonName)
+        groupbox = AddonTab:AddLeftGroupbox("❌ " .. addonName)
         LastGroupSide = "Left"
     else
-        groupbox = tab:AddRightGroupbox("❌ " .. addonName)
+        groupbox = AddonTab:AddRightGroupbox("❌ " .. addonName)
         LastGroupSide = "Right"
     end
-    groupbox:AddLabel(tostring(errorMsg), true)
-    groupbox:AddBlankSpace()
-    groupbox:AddButton({
-        Text = "Copiar Erro",
-        Func = function()
-            if setclipboard then
-                setclipboard(tostring(errorMsg))
-            end
-        end,
-    })
+    pcall(function()
+        groupbox:AddLabel(tostring(errorMsg), true)
+        groupbox:AddDivider()
+        groupbox:AddButton({
+            Text = "Copiar Erro",
+            Func = function()
+                if setclipboard then
+                    setclipboard(tostring(errorMsg))
+                end
+            end,
+        })
+    end)
 end
 
 function AddonsAPI:Initialize(Window)
@@ -360,6 +369,10 @@ function AddonsAPI:Initialize(Window)
 
                 local addon = addonFunc()
 
+                if type(addon) ~= "table" then
+                    error("Addon returned invalid type.")
+                end
+
                 if type(addon.Name) ~= "string" or type(addon.Elements) ~= "table" then
                     error("Invalid Name/Elements.")
                 end
@@ -371,13 +384,12 @@ function AddonsAPI:Initialize(Window)
                     addon.Title = addon.Name
                 end
 
-                local tab = getAddonTab(self)
                 local groupbox
                 if LastGroupSide == "Right" then
-                    groupbox = tab:AddLeftGroupbox(addon.Title, addon.Icon)
+                    groupbox = AddonTab:AddLeftGroupbox(addon.Title, addon.Icon)
                     LastGroupSide = "Left"
                 else
-                    groupbox = tab:AddRightGroupbox(addon.Title, addon.Icon)
+                    groupbox = AddonTab:AddRightGroupbox(addon.Title, addon.Icon)
                     LastGroupSide = "Right"
                 end
 
@@ -385,7 +397,7 @@ function AddonsAPI:Initialize(Window)
                     groupbox:AddLabel(addon.Description, true)
                 end
 
-                if type(addon.Author) ~= "nil" then
+                if addon.Author ~= nil then
                     local authors = type(addon.Author) == "table" and table.concat(addon.Author, ", ") or tostring(addon.Author)
                     groupbox:AddLabel("By: " .. authors)
                 end
@@ -403,7 +415,7 @@ function AddonsAPI:Initialize(Window)
 
             if not success then
                 warn("[msdoors] Failed to load addon '" .. fileName .. "': " .. tostring(errorMessage))
-                createErrorUI(self, fileName:gsub("%.luau?$", ""):gsub("%.txt$", ""), errorMessage)
+                pcall(createErrorUI, fileName:gsub("%.luau?$", ""):gsub("%.txt$", ""), errorMessage)
                 failCount += 1
             else
                 loadCount += 1
