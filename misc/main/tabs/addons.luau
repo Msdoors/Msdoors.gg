@@ -323,7 +323,7 @@ local function createErrorUI(addonName, errorMsg)
         groupbox:AddLabel(tostring(errorMsg), true)
         groupbox:AddDivider()
         groupbox:AddButton({
-            Text = "Copy Error",
+            Text = "Copiar Erro",
             Func = function()
                 if setclipboard then
                     setclipboard(tostring(errorMsg))
