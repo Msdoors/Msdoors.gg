@@ -1,9 +1,10 @@
-if getgenv().msaddons then 
+if getgenv().msaddons then
     return getgenv().msaddons
 end
 
+getgenv().lib = getgenv().Linoria or getgenv().Library
+
 local AddonsAPI = {}
-local LoadedAddons = {}
 local AddonTab = nil
 local LastGroupSide = "Right"
 
@@ -11,86 +12,94 @@ local function checkFileSystem()
     if shared and shared.testexecutor and shared.testexecutor.supportFileSystem ~= nil then
         return shared.testexecutor.supportFileSystem == true
     end
-    
-    return (type(isfolder) == "function" and type(listfiles) == "function" and type(readfile) == "function")
+    return type(isfolder) == "function" and type(listfiles) == "function" and type(readfile) == "function"
 end
 
-function AddonsAPI:Initialize(Window)
-    if not checkFileSystem() then
-        warn("[msdoors] Executor doesn't support FileSystem. Addons disabled.")
-        return false
+local function waitForLoaded()
+    if shared and shared.loaded ~= nil then
+        repeat task.wait() until shared.loaded == true
+        return
     end
-
-    if not isfolder("msdoors/addons") then
-        makefolder("msdoors/addons")
-        warn("[msdoors] Created addons folder at msdoors/addons")
-        return false
-    end
-
-    self.Window = Window
-    self:LoadAddons()
-    return true
+    repeat task.wait() until getgenv().mspaint_loaded == true
 end
 
-function AddonsAPI:CreateAddonTab()
+local function getAddonTab(self)
     if not AddonTab then
         AddonTab = self.Window:AddTab("Addons", "puzzle-piece")
     end
     return AddonTab
 end
 
-function AddonsAPI:ValidateAddon(addon, fileName)
-    if type(addon) ~= "table" then
-        return false, "Returned invalid type"
+local function validateGame(addon, fileName)
+    local gameField = addon.Game
+    if not gameField then
+        warn("[msdoors] Addon '" .. fileName .. "' didn't load: Invalid GameId.")
+        return false
     end
 
-    if type(addon.Name) ~= "string" or #addon.Name == 0 then
-        return false, "Missing valid Name"
+    if gameField == "*" then return true end
+
+    local currentPlaceId = game.PlaceId
+    local scriptLoader = shared and shared.ScriptLoader or ""
+
+    if type(gameField) == "string" then
+        if string.lower(gameField) == string.lower(scriptLoader) then return true end
+        warn("[msdoors] Addon '" .. fileName .. "' didn't load: Wrong game.")
+        return false
     end
 
-    if type(addon.Elements) ~= "table" then
-        return false, "Missing Elements table"
+    if type(gameField) == "number" then
+        if gameField == currentPlaceId then return true end
+        warn("[msdoors] Addon '" .. fileName .. "' didn't load: Wrong game.")
+        return false
     end
 
-    if addon.Game then
-        local currentPlaceId = game.PlaceId
-        local gameList = type(addon.Game) == "table" and addon.Game or {addon.Game}
-        
-        local gameMatches = false
-        for _, gameId in ipairs(gameList) do
-            if type(gameId) == "number" and gameId == currentPlaceId then
-                gameMatches = true
-                break
-            elseif tostring(gameId) == "*" then
-                gameMatches = true
-                break
-            end
+    if type(gameField) == "table" then
+        for _, v in pairs(gameField) do
+            if type(v) == "number" and v == currentPlaceId then return true end
+            if type(v) == "string" and string.lower(v) == string.lower(scriptLoader) then return true end
         end
-
-        if not gameMatches then
-            return false, "Game ID mismatch"
-        end
+        warn("[msdoors] Addon '" .. fileName .. "' didn't load: Wrong game.")
+        return false
     end
 
-    return true
+    warn("[msdoors] Addon '" .. fileName .. "' didn't load: Invalid GameId.")
+    return false
 end
 
-function AddonsAPI:AddElement(container, addonName, element)
-    if type(element) ~= "table" or not element.Type then
-        return nil
-    end
+local function addElement(container, addonName, element)
+    if type(element) ~= "table" or not element.Type then return nil end
 
     local elemType = element.Type
+    if elemType:sub(1, 3) == "Add" then elemType = elemType:sub(4) end
+
     local args = element.Arguments or {}
     local name = element.Name and (addonName .. "_" .. element.Name) or nil
 
-    if elemType == "Label" then
-        return container:AddLabel(args.Text or "Label", args.DoesWrap, name)
-    elseif elemType == "BlankSpace" then
-        return container:AddBlankSpace()
-    elseif elemType == "Divider" then
+    if elemType == "Divider" then
         return container:AddDivider()
-    elseif elemType == "Button" then
+    end
+
+    if elemType == "BlankSpace" then
+        return container:AddBlankSpace()
+    end
+
+    if elemType == "DependencyBox" then
+        return container:AddDependencyBox()
+    end
+
+    if elemType == "Label" then
+        if type(args) == "table" and not args.Text then
+            return container:AddLabel(table.unpack(args))
+        end
+        return container:AddLabel(args.Text or "Label", args.DoesWrap)
+    end
+
+    if elemType == "Paragraph" then
+        return container:AddLabel(args.Text or "", true)
+    end
+
+    if elemType == "Button" then
         return container:AddButton({
             Text = args.Text or "Button",
             Func = args.Func or args.Callback,
@@ -99,9 +108,16 @@ function AddonsAPI:AddElement(container, addonName, element)
             DisabledTooltip = args.DisabledTooltip,
             Risky = args.Risky,
             Disabled = args.Disabled,
-            Visible = args.Visible
+            Visible = args.Visible,
         })
-    elseif elemType == "Toggle" and name then
+    end
+
+    if not name then
+        warn("[msdoors] Element '" .. tostring(element.Name) .. " (" .. tostring(elemType) .. ")' didn't load: Invalid name.")
+        return nil
+    end
+
+    if elemType == "Toggle" then
         return container:AddToggle(name, {
             Text = args.Text or "Toggle",
             Default = args.Default,
@@ -110,9 +126,11 @@ function AddonsAPI:AddElement(container, addonName, element)
             Callback = args.Callback or args.Changed,
             Risky = args.Risky,
             Disabled = args.Disabled,
-            Visible = args.Visible
+            Visible = args.Visible,
         })
-    elseif elemType == "Checkbox" and name then
+    end
+
+    if elemType == "Checkbox" then
         return container:AddCheckbox(name, {
             Text = args.Text or "Checkbox",
             Default = args.Default,
@@ -121,9 +139,11 @@ function AddonsAPI:AddElement(container, addonName, element)
             Callback = args.Callback or args.Changed,
             Risky = args.Risky,
             Disabled = args.Disabled,
-            Visible = args.Visible
+            Visible = args.Visible,
         })
-    elseif elemType == "Slider" and name then
+    end
+
+    if elemType == "Slider" then
         return container:AddSlider(name, {
             Text = args.Text or "Slider",
             Min = args.Min or 0,
@@ -139,9 +159,11 @@ function AddonsAPI:AddElement(container, addonName, element)
             DisabledTooltip = args.DisabledTooltip,
             Callback = args.Callback or args.Changed,
             Disabled = args.Disabled,
-            Visible = args.Visible
+            Visible = args.Visible,
         })
-    elseif elemType == "Input" and name then
+    end
+
+    if elemType == "Input" then
         return container:AddInput(name, {
             Text = args.Text or "Input",
             Default = args.Default or "",
@@ -158,9 +180,11 @@ function AddonsAPI:AddElement(container, addonName, element)
             DisabledTooltip = args.DisabledTooltip,
             Callback = args.Callback or args.Changed,
             Disabled = args.Disabled,
-            Visible = args.Visible
+            Visible = args.Visible,
         })
-    elseif elemType == "Dropdown" and name then
+    end
+
+    if elemType == "Dropdown" then
         return container:AddDropdown(name, {
             Text = args.Text,
             Values = args.Values or {},
@@ -180,9 +204,11 @@ function AddonsAPI:AddElement(container, addonName, element)
             DisabledTooltip = args.DisabledTooltip,
             Callback = args.Callback or args.Changed,
             Disabled = args.Disabled,
-            Visible = args.Visible
+            Visible = args.Visible,
         })
-    elseif elemType == "ColorPicker" and name then
+    end
+
+    if elemType == "ColorPicker" then
         return container:AddColorPicker(name, {
             Default = args.Default or Color3.new(1, 1, 1),
             Title = args.Title,
@@ -190,9 +216,11 @@ function AddonsAPI:AddElement(container, addonName, element)
             Tooltip = args.Tooltip,
             DisabledTooltip = args.DisabledTooltip,
             Callback = args.Callback or args.Changed,
-            Visible = args.Visible
+            Visible = args.Visible,
         })
-    elseif elemType == "KeyPicker" and name then
+    end
+
+    if elemType == "KeyPicker" then
         return container:AddKeyPicker(name, {
             Text = args.Text,
             Default = args.Default or "None",
@@ -211,13 +239,11 @@ function AddonsAPI:AddElement(container, addonName, element)
             Callback = args.Callback or args.Changed,
             ChangedCallback = args.ChangedCallback,
             Clicked = args.Clicked,
-            Visible = args.Visible
+            Visible = args.Visible,
         })
-    elseif elemType == "DependencyBox" then
-        return container:AddDependencyBox()
-    elseif elemType == "Paragraph" then
-        return container:AddLabel(args.Text or "", true)
-    elseif elemType == "Viewport" then
+    end
+
+    if elemType == "Viewport" then
         return container:AddViewport({
             Object = args.Object,
             Camera = args.Camera,
@@ -225,9 +251,11 @@ function AddonsAPI:AddElement(container, addonName, element)
             AutoFocus = args.AutoFocus,
             Interactive = args.Interactive,
             Height = args.Height or 200,
-            Visible = args.Visible
+            Visible = args.Visible,
         })
-    elseif elemType == "Image" then
+    end
+
+    if elemType == "Image" then
         return container:AddImage({
             Image = args.Image,
             Transparency = args.Transparency or 0,
@@ -237,195 +265,163 @@ function AddonsAPI:AddElement(container, addonName, element)
             RectSize = args.RectSize or Vector2.zero,
             ScaleType = args.ScaleType or Enum.ScaleType.Fit,
             Height = args.Height or 200,
-            Visible = args.Visible
+            Visible = args.Visible,
         })
-    elseif elemType == "Video" then
+    end
+
+    if elemType == "Video" then
         return container:AddVideo({
             Video = args.Video,
             Looped = args.Looped,
             Playing = args.Playing,
             Volume = args.Volume or 1,
             Height = args.Height or 200,
-            Visible = args.Visible
+            Visible = args.Visible,
         })
-    elseif elemType == "UIPassthrough" then
+    end
+
+    if elemType == "UIPassthrough" then
         return container:AddUIPassthrough({
             Instance = args.Instance,
             Height = args.Height or 24,
-            Visible = args.Visible
+            Visible = args.Visible,
         })
     end
 
+    warn("[msdoors] Element '" .. tostring(element.Name) .. " (" .. tostring(elemType) .. ")' didn't load: Invalid element type.")
     return nil
 end
 
-function AddonsAPI:LoadElements(container, addonName, elements)
-    if type(elements) ~= "table" then return end
-
-    for _, element in ipairs(elements) do
-        local createdElement = self:AddElement(container, addonName, element)
-        
-        if createdElement and element.Elements then
-            self:LoadElements(createdElement, addonName, element.Elements)
+local function loadElements(container, addonName, elements)
+    if not elements or type(elements) ~= "table" then return end
+    for _, element in pairs(elements) do
+        local created = addElement(container, addonName, element)
+        if created then
+            loadElements(created, addonName, element.Elements)
         end
     end
 end
 
-function AddonsAPI:CreateErrorUI(tab, addonName, errorMsg)
-    local side = LastGroupSide
+local function createErrorUI(self, addonName, errorMsg)
+    local tab = getAddonTab(self)
     local groupbox
-    
-    if side == "Left" then
-        groupbox = tab:AddLeftGroupbox("❌ " .. addonName, "alert-circle")
-        LastGroupSide = "Right"
-    else
-        groupbox = tab:AddRightGroupbox("❌ " .. addonName, "alert-circle")
+    if LastGroupSide == "Right" then
+        groupbox = tab:AddLeftGroupbox("❌ " .. addonName)
         LastGroupSide = "Left"
+    else
+        groupbox = tab:AddRightGroupbox("❌ " .. addonName)
+        LastGroupSide = "Right"
     end
-
-    groupbox:AddLabel("Erro ao carregar addon", false)
-    groupbox:AddBlankSpace()
-    
-    local errorLabel = groupbox:AddLabel(errorMsg, true)
-    errorLabel:SetSize(12)
-    
+    groupbox:AddLabel(tostring(errorMsg), true)
     groupbox:AddBlankSpace()
     groupbox:AddButton({
-        Text = "Copy Error",
+        Text = "Copiar Erro",
         Func = function()
             if setclipboard then
-                setclipboard(errorMsg)
-                print("[msdoors] Error copied to clipboard")
-            else
-                print("[msdoors] The setclipboard function is not available.")
+                setclipboard(tostring(errorMsg))
             end
         end,
-        Risky = false
     })
 end
 
-function AddonsAPI:CreateAddonContainer(addon)
-    local tab = self:CreateAddonTab()
-    local side = addon.Side or LastGroupSide
-    local title = addon.Title or addon.Name
-    local icon = addon.Icon
-    
-    local groupbox
-    if side == "Left" then
-        groupbox = tab:AddLeftGroupbox(title, icon)
-        LastGroupSide = "Right"
-    else
-        groupbox = tab:AddRightGroupbox(title, icon)
-        LastGroupSide = "Left"
+function AddonsAPI:Initialize(Window)
+    if not checkFileSystem() then
+        warn("[msdoors] Executor doesn't support FileSystem. Addons disabled.")
+        return false
     end
 
-    if addon.Description then
-        groupbox:AddLabel(addon.Description, true)
-    end
+    self.Window = Window
 
-    if addon.Author then
-        local authors = type(addon.Author) == "table" and table.concat(addon.Author, ", ") or tostring(addon.Author)
-        groupbox:AddLabel("By: " .. authors)
-    end
+    task.spawn(function()
+        waitForLoaded()
 
-    if addon.Version then
-        groupbox:AddLabel("Version: " .. tostring(addon.Version))
-    end
-
-    if addon.Description or addon.Author or addon.Version then
-        groupbox:AddDivider()
-    end
-
-    return groupbox
-end
-
-function AddonsAPI:LoadAddon(filePath)
-    local fileName = filePath:match("([^/]+)$")
-    
-    local success, result = pcall(function()
-        local fileContent = readfile(filePath)
-        local addonFunc, loadErr = loadstring(fileContent)
-        
-        if not addonFunc then
-            error("Syntax error: " .. tostring(loadErr))
+        if not isfolder("msdoors/addons") then
+            makefolder("msdoors/addons")
+            warn("[msdoors] Created addons folder at msdoors/addons")
+            return
         end
 
-        setfenv(addonFunc, _G)
-        return addonFunc()
-    end)
+        local files = listfiles("msdoors/addons")
+        local loadCount, failCount = 0, 0
 
-    if not success then
-        local errorMsg = string.format("[msdoors] Failed to load '%s':\n%s", fileName, tostring(result))
-        warn(errorMsg)
-        
-        local tab = self:CreateAddonTab()
-        local addonName = fileName:gsub("%.luau?$", ""):gsub("%.txt$", "")
-        self:CreateErrorUI(tab, addonName, tostring(result))
-        
-        return false
-    end
+        for _, file in pairs(files) do
+            local fileName = file:match("([^/\\]+)$") or file
+            if file:sub(#file - 3) ~= ".lua" and file:sub(#file - 4) ~= ".luau" and file:sub(#file - 7) ~= ".lua.txt" then
+                continue
+            end
 
-    local addon = result
-    local isValid, validError = self:ValidateAddon(addon, fileName)
-    if not isValid then
-        local errorMsg = string.format("[msdoors] Validation failed '%s': %s", fileName, validError)
-        warn(errorMsg)
-        
-        local tab = self:CreateAddonTab()
-        local addonName = fileName:gsub("%.luau?$", ""):gsub("%.txt$", "")
-        self:CreateErrorUI(tab, addonName, validError)
-        
-        return false
-    end
+            local success, errorMessage = pcall(function()
+                local fileContent = readfile(file)
+                local addonFunc, loadErr = loadstring(fileContent)
 
-    local addonName = addon.Name:gsub("%s+", "_"):gsub("[^%w_]", "")
-    
-    local containerSuccess, containerErr = pcall(function()
-        local container = self:CreateAddonContainer(addon)
-        self:LoadElements(container, addonName, addon.Elements)
-        LoadedAddons[addonName] = addon
-    end)
+                if not addonFunc then
+                    error("Syntax error: " .. tostring(loadErr))
+                end
 
-    if not containerSuccess then
-        local errorMsg = string.format("[msdoors] Failed to create UI for '%s':\n%s", fileName, tostring(containerErr))
-        warn(errorMsg)
-        
-        local tab = self:CreateAddonTab()
-        self:CreateErrorUI(tab, addon.Name, tostring(containerErr))
-        
-        return false
-    end
+                local addon = addonFunc()
 
-    return true
-end
+                if type(addon.Name) ~= "string" or type(addon.Elements) ~= "table" then
+                    error("Invalid Name/Elements.")
+                end
 
-function AddonsAPI:LoadAddons()
-    local files = listfiles("msdoors/addons")
-    local loadCount = 0
-    local failCount = 0
+                if not validateGame(addon, fileName) then return end
 
-    for _, file in ipairs(files) do
-        local ext = file:match("%.([^%.]+)$")
-        if ext == "lua" or ext == "luau" or file:match("%.lua%.txt$") then
-            if self:LoadAddon(file) then
-                loadCount = loadCount + 1
+                addon.Name = addon.Name:gsub("%s+", "")
+                if type(addon.Title) ~= "string" then
+                    addon.Title = addon.Name
+                end
+
+                local tab = getAddonTab(self)
+                local groupbox
+                if LastGroupSide == "Right" then
+                    groupbox = tab:AddLeftGroupbox(addon.Title, addon.Icon)
+                    LastGroupSide = "Left"
+                else
+                    groupbox = tab:AddRightGroupbox(addon.Title, addon.Icon)
+                    LastGroupSide = "Right"
+                end
+
+                if type(addon.Description) == "string" then
+                    groupbox:AddLabel(addon.Description, true)
+                end
+
+                if type(addon.Author) ~= "nil" then
+                    local authors = type(addon.Author) == "table" and table.concat(addon.Author, ", ") or tostring(addon.Author)
+                    groupbox:AddLabel("By: " .. authors)
+                end
+
+                if type(addon.Version) == "string" then
+                    groupbox:AddLabel("v" .. addon.Version)
+                end
+
+                if addon.Description or addon.Author or addon.Version then
+                    groupbox:AddDivider()
+                end
+
+                loadElements(groupbox, addon.Name, addon.Elements)
+            end)
+
+            if not success then
+                warn("[msdoors] Failed to load addon '" .. fileName .. "': " .. tostring(errorMessage))
+                createErrorUI(self, fileName:gsub("%.luau?$", ""):gsub("%.txt$", ""), errorMessage)
+                failCount += 1
             else
-                failCount = failCount + 1
+                loadCount += 1
             end
         end
-    end
 
-    if loadCount > 0 then
-        print(string.format("[msdoors] Loaded %d addon(s) successfully", loadCount))
-    end
-    
-    if failCount > 0 then
-        warn(string.format("[msdoors] Failed to load %d addon(s)", failCount))
-    end
+        if loadCount > 0 then
+            print(string.format("[msdoors] Loaded %d addon(s) successfully", loadCount))
+        end
+        if failCount > 0 then
+            warn(string.format("[msdoors] Failed to load %d addon(s)", failCount))
+        end
+        if loadCount == 0 and failCount == 0 then
+            warn("[msdoors] No addons found in msdoors/addons folder")
+        end
+    end)
 
-    if loadCount == 0 and failCount == 0 then
-        warn("[msdoors] No addons found in msdoors/addons folder")
-    end
+    return true
 end
 
 getgenv().msaddons = AddonsAPI
