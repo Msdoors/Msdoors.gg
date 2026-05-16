@@ -62,17 +62,7 @@ local function validateGame(addon, fileName)
     return true
 end
 
-local function fixSyntaxErrors(source, filePath)
-    local anyFixed = false
-    local fixed = source:gsub('(["\'])(%s*\n%s*)([%w_]+%s*=)', function(q, ws, field)
-        anyFixed = true
-        return q .. ', --[[msdoors: missing comma added automatically, please fix this in your addon]]' .. ws .. field
-    end)
-    if anyFixed and filePath then
-        pcall(writefile, filePath, fixed)
-    end
-    return fixed
-end
+
 
 local function addElement(container, addonName, element)
     if type(element) ~= "table" or not element.Type then return nil end
@@ -323,7 +313,7 @@ local function createErrorUI(addonName, errorMsg)
         groupbox:AddLabel(tostring(errorMsg), true)
         groupbox:AddDivider()
         groupbox:AddButton({
-            Text = "Copiar Erro",
+            Text = "Copy Error",
             Func = function()
                 if setclipboard then
                     setclipboard(tostring(errorMsg))
@@ -335,12 +325,8 @@ end
 
 local function tryLoadAddon(file, fileName)
     local fileContent = readfile(file)
-    local fixed = fixSyntaxErrors(fileContent, file)
 
-    local addonFunc, loadErr = loadstring(fixed)
-    if not addonFunc then
-        addonFunc, loadErr = loadstring(fileContent)
-    end
+    local addonFunc, loadErr = loadstring(fileContent)
     if not addonFunc then
         error("Syntax error: " .. tostring(loadErr))
     end
@@ -410,7 +396,7 @@ local function tryLoadAddon(file, fileName)
             Options = shared.Options or {},
         }, { __index = _G })
 
-        local realFunc, realErr = loadstring(fixed)
+        local realFunc, realErr = loadstring(fileContent)
         if not realFunc then
             realFunc = addonFunc
         end
