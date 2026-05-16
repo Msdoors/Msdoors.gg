@@ -62,6 +62,15 @@ local function validateGame(addon, fileName)
     return true
 end
 
+local function fixSyntaxErrors(source)
+    -- Corrige: falta de vírgula entre campos de tabela antes de campos nomeados
+    -- Ex: Tooltip = "texto"\n    DisabledTooltip = ... (sem vírgula)
+    source = source:gsub('(["\'])%s*\n(%s+)([%w_]+%s*=)', function(q, ws, field)
+        return q .. ',\n' .. ws .. field
+    end)
+    return source
+end
+
 local function addElement(container, addonName, element)
     if type(element) ~= "table" or not element.Type then return nil end
 
@@ -321,6 +330,144 @@ local function createErrorUI(addonName, errorMsg)
     end)
 end
 
+local function tryLoadAddon(file, fileName)
+    local fileContent = readfile(file)
+    local fixed = fixSyntaxErrors(fileContent)
+
+    -- Tenta com source corrigido, fallback para original
+    local addonFunc, loadErr = loadstring(fixed)
+    if not addonFunc then
+        addonFunc, loadErr = loadstring(fileContent)
+    end
+    if not addonFunc then
+        error("Syntax error: " .. tostring(loadErr))
+    end
+
+    -- Detecta estilo de addon: mspaint.AddonInfo (Tplay style) ou return { Name=... } (standard style)
+    local isMspaintStyle = fileContent:find("mspaint%.AddonInfo") or fileContent:find("mspaint%.Groupbox")
+
+    if isMspaintStyle then
+        local addonInfo = nil
+        local groupbox = nil
+
+        local mspaintProxy = setmetatable({}, {
+            __newindex = function(_, k, v)
+                if k == "AddonInfo" then
+                    addonInfo = v
+                end
+            end,
+            __index = function(_, k)
+                if k == "Groupbox" then return groupbox end
+                return nil
+            end
+        })
+
+        -- Precisamos criar o groupbox antes de executar, mas não sabemos o nome ainda
+        -- Então executamos em dois passos: primeiro capturamos AddonInfo, depois rodamos de verdade
+        local infoFunc, infoErr = loadstring(
+            fileContent:gsub("(mspaint%.Groupbox[^\n]-)", "-- BLOCKED_GROUPBOX_LINE") -- bloqueia uso do groupbox temporariamente
+            .. "\nreturn mspaint and mspaint.AddonInfo or nil"
+        )
+
+        -- Abordagem mais limpa: rodar o script com mspaint como proxy que captura tudo
+        -- e só redireciona Groupbox após criar o groupbox com as infos
+        local captureEnv = setmetatable({ mspaint = mspaintProxy }, { __index = _G })
+        local captureFunc, _ = loadstring("mspaint = ...\n" .. fileContent)
+        if captureFunc then
+            pcall(setfenv(captureFunc, captureEnv), mspaintProxy)
+        end
+
+        if not addonInfo or type(addonInfo.Name) ~= "string" then
+            error("mspaint.AddonInfo not found or invalid.")
+        end
+
+        if not validateGame(addonInfo, fileName) then return true end
+
+        addonInfo.Name = addonInfo.Name:gsub("%s+", "")
+        local title = type(addonInfo.Title) == "string" and addonInfo.Title or addonInfo.Name
+
+        if LastGroupSide == "Right" then
+            groupbox = AddonTab:AddLeftGroupbox(title, addonInfo.Icon)
+            LastGroupSide = "Left"
+        else
+            groupbox = AddonTab:AddRightGroupbox(title, addonInfo.Icon)
+            LastGroupSide = "Right"
+        end
+
+        if type(addonInfo.Description) == "string" then
+            groupbox:AddLabel(addonInfo.Description, true)
+        end
+
+        local Library = getgenv().Library or getgenv().lib
+        local realEnv = setmetatable({
+            mspaint = setmetatable({}, {
+                __newindex = function() end,
+                __index = function(_, k)
+                    if k == "AddonInfo" then return addonInfo end
+                    if k == "Groupbox" then return groupbox end
+                    return nil
+                end
+            }),
+            Library = Library,
+            Toggles = shared.Toggles or {},
+            Options = shared.Options or {},
+        }, { __index = _G })
+
+        local realFunc, realErr = loadstring(fixed)
+        if not realFunc then
+            realFunc = addonFunc
+        end
+        setfenv(realFunc, realEnv)()
+        return true
+    else
+        local addon = addonFunc()
+
+        if type(addon) ~= "table" then
+            error("Addon returned invalid type.")
+        end
+
+        if type(addon.Name) ~= "string" or type(addon.Elements) ~= "table" then
+            error("Invalid Name/Elements.")
+        end
+
+        if not validateGame(addon, fileName) then return true end
+
+        addon.Name = addon.Name:gsub("%s+", "")
+        if type(addon.Title) ~= "string" then
+            addon.Title = addon.Name
+        end
+
+        local groupbox
+        if LastGroupSide == "Right" then
+            groupbox = AddonTab:AddLeftGroupbox(addon.Title, addon.Icon)
+            LastGroupSide = "Left"
+        else
+            groupbox = AddonTab:AddRightGroupbox(addon.Title, addon.Icon)
+            LastGroupSide = "Right"
+        end
+
+        if type(addon.Description) == "string" then
+            groupbox:AddLabel(addon.Description, true)
+        end
+
+        if addon.Author ~= nil then
+            local authors = type(addon.Author) == "table" and table.concat(addon.Author, ", ") or tostring(addon.Author)
+            groupbox:AddLabel("By: " .. authors)
+        end
+
+        if type(addon.Version) == "string" then
+            groupbox:AddLabel("v" .. addon.Version)
+        end
+
+        if addon.Description or addon.Author or addon.Version then
+            groupbox:AddDivider()
+        end
+
+        loadElements(groupbox, addon.Name, addon.Elements)
+        return true
+    end
+end
+
 function AddonsAPI:Initialize(Window)
     if not checkFileSystem() then
         warn("[msdoors] Executor doesn't support FileSystem. Addons disabled.")
@@ -352,59 +499,7 @@ function AddonsAPI:Initialize(Window)
                 continue
             end
 
-            local success, errorMessage = pcall(function()
-                local fileContent = readfile(file)
-                local addonFunc, loadErr = loadstring(fileContent)
-
-                if not addonFunc then
-                    error("Syntax error: " .. tostring(loadErr))
-                end
-
-                local addon = addonFunc()
-
-                if type(addon) ~= "table" then
-                    error("Addon returned invalid type.")
-                end
-
-                if type(addon.Name) ~= "string" or type(addon.Elements) ~= "table" then
-                    error("Invalid Name/Elements.")
-                end
-
-                if not validateGame(addon, fileName) then return end
-
-                addon.Name = addon.Name:gsub("%s+", "")
-                if type(addon.Title) ~= "string" then
-                    addon.Title = addon.Name
-                end
-
-                local groupbox
-                if LastGroupSide == "Right" then
-                    groupbox = AddonTab:AddLeftGroupbox(addon.Title, addon.Icon)
-                    LastGroupSide = "Left"
-                else
-                    groupbox = AddonTab:AddRightGroupbox(addon.Title, addon.Icon)
-                    LastGroupSide = "Right"
-                end
-
-                if type(addon.Description) == "string" then
-                    groupbox:AddLabel(addon.Description, true)
-                end
-
-                if addon.Author ~= nil then
-                    local authors = type(addon.Author) == "table" and table.concat(addon.Author, ", ") or tostring(addon.Author)
-                    groupbox:AddLabel("By: " .. authors)
-                end
-
-                if type(addon.Version) == "string" then
-                    groupbox:AddLabel("v" .. addon.Version)
-                end
-
-                if addon.Description or addon.Author or addon.Version then
-                    groupbox:AddDivider()
-                end
-
-                loadElements(groupbox, addon.Name, addon.Elements)
-            end)
+            local success, errorMessage = pcall(tryLoadAddon, file, fileName)
 
             if not success then
                 warn("[msdoors] Failed to load addon '" .. fileName .. "': " .. tostring(errorMessage))
