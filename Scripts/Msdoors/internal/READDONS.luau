@@ -36,16 +36,9 @@ end
 local function validateGame(addon, fileName)
     local gameField = addon.Game
     if not gameField then return true end
-    if gameField == "*" then return true end
+    if type(gameField) == "string" then return true end
 
     local currentPlaceId = game.PlaceId
-    local scriptLoader = shared and shared.ScriptLoader or ""
-
-    if type(gameField) == "string" then
-        if string.lower(gameField) == string.lower(scriptLoader) then return true end
-        warn("[msdoors] Addon '" .. fileName .. "' didn't load: Wrong game.")
-        return false
-    end
 
     if type(gameField) == "number" then
         if gameField == currentPlaceId then return true end
@@ -54,10 +47,14 @@ local function validateGame(addon, fileName)
     end
 
     if type(gameField) == "table" then
+        local hasNumber = false
         for _, v in pairs(gameField) do
-            if type(v) == "number" and v == currentPlaceId then return true end
-            if type(v) == "string" and string.lower(v) == string.lower(scriptLoader) then return true end
+            if type(v) == "number" then
+                hasNumber = true
+                if v == currentPlaceId then return true end
+            end
         end
+        if not hasNumber then return true end
         warn("[msdoors] Addon '" .. fileName .. "' didn't load: Wrong game.")
         return false
     end
