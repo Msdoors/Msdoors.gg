@@ -334,7 +334,6 @@ local function tryLoadAddon(file, fileName)
     local fileContent = readfile(file)
     local fixed = fixSyntaxErrors(fileContent)
 
-    -- Tenta com source corrigido, fallback para original
     local addonFunc, loadErr = loadstring(fixed)
     if not addonFunc then
         addonFunc, loadErr = loadstring(fileContent)
@@ -343,7 +342,6 @@ local function tryLoadAddon(file, fileName)
         error("Syntax error: " .. tostring(loadErr))
     end
 
-    -- Detecta estilo de addon: mspaint.AddonInfo (Tplay style) ou return { Name=... } (standard style)
     local isMspaintStyle = fileContent:find("mspaint%.AddonInfo") or fileContent:find("mspaint%.Groupbox")
 
     if isMspaintStyle then
@@ -362,15 +360,11 @@ local function tryLoadAddon(file, fileName)
             end
         })
 
-        -- Precisamos criar o groupbox antes de executar, mas não sabemos o nome ainda
-        -- Então executamos em dois passos: primeiro capturamos AddonInfo, depois rodamos de verdade
         local infoFunc, infoErr = loadstring(
             fileContent:gsub("(mspaint%.Groupbox[^\n]-)", "-- BLOCKED_GROUPBOX_LINE") -- bloqueia uso do groupbox temporariamente
             .. "\nreturn mspaint and mspaint.AddonInfo or nil"
         )
 
-        -- Abordagem mais limpa: rodar o script com mspaint como proxy que captura tudo
-        -- e só redireciona Groupbox após criar o groupbox com as infos
         local captureEnv = setmetatable({ mspaint = mspaintProxy }, { __index = _G })
         local captureFunc, _ = loadstring("mspaint = ...\n" .. fileContent)
         if captureFunc then
