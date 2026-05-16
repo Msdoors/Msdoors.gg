@@ -2,21 +2,17 @@ if getgenv().msaddons then
     return getgenv().msaddons
 end
 
-getgenv().lib = getgenv().Linoria or getgenv().Library
-
-if getgenv().lib then
-    if not getgenv().lib.Toggles then
-        getgenv().lib.Toggles = shared.Toggles
-    end
-    if not getgenv().lib.Options then
-        getgenv().lib.Options = shared.Options
-    end
-end
-
-if getgenv().Linoria then
+if not getgenv().Linoria then
+    getgenv().Linoria = {
+        Toggles = shared.Toggles,
+        Options = shared.Options,
+    }
+else
     if not getgenv().Linoria.Toggles then getgenv().Linoria.Toggles = shared.Toggles end
     if not getgenv().Linoria.Options then getgenv().Linoria.Options = shared.Options end
 end
+
+getgenv().lib = getgenv().Linoria or getgenv().Library
 
 local AddonsAPI = {}
 local AddonTab = nil
