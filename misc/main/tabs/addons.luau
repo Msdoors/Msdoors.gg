@@ -313,7 +313,7 @@ local function createErrorUI(addonName, errorMsg)
         groupbox:AddLabel(tostring(errorMsg), true)
         groupbox:AddDivider()
         groupbox:AddButton({
-            Text = "Copy Error",
+            Text = "Copiar Erro",
             Func = function()
                 if setclipboard then
                     setclipboard(tostring(errorMsg))
@@ -478,7 +478,8 @@ function AddonsAPI:Initialize(Window)
 
         for _, file in pairs(files) do
             local fileName = file:match("([^/\\]+)$") or file
-            if file:sub(#file - 3) ~= ".lua" and file:sub(#file - 4) ~= ".luau" and file:sub(#file - 7) ~= ".lua.txt" then
+            local ext = fileName:match("%.([^%.]+)$")
+            if ext ~= "lua" and ext ~= "luau" and ext ~= "txt" then
                 continue
             end
 
