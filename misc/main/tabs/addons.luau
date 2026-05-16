@@ -350,22 +350,15 @@ local function tryLoadAddon(file, fileName)
         local addonInfo = nil
         local groupbox = nil
 
-        local mspaintProxy = setmetatable({}, {
-            __newindex = function(_, k, v)
-                if k == "AddonInfo" then
-                    addonInfo = v
+        local infoBlock = fileContent:match("mspaint%.AddonInfo%s*=%s*(%b{})")
+        if infoBlock then
+            local infoFunc, _ = loadstring("return " .. infoBlock)
+            if infoFunc then
+                local ok, result = pcall(setfenv(infoFunc, _realenv))
+                if ok and type(result) == "table" then
+                    addonInfo = result
                 end
-            end,
-            __index = function(_, k)
-                if k == "Groupbox" then return groupbox end
-                return nil
             end
-        })
-
-        local captureEnv = setmetatable({ mspaint = mspaintProxy }, { __index = _realenv })
-        local captureFunc, _ = loadstring("mspaint = ...\n" .. fileContent)
-        if captureFunc then
-            pcall(setfenv(captureFunc, captureEnv), mspaintProxy)
         end
 
         if not addonInfo or type(addonInfo.Name) ~= "string" then
