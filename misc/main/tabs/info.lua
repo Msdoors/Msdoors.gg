@@ -1,4 +1,4 @@
-aqlocal misctabs = {}
+local misctabs = {}
 local HttpService = game:GetService("HttpService")
 
 function misctabs:AddMiscTab(Tab)
