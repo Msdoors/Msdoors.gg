@@ -62,13 +62,16 @@ local function validateGame(addon, fileName)
     return true
 end
 
-local function fixSyntaxErrors(source)
-    -- Corrige: falta de vírgula entre campos de tabela antes de campos nomeados
-    -- Ex: Tooltip = "texto"\n    DisabledTooltip = ... (sem vírgula)
-    source = source:gsub('(["\'])%s*\n(%s+)([%w_]+%s*=)', function(q, ws, field)
-        return q .. ',\n' .. ws .. field
+local function fixSyntaxErrors(source, filePath)
+    local anyFixed = false
+    local fixed = source:gsub('(["\'])(%s*\n%s*)([%w_]+%s*=)', function(q, ws, field)
+        anyFixed = true
+        return q .. ', --[[msdoors: missing comma added automatically, please fix this in your addon]]' .. ws .. field
     end)
-    return source
+    if anyFixed and filePath then
+        pcall(writefile, filePath, fixed)
+    end
+    return fixed
 end
 
 local function addElement(container, addonName, element)
@@ -332,7 +335,7 @@ end
 
 local function tryLoadAddon(file, fileName)
     local fileContent = readfile(file)
-    local fixed = fixSyntaxErrors(fileContent)
+    local fixed = fixSyntaxErrors(fileContent, file)
 
     local addonFunc, loadErr = loadstring(fixed)
     if not addonFunc then
@@ -361,7 +364,7 @@ local function tryLoadAddon(file, fileName)
         })
 
         local infoFunc, infoErr = loadstring(
-            fileContent:gsub("(mspaint%.Groupbox[^\n]-)", "-- BLOCKED_GROUPBOX_LINE") -- bloqueia uso do groupbox temporariamente
+            fileContent:gsub("(mspaint%.Groupbox[^\n]-)", "")
             .. "\nreturn mspaint and mspaint.AddonInfo or nil"
         )
 
