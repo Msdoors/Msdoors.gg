@@ -32,11 +32,7 @@ end
 
 local function validateGame(addon, fileName)
     local gameField = addon.Game
-    if not gameField then
-        warn("[msdoors] Addon '" .. fileName .. "' didn't load: Invalid GameId.")
-        return false
-    end
-
+    if not gameField then return true end
     if gameField == "*" then return true end
 
     local currentPlaceId = game.PlaceId
@@ -63,8 +59,7 @@ local function validateGame(addon, fileName)
         return false
     end
 
-    warn("[msdoors] Addon '" .. fileName .. "' didn't load: Invalid GameId.")
-    return false
+    return true
 end
 
 local function addElement(container, addonName, element)
@@ -331,6 +326,11 @@ function AddonsAPI:Initialize(Window)
     end
 
     self.Window = Window
+
+    AddonTab = Window:AddTab({
+        Name = "Addons",
+        Icon = "puzzle-piece"
+    })
 
     task.spawn(function()
         waitForLoaded()
