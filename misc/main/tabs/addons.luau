@@ -323,7 +323,7 @@ local function createErrorUI(addonName, errorMsg)
         groupbox:AddLabel(tostring(errorMsg), true)
         groupbox:AddDivider()
         groupbox:AddButton({
-            Text = "Copiar Erro",
+            Text = "Copy Error",
             Func = function()
                 if setclipboard then
                     setclipboard(tostring(errorMsg))
@@ -475,7 +475,7 @@ function AddonsAPI:Initialize(Window)
 
     AddonTab = Window:AddTab({
         Name = "Addons",
-        Icon = "puzzle-piece"
+        Icon = "diamond-plus"
     })
 
     task.spawn(function()
