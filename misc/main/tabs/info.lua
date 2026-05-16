@@ -1,4 +1,4 @@
-local misctabs = {}
+aqlocal misctabs = {}
 local HttpService = game:GetService("HttpService")
 
 function misctabs:AddMiscTab(Tab)
@@ -103,7 +103,7 @@ function misctabs:AddWarnTabFTF(Tab)
     Tab:UpdateWarningBox({
         Title = shared.translationapi:getTranslate("Update Summary", "Resumo de Atualizações"),
         Icon = "layout-grid",
-        Text = "Testing\n» join our Discord to suggest features! «",
+        Text = "[ + ] Test version\n» join our Discord to suggest features! «",
         IsNormal = true,
         Visible = true,
         LockSize = true,
