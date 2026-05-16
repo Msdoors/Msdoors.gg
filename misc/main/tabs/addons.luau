@@ -412,7 +412,7 @@ local function tryLoadAddon(file, fileName)
             Options = shared.Options or {},
         })
 
-        setfenv(realFunc, realEnv)()
+        task.spawn(setfenv(realFunc, realEnv))
         return true
     else
         local addon = addonFunc()
@@ -488,7 +488,7 @@ function AddonsAPI:Initialize(Window)
         end
 
         local files = listfiles("msdoors/addons")
-        local loadCount, failCount = 0, 0
+        local total = 0
 
         for _, file in pairs(files) do
             local fileName = file:match("([^/\\]+)$") or file
@@ -497,24 +497,17 @@ function AddonsAPI:Initialize(Window)
                 continue
             end
 
-            local success, errorMessage = pcall(tryLoadAddon, file, fileName)
-
-            if not success then
-                warn("[msdoors] Failed to load addon '" .. fileName .. "': " .. tostring(errorMessage))
-                pcall(createErrorUI, fileName:gsub("%.luau?$", ""):gsub("%.txt$", ""), errorMessage)
-                failCount += 1
-            else
-                loadCount += 1
-            end
+            total += 1
+            task.spawn(function()
+                local success, errorMessage = pcall(tryLoadAddon, file, fileName)
+                if not success then
+                    warn("[msdoors] Failed to load addon '" .. fileName .. "': " .. tostring(errorMessage))
+                    pcall(createErrorUI, fileName:gsub("%.luau?$", ""):gsub("%.txt$", ""), errorMessage)
+                end
+            end)
         end
 
-        if loadCount > 0 then
-            print(string.format("[msdoors] Loaded %d addon(s) successfully", loadCount))
-        end
-        if failCount > 0 then
-            warn(string.format("[msdoors] Failed to load %d addon(s)", failCount))
-        end
-        if loadCount == 0 and failCount == 0 then
+        if total == 0 then
             warn("[msdoors] No addons found in msdoors/addons folder")
         end
     end)
