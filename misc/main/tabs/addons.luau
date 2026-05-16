@@ -18,6 +18,8 @@ local AddonsAPI = {}
 local AddonTab = nil
 local LastGroupSide = "Right"
 
+local _realenv = getfenv(0)
+
 local function checkFileSystem()
     if shared and shared.testexecutor and shared.testexecutor.supportFileSystem ~= nil then
         return shared.testexecutor.supportFileSystem == true
@@ -323,6 +325,17 @@ local function createErrorUI(addonName, errorMsg)
     end)
 end
 
+local function buildAddonEnv(extras)
+    local env = setmetatable(extras or {}, {
+        __index = function(_, k)
+            local v = rawget(_realenv, k)
+            if v ~= nil then return v end
+            return _realenv[k]
+        end,
+    })
+    return env
+end
+
 local function tryLoadAddon(file, fileName)
     local fileContent = readfile(file)
 
@@ -349,12 +362,7 @@ local function tryLoadAddon(file, fileName)
             end
         })
 
-        local infoFunc, infoErr = loadstring(
-            fileContent:gsub("(mspaint%.Groupbox[^\n]-)", "")
-            .. "\nreturn mspaint and mspaint.AddonInfo or nil"
-        )
-
-        local captureEnv = setmetatable({ mspaint = mspaintProxy }, { __index = _G })
+        local captureEnv = setmetatable({ mspaint = mspaintProxy }, { __index = _realenv })
         local captureFunc, _ = loadstring("mspaint = ...\n" .. fileContent)
         if captureFunc then
             pcall(setfenv(captureFunc, captureEnv), mspaintProxy)
@@ -382,7 +390,13 @@ local function tryLoadAddon(file, fileName)
         end
 
         local Library = getgenv().Library or getgenv().lib
-        local realEnv = setmetatable({
+
+        local realFunc, realErr = loadstring(fileContent)
+        if not realFunc then
+            realFunc = addonFunc
+        end
+
+        local realEnv = buildAddonEnv({
             mspaint = setmetatable({}, {
                 __newindex = function() end,
                 __index = function(_, k)
@@ -394,12 +408,8 @@ local function tryLoadAddon(file, fileName)
             Library = Library,
             Toggles = shared.Toggles or {},
             Options = shared.Options or {},
-        }, { __index = _G })
+        })
 
-        local realFunc, realErr = loadstring(fileContent)
-        if not realFunc then
-            realFunc = addonFunc
-        end
         setfenv(realFunc, realEnv)()
         return true
     else
