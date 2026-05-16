@@ -378,12 +378,14 @@ local function tryLoadAddon(file, fileName)
         local title = type(addonInfo.Title) == "string" and addonInfo.Title or addonInfo.Name
 
         if LastGroupSide == "Right" then
-            groupbox = AddonTab:AddLeftGroupbox(title, addonInfo.Icon)
+            groupbox = AddonTab:AddLeftGroupbox("")
             LastGroupSide = "Left"
         else
-            groupbox = AddonTab:AddRightGroupbox(title, addonInfo.Icon)
+            groupbox = AddonTab:AddRightGroupbox("")
             LastGroupSide = "Right"
         end
+
+        groupbox:AddLabel(title)
 
         if type(addonInfo.Description) == "string" then
             groupbox:AddLabel(addonInfo.Description, true)
@@ -432,12 +434,14 @@ local function tryLoadAddon(file, fileName)
 
         local groupbox
         if LastGroupSide == "Right" then
-            groupbox = AddonTab:AddLeftGroupbox(addon.Title, addon.Icon)
+            groupbox = AddonTab:AddLeftGroupbox("")
             LastGroupSide = "Left"
         else
-            groupbox = AddonTab:AddRightGroupbox(addon.Title, addon.Icon)
+            groupbox = AddonTab:AddRightGroupbox("")
             LastGroupSide = "Right"
         end
+
+        groupbox:AddLabel(addon.Title)
 
         if type(addon.Description) == "string" then
             groupbox:AddLabel(addon.Description, true)
