@@ -865,7 +865,7 @@ local MP_STACK_SCALE_STEP   = 0.06
 local MP_STACK_Y_STEP       = -0.045
 local MP_STACK_TRANSP_STEP  = 0.28
 local MP_STACK_MAX          = 3
-local MP_CENTER_Y           = 0.60
+local MP_CENTER_Y           = 0.100
 
 local function mp_applyStackState(clone, depth)
     local achievement = clone:FindFirstChild("Achievement")
