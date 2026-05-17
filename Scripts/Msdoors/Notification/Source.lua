@@ -10,6 +10,37 @@ local MSDOORS_SOUND_PATH = "msdoors/DOORS-ACHIEVEMENT.mp3"
 shared.ACHIDATA = shared.ACHIDATA or { template = nil, gui = nil, queue = {}, processing = false, defaultSound = nil }
 local d = shared.ACHIDATA
 
+local AbyssalState = {
+    LiveNotifications = 0,
+    Notifications     = 0,
+    Container         = nil,
+}
+
+local function getAbyssalContainer()
+    if AbyssalState.Container and AbyssalState.Container.Parent then
+        return AbyssalState.Container
+    end
+    local pg = Players.LocalPlayer:WaitForChild("PlayerGui")
+    local sg = pg:FindFirstChild("AbyssalNotifyUI")
+    if not sg then
+        sg = Instance.new("ScreenGui")
+        sg.Name = "AbyssalNotifyUI"
+        sg.ResetOnSpawn = false
+        sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+        sg.Parent = pg
+    end
+    local c = sg:FindFirstChild("Container")
+    if not c then
+        c = Instance.new("Frame")
+        c.Name = "Container"
+        c.Size = UDim2.new(1, 0, 1, 0)
+        c.BackgroundTransparency = 1
+        c.Parent = sg
+    end
+    AbyssalState.Container = c
+    return c
+end
+
 local function resolveSound(soundpar, fallback)
     if not soundpar or soundpar == "" then return fallback or DEFAULT_SOUND end
     if soundpar:match("^rbxassetid://") then return soundpar end
@@ -203,16 +234,16 @@ local function showMsdoors(opts)
     achi.Parent = d.gui
     achi.LayoutOrder = tick()
 
-    achi.F.Top.Text   = opts.Style or "UNLOCKED ACHIEVEMENT"
+    achi.F.Top.Text        = opts.Style or "UNLOCKED ACHIEVEMENT"
     achi.F.Det.Title.Text  = opts.Title or "Achievement"
     achi.F.Det.Desc.Text   = opts.Description or ""
     achi.F.Det.Reason.Text = opts.Reason or ""
     achi.F.Img.Image       = opts.Image or "rbxassetid://6023426923"
 
     local col = opts.Color or Color3.fromRGB(255, 222, 189)
-    achi.F.Top.TextColor3    = col
-    achi.F.UIStroke.Color    = col
-    achi.Glow.ImageColor3    = col
+    achi.F.Top.TextColor3  = col
+    achi.F.UIStroke.Color  = col
+    achi.Glow.ImageColor3  = col
 
     local soundId = resolveSound(opts.Sound, getOrDownloadMsdoorsSound())
     playSound(achi, soundId, 0.575)
@@ -317,10 +348,10 @@ local function notifyParadox(opts)
 
     achievement.Position = UDim2.new(0.5, 0, 1.25, 0)
 
-    local titleLabel = achievement:FindFirstChild("Title")
-    local descLabel  = achievement:FindFirstChild("Description")
+    local titleLabel  = achievement:FindFirstChild("Title")
+    local descLabel   = achievement:FindFirstChild("Description")
     local actionLabel = achievement:FindFirstChild("Action")
-    local iconImage  = achievement:FindFirstChild("Icon")
+    local iconImage   = achievement:FindFirstChild("Icon")
 
     if titleLabel  then titleLabel.Text  = opts.Title or "Achievement" end
     if descLabel   then descLabel.Text   = opts.Description or "" end
@@ -382,11 +413,11 @@ local function notifyDoors(opts)
     achievement.Name = "LiveAchievement"
     achievement.Visible = true
 
-    achievement.Frame.TextLabel.Text        = opts.Style or "NOTIFICATION"
-    achievement.Frame.Details.Title.Text    = opts.Title or "Sem Título"
-    achievement.Frame.Details.Desc.Text     = opts.Description or "Sem Descrição"
-    achievement.Frame.Details.Reason.Text   = opts.Reason or ""
-    achievement.Frame.ImageLabel.Image      = opts.Image or "rbxassetid://6023426923"
+    achievement.Frame.TextLabel.Text      = opts.Style or "NOTIFICATION"
+    achievement.Frame.Details.Title.Text  = opts.Title or "Sem Título"
+    achievement.Frame.Details.Desc.Text   = opts.Description or "Sem Descrição"
+    achievement.Frame.Details.Reason.Text = opts.Reason or ""
+    achievement.Frame.ImageLabel.Image    = opts.Image or "rbxassetid://6023426923"
 
     local col = opts.Color or Color3.new(1, 1, 1)
     achievement.Frame.TextLabel.TextColor3 = col
@@ -428,6 +459,120 @@ local function notifyRoblox(opts)
     })
 end
 
+local function notifyAbyssal(opts)
+    task.spawn(function()
+        local Container = getAbyssalContainer()
+
+        local accentColor    = opts.Color or Color3.fromRGB(255, 100, 100)
+        local backgroundColor = opts.BackgroundColor or Color3.fromRGB(30, 30, 35)
+        local fontColor      = opts.FontColor or Color3.fromRGB(240, 240, 240)
+        local delay          = opts.Time or 5
+
+        local Notification = Instance.new("Frame")
+        local Line         = Instance.new("Frame")
+        local Warning      = Instance.new("ImageLabel")
+        local UICorner     = Instance.new("UICorner")
+        local UICorner2    = Instance.new("UICorner")
+        local Title        = Instance.new("TextLabel")
+        local Description  = Instance.new("TextLabel")
+
+        Notification.Name = "Notification"
+        Notification.Parent = Container
+        Notification.BackgroundColor3 = backgroundColor
+        Notification.BackgroundTransparency = 0.4
+        Notification.BorderSizePixel = 0
+        Notification.Position = UDim2.new(1, 5, 0, 60 + (60 * AbyssalState.LiveNotifications))
+        Notification.Size = UDim2.new(0, 420, 0, 50)
+        Notification:SetAttribute("ID", AbyssalState.Notifications)
+        Notification:SetAttribute("CurrentPosition", Notification.Position)
+
+        Line.Name = "Line"
+        Line.Parent = Notification
+        Line.BackgroundColor3 = accentColor
+        Line.BorderSizePixel = 0
+        Line.Position = UDim2.new(0, 0, 1, -3)
+        Line.Size = UDim2.new(0, 0, 0, 3)
+
+        Warning.Name = "Warning"
+        Warning.Parent = Notification
+        Warning.BackgroundTransparency = 1
+        Warning.Position = UDim2.new(0, 10, 0, 5)
+        Warning.Size = UDim2.new(0, 40, 0, 40)
+        Warning.Image = opts.Image or "rbxassetid://3944668821"
+        Warning.ImageColor3 = accentColor
+        Warning.ScaleType = Enum.ScaleType.Fit
+
+        UICorner.CornerRadius = UDim.new(0, 20)
+        UICorner.Parent = Warning
+
+        UICorner2.CornerRadius = UDim.new(0, 4)
+        UICorner2.Parent = Notification
+
+        Title.Name = "Title"
+        Title.Parent = Notification
+        Title.BackgroundTransparency = 1
+        Title.Position = UDim2.new(0, 60, 0.155, 0)
+        Title.Size = UDim2.new(0, 205, 0, 15)
+        Title.Text = opts.Title or "..."
+        Title.TextColor3 = fontColor
+        Title.TextSize = 10
+        Title.TextStrokeTransparency = 0.75
+        Title.TextXAlignment = Enum.TextXAlignment.Left
+
+        Description.Name = "Description"
+        Description.Parent = Notification
+        Description.BackgroundTransparency = 1
+        Description.Position = UDim2.new(0, 60, 0.483, 0)
+        Description.Size = UDim2.new(0, 205, 0, 18)
+        Description.Text = opts.Description or opts.Reason or "..."
+        Description.TextColor3 = fontColor
+        Description.TextTransparency = 0.1
+        Description.TextSize = 10
+        Description.TextStrokeTransparency = 0.75
+        Description.TextXAlignment = Enum.TextXAlignment.Left
+
+        local soundId = resolveSound(opts.Sound, DEFAULT_SOUND)
+        playSound(Container, soundId, 1)
+
+        AbyssalState.LiveNotifications = AbyssalState.LiveNotifications + 1
+        AbyssalState.Notifications     = AbyssalState.Notifications + 1
+
+        TweenService:Create(Notification, TweenInfo.new(1, Enum.EasingStyle.Exponential), {
+            Position = UDim2.new(1, -370, 0, Notification.Position.Y.Offset)
+        }):Play()
+
+        task.wait(0.25)
+        TweenService:Create(Line, TweenInfo.new(delay - 0.25, Enum.EasingStyle.Linear), {
+            Size = UDim2.new(0, 400, 0, 3)
+        }):Play()
+        task.wait(delay - 0.25)
+
+        Notification:SetAttribute("Destroying", true)
+        TweenService:Create(Notification, TweenInfo.new(0.75, Enum.EasingStyle.Exponential, Enum.EasingDirection.In), {
+            Position = UDim2.new(1, 5, 0, Notification.Position.Y.Offset)
+        }):Play()
+
+        AbyssalState.LiveNotifications = AbyssalState.LiveNotifications - 1
+
+        for _, Object in pairs(Container:GetChildren()) do
+            if Object.Name == "Notification"
+                and Object:GetAttribute("ID")
+                and Object:GetAttribute("ID") > Notification:GetAttribute("ID")
+                and Object:GetAttribute("Destroying") ~= true
+                and Object.Position.Y.Offset ~= 60
+            then
+                Object:SetAttribute("CurrentPosition", UDim2.new(1, -450, 0, Object:GetAttribute("CurrentPosition").Y.Offset - 60))
+                TweenService:Create(Object, TweenInfo.new(1, Enum.EasingStyle.Exponential, Enum.EasingDirection.InOut), {
+                    Position = UDim2.new(1, -370, 0, Object:GetAttribute("CurrentPosition").Y.Offset)
+                }):Play()
+            end
+        end
+
+        task.wait(0.75)
+        Notification:Destroy()
+    end)
+end
+
 local STYLES = {
     Linoria  = notifyLinoria,
     Obsidian = notifyLinoria,
@@ -442,12 +587,13 @@ local STYLES = {
         task.spawn(notifyParadox, opts)
     end,
     Roblox   = notifyRoblox,
+    Abyssal  = notifyAbyssal,
 }
 
 local function normalizeOpts(opts)
-    opts.Time     = opts.Time or opts.Duration
-    opts.Reason   = opts.Reason or opts.Action
-    opts.Sound    = opts.Sound or opts.SoundId or opts.soundpar
+    opts.Time   = opts.Time or opts.Duration
+    opts.Reason = opts.Reason or opts.Action
+    opts.Sound  = opts.Sound or opts.SoundId or opts.soundpar
     return opts
 end
 
