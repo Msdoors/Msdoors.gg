@@ -10,11 +10,15 @@ local MSDOORS_SOUND_PATH = "msdoors/DOORS-ACHIEVEMENT.mp3"
 shared.ACHIDATA = shared.ACHIDATA or { template = nil, gui = nil, queue = {}, processing = false, defaultSound = nil }
 local d = shared.ACHIDATA
 
-local AbyssalHolder = nil
+local AbyssalState = {
+    Queue      = {},
+    Processing = false,
+    Container  = nil,
+}
 
-local function getAbyssalHolder()
-    if AbyssalHolder and AbyssalHolder.Parent then
-        return AbyssalHolder
+local function getAbyssalContainer()
+    if AbyssalState.Container and AbyssalState.Container.Parent then
+        return AbyssalState.Container
     end
     local pg = Players.LocalPlayer:WaitForChild("PlayerGui")
     local sg = pg:FindFirstChild("AbyssalNotifyUI")
@@ -25,42 +29,36 @@ local function getAbyssalHolder()
         sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
         sg.Parent = pg
     end
-    local holder = sg:FindFirstChild("Holder")
-    if not holder then
-        holder = Instance.new("Frame")
-        holder.Name = "Holder"
-        holder.Size = UDim2.new(1, 0, 1, 0)
-        holder.BackgroundTransparency = 1
-        holder.Parent = sg
-
-        local layout = Instance.new("UIListLayout")
-        layout.Padding = UDim.new(0, 8)
-        layout.SortOrder = Enum.SortOrder.LayoutOrder
-        layout.FillDirection = Enum.FillDirection.Vertical
-        layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-        layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
-        layout.Parent = holder
-
-        local pad = Instance.new("UIPadding")
-        pad.PaddingBottom = UDim.new(0, 15)
-        pad.PaddingRight = UDim.new(0, 15)
-        pad.Parent = holder
+    local c = sg:FindFirstChild("Container")
+    if not c then
+        c = Instance.new("Frame")
+        c.Name = "Container"
+        c.Size = UDim2.new(1, 0, 1, 0)
+        c.BackgroundTransparency = 1
+        c.Parent = sg
     end
-    AbyssalHolder = holder
-    return holder
+    AbyssalState.Container = c
+    return c
 end
+
+local soundUrlCache = {}
 
 local function resolveSound(soundpar, fallback)
     if not soundpar or soundpar == "" then return fallback or DEFAULT_SOUND end
     if soundpar:match("^rbxassetid://") then return soundpar end
     if soundpar:match("^%d+$") then return "rbxassetid://" .. soundpar end
     if soundpar:match("^https?://") then
-        local tempPath = "msdoors/temp_" .. math.floor(tick()) .. ".mp3"
+        if soundUrlCache[soundpar] then return soundUrlCache[soundpar] end
         if not isfolder("msdoors") then makefolder("msdoors") end
-        task.spawn(function()
-            local ok, data = pcall(game.HttpGet, game, soundpar)
-            if ok then writefile(tempPath, data) end
-        end)
+        local tempPath = "msdoors/temp_" .. math.floor(tick() * 1000) .. ".mp3"
+        local ok, data = pcall(game.HttpGet, game, soundpar)
+        if ok then
+            writefile(tempPath, data)
+            local fn = getcustomasset or getsynasset
+            local asset = fn(tempPath)
+            soundUrlCache[soundpar] = asset
+            return asset
+        end
         return fallback or DEFAULT_SOUND
     end
     return fallback or DEFAULT_SOUND
@@ -468,118 +466,146 @@ local function notifyRoblox(opts)
     })
 end
 
-local function notifyAbyssal(opts)
-    task.spawn(function()
-        local Container = getAbyssalContainer()
+local function showAbyssalNotification(opts)
+    local Container = getAbyssalContainer()
 
-        local accentColor    = opts.Color or Color3.fromRGB(255, 100, 100)
-        local backgroundColor = opts.BackgroundColor or Color3.fromRGB(30, 30, 35)
-        local fontColor      = opts.FontColor or Color3.fromRGB(240, 240, 240)
-        local delay          = opts.Time or 5
+    local accentColor     = opts.Color or Color3.fromRGB(255, 100, 100)
+    local backgroundColor = opts.BackgroundColor or Color3.fromRGB(30, 30, 35)
+    local fontColor       = opts.FontColor or Color3.fromRGB(240, 240, 240)
+    local delay           = opts.Time or 5
 
-        local Notification = Instance.new("Frame")
-        local Line         = Instance.new("Frame")
-        local Warning      = Instance.new("ImageLabel")
-        local UICorner     = Instance.new("UICorner")
-        local UICorner2    = Instance.new("UICorner")
-        local Title        = Instance.new("TextLabel")
-        local Description  = Instance.new("TextLabel")
+    local Notification = Instance.new("Frame")
+    local Line         = Instance.new("Frame")
+    local Warning      = Instance.new("ImageLabel")
+    local UICorner     = Instance.new("UICorner")
+    local UICorner2    = Instance.new("UICorner")
+    local Title        = Instance.new("TextLabel")
+    local Description  = Instance.new("TextLabel")
 
-        Notification.Name = "Notification"
-        Notification.Parent = Container
-        Notification.BackgroundColor3 = backgroundColor
-        Notification.BackgroundTransparency = 0.4
-        Notification.BorderSizePixel = 0
-        Notification.Position = UDim2.new(1, 5, 0, 60 + (60 * AbyssalState.LiveNotifications))
-        Notification.Size = UDim2.new(0, 420, 0, 50)
-        Notification:SetAttribute("ID", AbyssalState.Notifications)
-        Notification:SetAttribute("CurrentPosition", Notification.Position)
+    Notification.Name = "Notification"
+    Notification.Parent = Container
+    Notification.BackgroundColor3 = backgroundColor
+    Notification.BackgroundTransparency = 0.4
+    Notification.BorderSizePixel = 0
+    Notification.Position = UDim2.new(1, 5, 0, 60)
+    Notification.Size = UDim2.new(0, 420, 0, 50)
 
-        Line.Name = "Line"
-        Line.Parent = Notification
-        Line.BackgroundColor3 = accentColor
-        Line.BorderSizePixel = 0
-        Line.Position = UDim2.new(0, 0, 1, -3)
-        Line.Size = UDim2.new(0, 0, 0, 3)
+    Line.Name = "Line"
+    Line.Parent = Notification
+    Line.BackgroundColor3 = accentColor
+    Line.BorderSizePixel = 0
+    Line.Position = UDim2.new(0, 0, 1, -3)
+    Line.Size = UDim2.new(0, 0, 0, 3)
 
-        Warning.Name = "Warning"
-        Warning.Parent = Notification
-        Warning.BackgroundTransparency = 1
-        Warning.Position = UDim2.new(0, 10, 0, 5)
-        Warning.Size = UDim2.new(0, 40, 0, 40)
-        Warning.Image = opts.Image or "rbxassetid://3944668821"
-        Warning.ImageColor3 = accentColor
-        Warning.ScaleType = Enum.ScaleType.Fit
+    local rawImg = opts.Image or ""
+    local resolvedImg
+    if rawImg:match("^rbxassetid://") then
+        resolvedImg = rawImg
+    elseif rawImg:match("^%d+$") and #rawImg > 0 then
+        resolvedImg = "rbxassetid://" .. rawImg
+    else
+        resolvedImg = "rbxassetid://3944668821"
+    end
 
-        UICorner.CornerRadius = UDim.new(0, 20)
-        UICorner.Parent = Warning
+    Warning.Name = "Warning"
+    Warning.Parent = Notification
+    Warning.BackgroundTransparency = 1
+    Warning.Position = UDim2.new(0, 10, 0, 5)
+    Warning.Size = UDim2.new(0, 40, 0, 40)
+    Warning.Image = resolvedImg
+    Warning.ImageColor3 = accentColor
+    Warning.ScaleType = Enum.ScaleType.Fit
 
-        UICorner2.CornerRadius = UDim.new(0, 4)
-        UICorner2.Parent = Notification
+    UICorner.CornerRadius = UDim.new(0, 20)
+    UICorner.Parent = Warning
 
-        Title.Name = "Title"
-        Title.Parent = Notification
-        Title.BackgroundTransparency = 1
-        Title.Position = UDim2.new(0, 60, 0.155, 0)
-        Title.Size = UDim2.new(0, 205, 0, 15)
-        Title.Text = opts.Title or "..."
-        Title.TextColor3 = fontColor
-        Title.TextSize = 10
-        Title.TextStrokeTransparency = 0.75
-        Title.TextXAlignment = Enum.TextXAlignment.Left
+    UICorner2.CornerRadius = UDim.new(0, 4)
+    UICorner2.Parent = Notification
 
-        Description.Name = "Description"
-        Description.Parent = Notification
-        Description.BackgroundTransparency = 1
-        Description.Position = UDim2.new(0, 60, 0.483, 0)
-        Description.Size = UDim2.new(0, 205, 0, 18)
-        Description.Text = opts.Description or opts.Reason or "..."
-        Description.TextColor3 = fontColor
-        Description.TextTransparency = 0.1
-        Description.TextSize = 10
-        Description.TextStrokeTransparency = 0.75
-        Description.TextXAlignment = Enum.TextXAlignment.Left
+    Title.Name = "Title"
+    Title.Parent = Notification
+    Title.BackgroundTransparency = 1
+    Title.Position = UDim2.new(0, 60, 0.155, 0)
+    Title.Size = UDim2.new(0, 205, 0, 15)
+    Title.Text = opts.Title or "..."
+    Title.TextColor3 = fontColor
+    Title.TextSize = 10
+    Title.TextStrokeTransparency = 0.75
+    Title.TextXAlignment = Enum.TextXAlignment.Left
 
-        local soundId = resolveSound(opts.Sound, DEFAULT_SOUND)
-        playSound(Container, soundId, 1)
+    Description.Name = "Description"
+    Description.Parent = Notification
+    Description.BackgroundTransparency = 1
+    Description.Position = UDim2.new(0, 60, 0.483, 0)
+    Description.Size = UDim2.new(0, 205, 0, 18)
+    Description.Text = opts.Description or opts.Reason or "..."
+    Description.TextColor3 = fontColor
+    Description.TextTransparency = 0.1
+    Description.TextSize = 10
+    Description.TextStrokeTransparency = 0.75
+    Description.TextXAlignment = Enum.TextXAlignment.Left
 
-        AbyssalState.LiveNotifications = AbyssalState.LiveNotifications + 1
-        AbyssalState.Notifications     = AbyssalState.Notifications + 1
+    local soundId = resolveSound(opts.Sound, DEFAULT_SOUND)
+    playSound(Container, soundId, 1)
 
-        TweenService:Create(Notification, TweenInfo.new(1, Enum.EasingStyle.Exponential), {
-            Position = UDim2.new(1, -370, 0, Notification.Position.Y.Offset)
+    local activeNotifs = {}
+    for _, obj in ipairs(Container:GetChildren()) do
+        if obj.Name == "Notification" and obj ~= Notification then
+            table.insert(activeNotifs, obj)
+        end
+    end
+
+    for _, obj in ipairs(activeNotifs) do
+        local currentY = obj.Position.Y.Offset
+        TweenService:Create(obj, TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
+            Position = UDim2.new(obj.Position.X.Scale, obj.Position.X.Offset, 0, currentY + 60)
         }):Play()
+    end
 
-        task.wait(0.25)
-        TweenService:Create(Line, TweenInfo.new(delay - 0.25, Enum.EasingStyle.Linear), {
-            Size = UDim2.new(0, 400, 0, 3)
-        }):Play()
-        task.wait(delay - 0.25)
+    TweenService:Create(Notification, TweenInfo.new(1, Enum.EasingStyle.Exponential), {
+        Position = UDim2.new(1, -370, 0, 60)
+    }):Play()
 
-        Notification:SetAttribute("Destroying", true)
-        TweenService:Create(Notification, TweenInfo.new(0.75, Enum.EasingStyle.Exponential, Enum.EasingDirection.In), {
-            Position = UDim2.new(1, 5, 0, Notification.Position.Y.Offset)
-        }):Play()
+    task.wait(0.25)
+    TweenService:Create(Line, TweenInfo.new(delay - 0.25, Enum.EasingStyle.Linear), {
+        Size = UDim2.new(0, 400, 0, 3)
+    }):Play()
+    task.wait(delay - 0.25)
 
-        AbyssalState.LiveNotifications = AbyssalState.LiveNotifications - 1
+    TweenService:Create(Notification, TweenInfo.new(0.75, Enum.EasingStyle.Exponential, Enum.EasingDirection.In), {
+        Position = UDim2.new(1, 5, 0, Notification.Position.Y.Offset)
+    }):Play()
 
-        for _, Object in pairs(Container:GetChildren()) do
-            if Object.Name == "Notification"
-                and Object:GetAttribute("ID")
-                and Object:GetAttribute("ID") > Notification:GetAttribute("ID")
-                and Object:GetAttribute("Destroying") ~= true
-                and Object.Position.Y.Offset ~= 60
-            then
-                Object:SetAttribute("CurrentPosition", UDim2.new(1, -450, 0, Object:GetAttribute("CurrentPosition").Y.Offset - 60))
-                TweenService:Create(Object, TweenInfo.new(1, Enum.EasingStyle.Exponential, Enum.EasingDirection.InOut), {
-                    Position = UDim2.new(1, -370, 0, Object:GetAttribute("CurrentPosition").Y.Offset)
+    local removedY = Notification.Position.Y.Offset
+    task.wait(0.75)
+    Notification:Destroy()
+
+    for _, obj in ipairs(Container:GetChildren()) do
+        if obj.Name == "Notification" then
+            local currentY = obj.Position.Y.Offset
+            if currentY > removedY then
+                TweenService:Create(obj, TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
+                    Position = UDim2.new(obj.Position.X.Scale, obj.Position.X.Offset, 0, currentY - 60)
                 }):Play()
             end
         end
+    end
+end
 
-        task.wait(0.75)
-        Notification:Destroy()
-    end)
+local function processAbyssalQueue()
+    if AbyssalState.Processing then return end
+    AbyssalState.Processing = true
+    while #AbyssalState.Queue > 0 do
+        local opts = table.remove(AbyssalState.Queue, 1)
+        showAbyssalNotification(opts)
+        task.wait(0.15)
+    end
+    AbyssalState.Processing = false
+end
+
+local function notifyAbyssal(opts)
+    table.insert(AbyssalState.Queue, opts)
+    task.spawn(processAbyssalQueue)
 end
 
 local STYLES = {
