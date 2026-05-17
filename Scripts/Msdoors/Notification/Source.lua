@@ -797,12 +797,12 @@ local function initMParadoxUI()
     glow.AnchorPoint = Vector2.new(0.5, 0.5)
     glow.BackgroundTransparency = 1
     glow.Position = UDim2.new(0.5, 0, 0.5, 0)
-    glow.Size = UDim2.new(1.5, 0, 2, 0)
+    glow.Size = UDim2.new(2.2, 0, 5, 0)
     glow.ZIndex = 1999
     glow.Image = "rbxassetid://61997378"
     glow.ImageColor3 = Color3.fromRGB(255, 222, 189)
     glow.ImageTransparency = 0.75
-    glow.Parent = tmpl
+    glow.Parent = ach
 
     mp.template = tmpl
 end
@@ -864,7 +864,7 @@ local MP_STACK_SCALE_STEP   = 0.06
 local MP_STACK_Y_STEP       = -0.045
 local MP_STACK_TRANSP_STEP  = 0.28
 local MP_STACK_MAX          = 3
-local MP_CENTER_Y           = 0.72
+local MP_CENTER_Y           = 0.82
 
 local function mp_applyStackState(clone, depth)
     local achievement = clone:FindFirstChild("Achievement")
@@ -915,7 +915,7 @@ local function showMParadox(opts)
     clone:SetAttribute("MPAlive", true)
 
     local achievement = clone:WaitForChild("Achievement")
-    local glow        = clone:WaitForChild("Glow")
+    local glow        = achievement:WaitForChild("Glow")
 
     local rawImg = opts.Image or ""
     local resolvedImg
@@ -1010,8 +1010,8 @@ local function processMParadoxQueue()
     if mp.processing then return end
     mp.processing = true
     while #mp.queue > 0 do
-        showMParadox(table.remove(mp.queue, 1))
-        task.wait(0.4)
+        task.spawn(showMParadox, table.remove(mp.queue, 1))
+        task.wait(0.5)
     end
     mp.processing = false
 end
