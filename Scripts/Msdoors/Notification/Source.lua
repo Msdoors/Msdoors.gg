@@ -10,15 +10,11 @@ local MSDOORS_SOUND_PATH = "msdoors/DOORS-ACHIEVEMENT.mp3"
 shared.ACHIDATA = shared.ACHIDATA or { template = nil, gui = nil, queue = {}, processing = false, defaultSound = nil }
 local d = shared.ACHIDATA
 
-local AbyssalState = {
-    LiveNotifications = 0,
-    Notifications     = 0,
-    Container         = nil,
-}
+local AbyssalHolder = nil
 
-local function getAbyssalContainer()
-    if AbyssalState.Container and AbyssalState.Container.Parent then
-        return AbyssalState.Container
+local function getAbyssalHolder()
+    if AbyssalHolder and AbyssalHolder.Parent then
+        return AbyssalHolder
     end
     local pg = Players.LocalPlayer:WaitForChild("PlayerGui")
     local sg = pg:FindFirstChild("AbyssalNotifyUI")
@@ -29,16 +25,29 @@ local function getAbyssalContainer()
         sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
         sg.Parent = pg
     end
-    local c = sg:FindFirstChild("Container")
-    if not c then
-        c = Instance.new("Frame")
-        c.Name = "Container"
-        c.Size = UDim2.new(1, 0, 1, 0)
-        c.BackgroundTransparency = 1
-        c.Parent = sg
+    local holder = sg:FindFirstChild("Holder")
+    if not holder then
+        holder = Instance.new("Frame")
+        holder.Name = "Holder"
+        holder.Size = UDim2.new(1, 0, 1, 0)
+        holder.BackgroundTransparency = 1
+        holder.Parent = sg
+
+        local layout = Instance.new("UIListLayout")
+        layout.Padding = UDim.new(0, 8)
+        layout.SortOrder = Enum.SortOrder.LayoutOrder
+        layout.FillDirection = Enum.FillDirection.Vertical
+        layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+        layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+        layout.Parent = holder
+
+        local pad = Instance.new("UIPadding")
+        pad.PaddingBottom = UDim.new(0, 15)
+        pad.PaddingRight = UDim.new(0, 15)
+        pad.Parent = holder
     end
-    AbyssalState.Container = c
-    return c
+    AbyssalHolder = holder
+    return holder
 end
 
 local function resolveSound(soundpar, fallback)
