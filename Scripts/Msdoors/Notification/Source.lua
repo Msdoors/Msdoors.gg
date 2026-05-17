@@ -797,12 +797,12 @@ local function initMParadoxUI()
     glow.AnchorPoint = Vector2.new(0.5, 0.5)
     glow.BackgroundTransparency = 1
     glow.Position = UDim2.new(0.5, 0, 0.5, 0)
-    glow.Size = UDim2.new(2.2, 0, 5, 0)
+    glow.Size = UDim2.new(1.5, 0, 2, 0)
     glow.ZIndex = 1999
     glow.Image = "rbxassetid://61997378"
     glow.ImageColor3 = Color3.fromRGB(255, 222, 189)
     glow.ImageTransparency = 0.75
-    glow.Parent = ach
+    glow.Parent = tmpl
 
     mp.template = tmpl
 end
@@ -864,7 +864,7 @@ local MP_STACK_SCALE_STEP   = 0.06
 local MP_STACK_Y_STEP       = -0.045
 local MP_STACK_TRANSP_STEP  = 0.28
 local MP_STACK_MAX          = 3
-local MP_CENTER_Y           = 0.82
+local MP_CENTER_Y           = 0.88
 
 local function mp_applyStackState(clone, depth)
     local achievement = clone:FindFirstChild("Achievement")
@@ -915,7 +915,7 @@ local function showMParadox(opts)
     clone:SetAttribute("MPAlive", true)
 
     local achievement = clone:WaitForChild("Achievement")
-    local glow        = achievement:WaitForChild("Glow")
+    local glow        = clone:WaitForChild("Glow")
 
     local rawImg = opts.Image or ""
     local resolvedImg
@@ -970,6 +970,7 @@ local function showMParadox(opts)
 
     achievement.Position = UDim2.new(0.5, 0, 1.25, 0)
     achievement.Size     = UDim2.new(0.7, 0, 0.8, 0)
+    glow.Position        = UDim2.new(0.5, 0, 1.25, 0)
 
     local soundId = resolveSound(opts.Sound, getOrDownloadParadoxSound())
     playSound(mp.holder, soundId, 1)
@@ -982,6 +983,9 @@ local function showMParadox(opts)
     end
 
     TweenService:Create(achievement, TweenInfo.new(0.8, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0.5, 0, MP_CENTER_Y, 0),
+    }):Play()
+    TweenService:Create(glow, TweenInfo.new(0.8, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
         Position = UDim2.new(0.5, 0, MP_CENTER_Y, 0),
     }):Play()
 
