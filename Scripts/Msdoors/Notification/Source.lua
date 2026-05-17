@@ -864,7 +864,7 @@ local MP_STACK_SCALE_STEP   = 0.06
 local MP_STACK_Y_STEP       = -0.045
 local MP_STACK_TRANSP_STEP  = 0.28
 local MP_STACK_MAX          = 3
-local MP_CENTER_Y           = 0.88
+local MP_CENTER_Y           = 0.78
 
 local function mp_applyStackState(clone, depth)
     local achievement = clone:FindFirstChild("Achievement")
@@ -908,6 +908,18 @@ local function mp_applyStackState(clone, depth)
     clone:SetAttribute("MPDepth", depth)
 end
 
+local function mp_promoteStack(removedDepth)
+    for _, existing in ipairs(mp.holder:GetChildren()) do
+        if existing:GetAttribute("MPAlive") then
+            local currentDepth = existing:GetAttribute("MPDepth") or 0
+            if currentDepth > removedDepth then
+                local newDepth = currentDepth - 1
+                mp_applyStackState(existing, newDepth)
+            end
+        end
+    end
+end
+
 local function showMParadox(opts)
     local clone = mp.template:Clone()
     clone.Parent = mp.holder
@@ -947,11 +959,11 @@ local function showMParadox(opts)
                 local ach2 = existing:FindFirstChild("Achievement")
                 if ach2 then
                     TweenService:Create(ach2, ti, { BackgroundTransparency = 1 }):Play()
-                    for _, d in ipairs(ach2:GetDescendants()) do
-                        if d:IsA("TextLabel") then
-                            TweenService:Create(d, ti, { TextTransparency = 1 }):Play()
-                        elseif d:IsA("ImageLabel") then
-                            TweenService:Create(d, ti, { ImageTransparency = 1 }):Play()
+                    for _, d2 in ipairs(ach2:GetDescendants()) do
+                        if d2:IsA("TextLabel") then
+                            TweenService:Create(d2, ti, { TextTransparency = 1 }):Play()
+                        elseif d2:IsA("ImageLabel") then
+                            TweenService:Create(d2, ti, { ImageTransparency = 1 }):Play()
                         end
                     end
                 end
@@ -1001,6 +1013,8 @@ local function showMParadox(opts)
 
     clone:SetAttribute("MPAlive", false)
 
+    local myDepth = clone:GetAttribute("MPDepth") or 0
+
     mp_tweenOut(clone)
     for _, obj in ipairs(clone:GetDescendants()) do
         mp_tweenOut(obj)
@@ -1008,6 +1022,8 @@ local function showMParadox(opts)
 
     task.wait(0.5)
     if clone.Parent then clone:Destroy() end
+
+    mp_promoteStack(myDepth)
 end
 
 local function processMParadoxQueue()
