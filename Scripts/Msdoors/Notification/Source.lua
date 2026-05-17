@@ -10,6 +10,9 @@ local MSDOORS_SOUND_PATH = "msdoors/DOORS-ACHIEVEMENT.mp3"
 shared.ACHIDATA = shared.ACHIDATA or { template = nil, gui = nil, queue = {}, processing = false, defaultSound = nil }
 local d = shared.ACHIDATA
 
+shared.MPARADOX = shared.MPARADOX or { template = nil, holder = nil, queue = {}, processing = false }
+local mp = shared.MPARADOX
+
 local AbyssalState = {
     Container = nil,
 }
@@ -602,6 +605,320 @@ local function notifyAbyssal(opts)
     end)
 end
 
+local function initMParadoxUI()
+    if mp.holder then return end
+
+    local pg = Players.LocalPlayer:WaitForChild("PlayerGui")
+
+    local sg = Instance.new("ScreenGui")
+    sg.Name = "MParadoxUI"
+    sg.ResetOnSpawn = false
+    sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    sg.Parent = pg
+
+    local holder = Instance.new("Frame")
+    holder.Name = "AchievementHolder"
+    holder.Size = UDim2.new(1, 0, 1, 0)
+    holder.BackgroundTransparency = 1
+    holder.Parent = sg
+
+    mp.holder = holder
+
+    local tmpl = Instance.new("Frame")
+    tmpl.Name = "Template"
+    tmpl.BackgroundTransparency = 1
+    tmpl.BorderSizePixel = 0
+    tmpl.Position = UDim2.new(0.5, 0, 0.5, 0)
+    tmpl.Size = UDim2.new(0.689964, 0, 0.163091, 0)
+    tmpl.AnchorPoint = Vector2.new(0.5, 0.5)
+    tmpl.Active = false
+
+    local arc = Instance.new("UIAspectRatioConstraint")
+    arc.AspectRatio = 4.53
+    arc.AspectType = Enum.AspectType.FitWithinMaxSize
+    arc.DominantAxis = Enum.DominantAxis.Width
+    arc.Parent = tmpl
+
+    local ach = Instance.new("Frame")
+    ach.Name = "Achievement"
+    ach.AnchorPoint = Vector2.new(0.5, 0.5)
+    ach.BackgroundColor3 = Color3.fromRGB(38, 25, 25)
+    ach.BackgroundTransparency = 0.5
+    ach.BorderSizePixel = 0
+    ach.ClipsDescendants = true
+    ach.Position = UDim2.new(0.5, 0, 0.5, 0)
+    ach.Size = UDim2.new(0.7, 0, 0.8, 0)
+    ach.ZIndex = 9999
+    ach.Parent = tmpl
+
+    local achCorner = Instance.new("UICorner")
+    achCorner.CornerRadius = UDim.new(1, 0)
+    achCorner.Parent = ach
+
+    local achStroke = Instance.new("UIStroke")
+    achStroke.Name = "UIStroke"
+    achStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+    achStroke.Color = Color3.fromRGB(255, 222, 189)
+    achStroke.LineJoinMode = Enum.LineJoinMode.Round
+    achStroke.Thickness = 2
+    achStroke.Transparency = 0
+    achStroke.Parent = ach
+
+    local bg = Instance.new("ImageLabel")
+    bg.Name = "Background"
+    bg.BackgroundTransparency = 1
+    bg.BorderSizePixel = 0
+    bg.Position = UDim2.new(0, 0, 0, 0)
+    bg.Size = UDim2.new(1, 0, 1, 0)
+    bg.ZIndex = 30000
+    bg.Image = "rbxassetid://10513034999"
+    bg.ImageColor3 = Color3.fromRGB(255, 222, 189)
+    bg.ResampleMode = Enum.ResamplerMode.Default
+    bg.ScaleType = Enum.ScaleType.Tile
+    bg.TileSize = UDim2.new(0.05, 0, 0.25, 0)
+    bg.Parent = ach
+
+    local bgGrad = Instance.new("UIGradient")
+    bgGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(255,255,255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(255,255,255))})
+    bgGrad.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 1, 0), NumberSequenceKeypoint.new(1, 0.956284, 0)})
+    bgGrad.Enabled = true
+    bgGrad.Parent = bg
+
+    local bgCorner = Instance.new("UICorner")
+    bgCorner.CornerRadius = UDim.new(1, 0)
+    bgCorner.Parent = bg
+
+    local icon = Instance.new("ImageLabel")
+    icon.Name = "Icon"
+    icon.AnchorPoint = Vector2.new(0, 0.5)
+    icon.BackgroundTransparency = 1
+    icon.BorderSizePixel = 0
+    icon.Position = UDim2.new(0, 0, 0.5, 0)
+    icon.Size = UDim2.new(1, 0, 1, 0)
+    icon.ZIndex = 9999999
+    icon.Image = "rbxassetid://6023426923"
+    icon.ResampleMode = Enum.ResamplerMode.Default
+    icon.ScaleType = Enum.ScaleType.Crop
+    icon.Parent = ach
+
+    local iconCorner = Instance.new("UICorner")
+    iconCorner.CornerRadius = UDim.new(1, 0)
+    iconCorner.Parent = icon
+
+    local iconStroke = Instance.new("UIStroke")
+    iconStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+    iconStroke.Color = Color3.fromRGB(255, 222, 189)
+    iconStroke.LineJoinMode = Enum.LineJoinMode.Round
+    iconStroke.Thickness = 1
+    iconStroke.Transparency = 0.33
+    iconStroke.Parent = icon
+
+    local iconArc = Instance.new("UIAspectRatioConstraint")
+    iconArc.AspectRatio = 1
+    iconArc.AspectType = Enum.AspectType.FitWithinMaxSize
+    iconArc.DominantAxis = Enum.DominantAxis.Width
+    iconArc.Parent = icon
+
+    local titleLbl = Instance.new("TextLabel")
+    titleLbl.Name = "Title"
+    titleLbl.BackgroundTransparency = 1
+    titleLbl.BorderSizePixel = 0
+    titleLbl.Position = UDim2.new(0.274962, 0, 0.0691536, 0)
+    titleLbl.Size = UDim2.new(0.65613, 0, 0.36, 0)
+    titleLbl.ZIndex = 40000
+    titleLbl.FontFace = Font.new("rbxasset://fonts/families/Oswald.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+    titleLbl.Text = ""
+    titleLbl.TextColor3 = Color3.fromRGB(255, 222, 189)
+    titleLbl.TextScaled = true
+    titleLbl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    titleLbl.TextWrapped = true
+    titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+    titleLbl.Parent = ach
+
+    local descLbl = Instance.new("TextLabel")
+    descLbl.Name = "Description"
+    descLbl.BackgroundTransparency = 1
+    descLbl.BorderSizePixel = 0
+    descLbl.Position = UDim2.new(0.274891, 0, 0.429154, 0)
+    descLbl.Size = UDim2.new(0.525168, 0, 0.272954, 0)
+    descLbl.ZIndex = 40000
+    descLbl.FontFace = Font.new("rbxasset://fonts/families/Oswald.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+    descLbl.Text = ""
+    descLbl.TextColor3 = Color3.fromRGB(255, 222, 189)
+    descLbl.TextScaled = true
+    descLbl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    descLbl.TextWrapped = true
+    descLbl.TextXAlignment = Enum.TextXAlignment.Left
+    descLbl.Parent = ach
+
+    local actionLbl = Instance.new("TextLabel")
+    actionLbl.Name = "Action"
+    actionLbl.BackgroundTransparency = 1
+    actionLbl.BorderSizePixel = 0
+    actionLbl.Position = UDim2.new(0.274962, 0, 0.699153, 0)
+    actionLbl.Size = UDim2.new(0.452286, 0, 0.204789, 0)
+    actionLbl.ZIndex = 40000
+    actionLbl.FontFace = Font.new("rbxasset://fonts/families/Oswald.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+    actionLbl.Text = ""
+    actionLbl.TextColor3 = Color3.fromRGB(255, 222, 189)
+    actionLbl.TextScaled = true
+    actionLbl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    actionLbl.TextTransparency = 0.33
+    actionLbl.TextWrapped = true
+    actionLbl.TextXAlignment = Enum.TextXAlignment.Left
+    actionLbl.Parent = ach
+
+    local glow = Instance.new("ImageLabel")
+    glow.Name = "Glow"
+    glow.AnchorPoint = Vector2.new(0.5, 0.5)
+    glow.BackgroundTransparency = 1
+    glow.Position = UDim2.new(0.5, 0, 0.5, 0)
+    glow.Size = UDim2.new(1.5, 0, 2, 0)
+    glow.ZIndex = 1999
+    glow.Image = "rbxassetid://61997378"
+    glow.ImageColor3 = Color3.fromRGB(255, 222, 189)
+    glow.ImageTransparency = 0.75
+    glow.Parent = tmpl
+
+    mp.template = tmpl
+end
+
+local function mp_saveTransp(obj, cache)
+    local data = {}
+    if obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
+        data.ImageTransparency = obj.ImageTransparency
+        if obj:FindFirstChildOfClass("UIStroke") then data.StrokeTransparency = obj.UIStroke.Transparency end
+        obj.ImageTransparency = 1
+        if obj:FindFirstChildOfClass("UIStroke") then obj.UIStroke.Transparency = 1 end
+    elseif obj:IsA("TextLabel") or obj:IsA("TextButton") then
+        data.TextTransparency = obj.TextTransparency
+        data.BackgroundTransparency = obj.BackgroundTransparency
+        if obj:FindFirstChildOfClass("UIStroke") then data.StrokeTransparency = obj.UIStroke.Transparency end
+        obj.TextTransparency = 1
+        obj.BackgroundTransparency = 1
+        if obj:FindFirstChildOfClass("UIStroke") then obj.UIStroke.Transparency = 1 end
+    elseif obj:IsA("Frame") or obj:IsA("ScrollingFrame") or obj:IsA("ViewportFrame") then
+        data.BackgroundTransparency = obj.BackgroundTransparency
+        if obj:FindFirstChildOfClass("UIStroke") then data.StrokeTransparency = obj.UIStroke.Transparency end
+        obj.BackgroundTransparency = 1
+        if obj:FindFirstChildOfClass("UIStroke") then obj.UIStroke.Transparency = 1 end
+    end
+    cache[obj] = data
+end
+
+local function mp_tweenIn(obj, cache)
+    local data = cache[obj]
+    if not data then return end
+    local ti = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    if obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
+        TweenService:Create(obj, ti, { ImageTransparency = data.ImageTransparency or 0 }):Play()
+        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = data.StrokeTransparency or 0 }):Play() end
+    elseif obj:IsA("TextLabel") or obj:IsA("TextButton") then
+        TweenService:Create(obj, ti, { TextTransparency = data.TextTransparency or 0, BackgroundTransparency = data.BackgroundTransparency or 1 }):Play()
+        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = data.StrokeTransparency or 0 }):Play() end
+    elseif obj:IsA("Frame") or obj:IsA("ScrollingFrame") or obj:IsA("ViewportFrame") then
+        TweenService:Create(obj, ti, { BackgroundTransparency = data.BackgroundTransparency or 0 }):Play()
+        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = data.StrokeTransparency or 0 }):Play() end
+    end
+end
+
+local function mp_tweenOut(obj)
+    local ti = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    if obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
+        TweenService:Create(obj, ti, { ImageTransparency = 1 }):Play()
+        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = 1 }):Play() end
+    elseif obj:IsA("TextLabel") or obj:IsA("TextButton") then
+        TweenService:Create(obj, ti, { TextTransparency = 1, BackgroundTransparency = 1 }):Play()
+        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = 1 }):Play() end
+    elseif obj:IsA("Frame") or obj:IsA("ScrollingFrame") or obj:IsA("ViewportFrame") then
+        TweenService:Create(obj, ti, { BackgroundTransparency = 1 }):Play()
+        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = 1 }):Play() end
+    end
+end
+
+local function showMParadox(opts)
+    local clone = mp.template:Clone()
+    clone.Parent = mp.holder
+
+    local achievement = clone:WaitForChild("Achievement")
+    local glow        = clone:WaitForChild("Glow")
+
+    local rawImg = opts.Image or ""
+    local resolvedImg
+    if rawImg:match("^rbxassetid://") then
+        resolvedImg = rawImg
+    elseif rawImg:match("^%d+$") and #rawImg > 0 then
+        resolvedImg = "rbxassetid://" .. rawImg
+    else
+        resolvedImg = "rbxassetid://6023426923"
+    end
+
+    achievement:WaitForChild("Icon").Image   = resolvedImg
+    achievement:WaitForChild("Title").Text   = opts.Title or ""
+    achievement:WaitForChild("Description").Text = opts.Description or ""
+    achievement:WaitForChild("Action").Text  = opts.Reason or ""
+
+    local col = opts.Color or Color3.fromRGB(255, 222, 189)
+    achievement:WaitForChild("UIStroke").Color            = col
+    achievement:WaitForChild("Icon"):WaitForChild("UIStroke").Color = col
+    achievement:WaitForChild("Background").ImageColor3   = col
+    glow.ImageColor3 = col
+
+    local transpCache = {}
+    mp_saveTransp(clone, transpCache)
+    for _, obj in ipairs(clone:GetDescendants()) do
+        mp_saveTransp(obj, transpCache)
+    end
+
+    achievement.Position = UDim2.new(0.5, 0, 1.25, 0)
+
+    local soundId = resolveSound(opts.Sound, getOrDownloadMsdoorsSound())
+    playSound(mp.holder, soundId, 0.575)
+
+    task.wait(0.5)
+
+    mp_tweenIn(clone, transpCache)
+    for _, obj in ipairs(clone:GetDescendants()) do
+        mp_tweenIn(obj, transpCache)
+    end
+
+    TweenService:Create(achievement, TweenInfo.new(0.8, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0.5, 0, 0.5, 0)
+    }):Play()
+
+    task.delay(0.8, function()
+        TweenService:Create(glow, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            ImageTransparency = 1
+        }):Play()
+    end)
+
+    task.wait(opts.Time or 5)
+
+    mp_tweenOut(clone)
+    for _, obj in ipairs(clone:GetDescendants()) do
+        mp_tweenOut(obj)
+    end
+
+    task.wait(0.5)
+    clone:Destroy()
+end
+
+local function processMParadoxQueue()
+    if mp.processing then return end
+    mp.processing = true
+    while #mp.queue > 0 do
+        showMParadox(table.remove(mp.queue, 1))
+        task.wait(0.35)
+    end
+    mp.processing = false
+end
+
+local function notifyMParadox(opts)
+    initMParadoxUI()
+    table.insert(mp.queue, opts)
+    task.spawn(processMParadoxQueue)
+end
+
 local STYLES = {
     Linoria  = notifyLinoria,
     Obsidian = notifyLinoria,
@@ -615,6 +932,7 @@ local STYLES = {
     Paradox  = function(opts)
         task.spawn(notifyParadox, opts)
     end,
+    MParadox = notifyMParadox,
     Roblox   = notifyRoblox,
     Abyssal  = notifyAbyssal,
 }
