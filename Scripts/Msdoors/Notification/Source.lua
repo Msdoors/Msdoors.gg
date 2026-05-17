@@ -653,9 +653,9 @@ local function initMParadoxUI()
     tmpl.Name = "Template"
     tmpl.BackgroundTransparency = 1
     tmpl.BorderSizePixel = 0
-    tmpl.Position = UDim2.new(0.5, 0, 0.5, 0)
     tmpl.Size = UDim2.new(0.689964, 0, 0.163091, 0)
-    tmpl.AnchorPoint = Vector2.new(0.5, 0.5)
+    tmpl.AnchorPoint = Vector2.new(0.5, 1)
+    tmpl.Position = UDim2.new(0.5, 0, 0.82, 0)
     tmpl.Active = false
 
     local arc = Instance.new("UIAspectRatioConstraint")
@@ -862,10 +862,10 @@ local function mp_tweenOut(obj)
 end
 
 local MP_STACK_SCALE_STEP   = 0.06
-local MP_STACK_Y_STEP       = -0.045
+local MP_STACK_Y_STEP       = -0.06
 local MP_STACK_TRANSP_STEP  = 0.28
 local MP_STACK_MAX          = 3
-local MP_CENTER_Y           = 0.10
+local MP_CENTER_Y           = 0.5
 
 local function mp_applyStackState(clone, depth)
     local achievement = clone:FindFirstChild("Achievement")
@@ -981,9 +981,9 @@ local function showMParadox(opts)
         mp_saveTransp(obj, transpCache)
     end
 
-    achievement.Position = UDim2.new(0.5, 0, 1.25, 0)
+    achievement.Position = UDim2.new(0.5, 0, 1.5, 0)
     achievement.Size     = UDim2.new(0.7, 0, 0.8, 0)
-    glow.Position        = UDim2.new(0.5, 0, 1.25, 0)
+    glow.Position        = UDim2.new(0.5, 0, 1.5, 0)
 
     local soundId = resolveSound(opts.Sound, getOrDownloadParadoxSound())
     playSound(mp.holder, soundId, 1)
