@@ -6,11 +6,14 @@ local Players = game:GetService("Players")
 local DEFAULT_SOUND = "rbxassetid://4590657391"
 local MSDOORS_SOUND_URL = "https://github.com/Msdoors/Msdoors.gg/raw/refs/heads/main/Scripts/Msdoors/Notification/DOORS-ACHIEVIMENT.mp3"
 local MSDOORS_SOUND_PATH = "msdoors/DOORS-ACHIEVEMENT.mp3"
+local PARADOX_SOUND_URL = "https://github.com/Msdoors/Msdoors.gg/raw/refs/heads/main/Scripts/Msdoors/Notification/PARADOX-ACHIEVIMENT.ogg"
+local PARADOX_SOUND_PATH = "msdoors/PARADOX-ACHIEVEMENT.ogg"
+local ABYSSAL_DEFAULT_SOUND = "rbxassetid://8784885431"
 
 shared.ACHIDATA = shared.ACHIDATA or { template = nil, gui = nil, queue = {}, processing = false, defaultSound = nil }
 local d = shared.ACHIDATA
 
-shared.MPARADOX = shared.MPARADOX or { template = nil, holder = nil, queue = {}, processing = false }
+shared.MPARADOX = shared.MPARADOX or { template = nil, holder = nil, queue = {}, processing = false, defaultSound = nil }
 local mp = shared.MPARADOX
 
 local AbyssalState = {
@@ -84,6 +87,27 @@ local function getOrDownloadMsdoorsSound()
         end
     end)
     return "rbxassetid://10469938989"
+end
+
+local function getOrDownloadParadoxSound()
+    if mp.defaultSound then return mp.defaultSound end
+    if not isfolder("msdoors") then makefolder("msdoors") end
+    if isfile(PARADOX_SOUND_PATH) then
+        local fn = getcustomasset or getsynasset
+        mp.defaultSound = fn(PARADOX_SOUND_PATH)
+        return mp.defaultSound
+    end
+    task.spawn(function()
+        local ok, data = pcall(game.HttpGet, game, PARADOX_SOUND_URL)
+        if ok then
+            writefile(PARADOX_SOUND_PATH, data)
+            local fn = getcustomasset or getsynasset
+            mp.defaultSound = fn(PARADOX_SOUND_PATH)
+        else
+            mp.defaultSound = DEFAULT_SOUND
+        end
+    end)
+    return DEFAULT_SOUND
 end
 
 local function playSound(parent, soundId, volume)
@@ -572,8 +596,8 @@ local function notifyAbyssal(opts)
         Description.TextStrokeTransparency = 0.75
         Description.TextXAlignment = Enum.TextXAlignment.Left
 
-        local soundId = resolveSound(opts.Sound, DEFAULT_SOUND)
-        playSound(Container, soundId, 1)
+        local soundId = resolveSound(opts.Sound, ABYSSAL_DEFAULT_SOUND)
+        playSound(Container, soundId, 3)
 
         TweenService:Create(Notification, TweenInfo.new(1, Enum.EasingStyle.Exponential), {
             Position = UDim2.new(1, -370, 0, 60)
@@ -836,9 +860,59 @@ local function mp_tweenOut(obj)
     end
 end
 
+local MP_STACK_SCALE_STEP   = 0.06
+local MP_STACK_Y_STEP       = -0.045
+local MP_STACK_TRANSP_STEP  = 0.28
+local MP_STACK_MAX          = 3
+local MP_CENTER_Y           = 0.72
+
+local function mp_applyStackState(clone, depth)
+    local achievement = clone:FindFirstChild("Achievement")
+    local glow        = clone:FindFirstChild("Glow")
+    if not achievement then return end
+
+    local scale      = 1 - (depth * MP_STACK_SCALE_STEP)
+    local yOffset    = depth * MP_STACK_Y_STEP
+    local bgTransp   = math.min(0.5 + depth * MP_STACK_TRANSP_STEP, 1)
+    local textTransp = math.min(depth * MP_STACK_TRANSP_STEP, 1)
+    local strokeT    = math.min(depth * MP_STACK_TRANSP_STEP, 1)
+
+    local ti = TweenInfo.new(0.45, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+
+    TweenService:Create(achievement, ti, {
+        Position = UDim2.new(0.5, 0, MP_CENTER_Y + yOffset, 0),
+        Size     = UDim2.new(0.7 * scale, 0, 0.8 * scale, 0),
+    }):Play()
+
+    TweenService:Create(achievement, ti, {
+        BackgroundTransparency = bgTransp,
+    }):Play()
+
+    local uiStroke = achievement:FindFirstChild("UIStroke")
+    if uiStroke then
+        TweenService:Create(uiStroke, ti, { Transparency = strokeT }):Play()
+    end
+
+    for _, lbl in ipairs(achievement:GetDescendants()) do
+        if lbl:IsA("TextLabel") then
+            TweenService:Create(lbl, ti, { TextTransparency = textTransp }):Play()
+        elseif lbl:IsA("ImageLabel") and lbl.Name ~= "Background" then
+            TweenService:Create(lbl, ti, { ImageTransparency = textTransp }):Play()
+        end
+    end
+
+    if glow then
+        TweenService:Create(glow, ti, { ImageTransparency = 1 }):Play()
+    end
+
+    clone:SetAttribute("MPDepth", depth)
+end
+
 local function showMParadox(opts)
     local clone = mp.template:Clone()
     clone.Parent = mp.holder
+    clone:SetAttribute("MPDepth", 0)
+    clone:SetAttribute("MPAlive", true)
 
     local achievement = clone:WaitForChild("Achievement")
     local glow        = clone:WaitForChild("Glow")
@@ -853,16 +927,40 @@ local function showMParadox(opts)
         resolvedImg = "rbxassetid://6023426923"
     end
 
-    achievement:WaitForChild("Icon").Image   = resolvedImg
-    achievement:WaitForChild("Title").Text   = opts.Title or ""
-    achievement:WaitForChild("Description").Text = opts.Description or ""
-    achievement:WaitForChild("Action").Text  = opts.Reason or ""
+    achievement:WaitForChild("Icon").Image        = resolvedImg
+    achievement:WaitForChild("Title").Text        = opts.Title or ""
+    achievement:WaitForChild("Description").Text  = opts.Description or ""
+    achievement:WaitForChild("Action").Text       = opts.Reason or ""
 
     local col = opts.Color or Color3.fromRGB(255, 222, 189)
-    achievement:WaitForChild("UIStroke").Color            = col
-    achievement:WaitForChild("Icon"):WaitForChild("UIStroke").Color = col
-    achievement:WaitForChild("Background").ImageColor3   = col
+    achievement:WaitForChild("UIStroke").Color                       = col
+    achievement:WaitForChild("Icon"):WaitForChild("UIStroke").Color  = col
+    achievement:WaitForChild("Background").ImageColor3               = col
     glow.ImageColor3 = col
+
+    for _, existing in ipairs(mp.holder:GetChildren()) do
+        if existing ~= clone and existing:GetAttribute("MPAlive") then
+            local newDepth = (existing:GetAttribute("MPDepth") or 0) + 1
+            if newDepth >= MP_STACK_MAX then
+                existing:SetAttribute("MPAlive", false)
+                local ti = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+                local ach2 = existing:FindFirstChild("Achievement")
+                if ach2 then
+                    TweenService:Create(ach2, ti, { BackgroundTransparency = 1 }):Play()
+                    for _, d in ipairs(ach2:GetDescendants()) do
+                        if d:IsA("TextLabel") then
+                            TweenService:Create(d, ti, { TextTransparency = 1 }):Play()
+                        elseif d:IsA("ImageLabel") then
+                            TweenService:Create(d, ti, { ImageTransparency = 1 }):Play()
+                        end
+                    end
+                end
+                task.delay(0.35, function() existing:Destroy() end)
+            else
+                mp_applyStackState(existing, newDepth)
+            end
+        end
+    end
 
     local transpCache = {}
     mp_saveTransp(clone, transpCache)
@@ -871,9 +969,10 @@ local function showMParadox(opts)
     end
 
     achievement.Position = UDim2.new(0.5, 0, 1.25, 0)
+    achievement.Size     = UDim2.new(0.7, 0, 0.8, 0)
 
-    local soundId = resolveSound(opts.Sound, getOrDownloadMsdoorsSound())
-    playSound(mp.holder, soundId, 0.575)
+    local soundId = resolveSound(opts.Sound, getOrDownloadParadoxSound())
+    playSound(mp.holder, soundId, 1)
 
     task.wait(0.5)
 
@@ -883,7 +982,7 @@ local function showMParadox(opts)
     end
 
     TweenService:Create(achievement, TweenInfo.new(0.8, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0.5, 0, 0.5, 0)
+        Position = UDim2.new(0.5, 0, MP_CENTER_Y, 0),
     }):Play()
 
     task.delay(0.8, function()
@@ -894,13 +993,17 @@ local function showMParadox(opts)
 
     task.wait(opts.Time or 5)
 
+    if not clone.Parent then return end
+
+    clone:SetAttribute("MPAlive", false)
+
     mp_tweenOut(clone)
     for _, obj in ipairs(clone:GetDescendants()) do
         mp_tweenOut(obj)
     end
 
     task.wait(0.5)
-    clone:Destroy()
+    if clone.Parent then clone:Destroy() end
 end
 
 local function processMParadoxQueue()
@@ -908,7 +1011,7 @@ local function processMParadoxQueue()
     mp.processing = true
     while #mp.queue > 0 do
         showMParadox(table.remove(mp.queue, 1))
-        task.wait(0.35)
+        task.wait(0.4)
     end
     mp.processing = false
 end
