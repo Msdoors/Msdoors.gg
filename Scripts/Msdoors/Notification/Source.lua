@@ -47,6 +47,23 @@ local function getAbyssalContainer()
 end
 
 local soundUrlCache = {}
+local _soundCacheReady = false
+
+local function ensureSoundCache()
+    if _soundCacheReady then return end
+    _soundCacheReady = true
+    if not isfolder("msdoors") then makefolder("msdoors") end
+    if not isfolder("msdoors/.cache") then makefolder("msdoors/.cache") end
+    if not isfolder("msdoors/.cache/sounds") then makefolder("msdoors/.cache/sounds") end
+    if isfolder("msdoors/.cache/sounds/notifys") then
+        local ok, files = pcall(listfiles, "msdoors/.cache/sounds/notifys")
+        if ok then
+            for _, path in ipairs(files) do pcall(delfile, path) end
+        end
+    else
+        makefolder("msdoors/.cache/sounds/notifys")
+    end
+end
 
 local function resolveSound(soundpar, fallback)
     if not soundpar or soundpar == "" then return fallback or DEFAULT_SOUND end
@@ -54,13 +71,21 @@ local function resolveSound(soundpar, fallback)
     if soundpar:match("^%d+$") then return "rbxassetid://" .. soundpar end
     if soundpar:match("^https?://") then
         if soundUrlCache[soundpar] then return soundUrlCache[soundpar] end
-        if not isfolder("msdoors") then makefolder("msdoors") end
-        local tempPath = "msdoors/temp_" .. math.floor(tick() * 1000) .. ".mp3"
+        ensureSoundCache()
+        local ext = soundpar:match("%.(%a+)%f[%A]") or "mp3"
+        local key = tostring(#soundpar) .. "_" .. soundpar:sub(-16):gsub("[^%w]", "") .. "." .. ext
+        local cachedPath = "msdoors/.cache/sounds/notifys/snd_" .. key
+        if isfile(cachedPath) then
+            local fn = getcustomasset or getsynasset
+            local asset = fn(cachedPath)
+            soundUrlCache[soundpar] = asset
+            return asset
+        end
         local ok, data = pcall(game.HttpGet, game, soundpar)
         if ok then
-            writefile(tempPath, data)
+            writefile(cachedPath, data)
             local fn = getcustomasset or getsynasset
-            local asset = fn(tempPath)
+            local asset = fn(cachedPath)
             soundUrlCache[soundpar] = asset
             return asset
         end
