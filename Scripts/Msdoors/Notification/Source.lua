@@ -94,6 +94,38 @@ local function resolveSound(soundpar, fallback)
     return fallback or DEFAULT_SOUND
 end
 
+local imageUrlCache = {}
+
+local function resolveImage(imagepar)
+    if not imagepar or imagepar == "" then return "" end
+    if imagepar:match("^rbxassetid://") then return imagepar end
+    if imagepar:match("^%d+$") and #imagepar > 0 then return "rbxassetid://" .. imagepar end
+    if imagepar:match("^https?://") then
+        if imageUrlCache[imagepar] then return imageUrlCache[imagepar] end
+        if not isfolder("msdoors") then makefolder("msdoors") end
+        if not isfolder("msdoors/.cache") then makefolder("msdoors/.cache") end
+        if not isfolder("msdoors/.cache/images") then makefolder("msdoors/.cache/images") end
+        local filename = imagepar:match("/([^/]+)$") or "image.png"
+        local cachedPath = "msdoors/.cache/images/" .. filename
+        if isfile(cachedPath) then
+            local fn = getcustomasset or getsynasset
+            local asset = fn(cachedPath)
+            imageUrlCache[imagepar] = asset
+            return asset
+        end
+        local ok, data = pcall(game.HttpGet, game, imagepar)
+        if ok then
+            writefile(cachedPath, data)
+            local fn = getcustomasset or getsynasset
+            local asset = fn(cachedPath)
+            imageUrlCache[imagepar] = asset
+            return asset
+        end
+        return ""
+    end
+    return ""
+end
+
 local function getOrDownloadMsdoorsSound()
     if d.defaultSound then return d.defaultSound end
     if not isfolder("msdoors") then makefolder("msdoors") end
@@ -296,7 +328,7 @@ local function showMsdoors(opts)
     achi.F.Det.Title.Text  = opts.Title or "Achievement"
     achi.F.Det.Desc.Text   = opts.Description or ""
     achi.F.Det.Reason.Text = opts.Reason or ""
-    achi.F.Img.Image       = opts.Image or "rbxassetid://6023426923"
+    achi.F.Img.Image       = resolveImage(opts.Image) ~= "" and resolveImage(opts.Image) or "rbxassetid://6023426923"
 
     local col = opts.Color or Color3.fromRGB(255, 222, 189)
     achi.F.Top.TextColor3  = col
@@ -414,7 +446,10 @@ local function notifyParadox(opts)
     if titleLabel  then titleLabel.Text  = opts.Title or "Achievement" end
     if descLabel   then descLabel.Text   = opts.Description or "" end
     if actionLabel then actionLabel.Text = opts.Action or "" end
-    if iconImage   then iconImage.Image  = opts.Image or "rbxassetid://6023426923" end
+    if iconImage   then
+        local resolved = resolveImage(opts.Image)
+        iconImage.Image = resolved ~= "" and resolved or "rbxassetid://6023426923"
+    end
 
     local soundId = resolveSound(opts.Sound, "rbxassetid://91986934883173")
     playSound(achievementHolder, soundId, 5)
@@ -475,7 +510,9 @@ local function notifyDoors(opts)
     achievement.Frame.Details.Title.Text  = opts.Title or "Sem Título"
     achievement.Frame.Details.Desc.Text   = opts.Description or "Sem Descrição"
     achievement.Frame.Details.Reason.Text = opts.Reason or ""
-    achievement.Frame.ImageLabel.Image    = opts.Image or "rbxassetid://6023426923"
+
+    local resolvedImg = resolveImage(opts.Image)
+    achievement.Frame.ImageLabel.Image = resolvedImg ~= "" and resolvedImg or "rbxassetid://6023426923"
 
     local col = opts.Color or Color3.new(1, 1, 1)
     achievement.Frame.TextLabel.TextColor3 = col
@@ -574,15 +611,8 @@ local function notifyAbyssal(opts)
         Line.Position = UDim2.new(0, 0, 1, -3)
         Line.Size = UDim2.new(0, 0, 0, 3)
 
-        local rawImg = opts.Image or ""
-        local resolvedImg
-        if rawImg:match("^rbxassetid://") then
-            resolvedImg = rawImg
-        elseif rawImg:match("^%d+$") and #rawImg > 0 then
-            resolvedImg = "rbxassetid://" .. rawImg
-        else
-            resolvedImg = "rbxassetid://3944668821"
-        end
+        local resolvedImg = resolveImage(opts.Image or "")
+        if resolvedImg == "" then resolvedImg = "rbxassetid://3944668821" end
 
         Warning.Name = "Warning"
         Warning.Parent = Notification
@@ -955,15 +985,8 @@ local function showMParadox(opts)
     local achievement = clone:WaitForChild("Achievement")
     local glow        = clone:WaitForChild("Glow")
 
-    local rawImg = opts.Image or ""
-    local resolvedImg
-    if rawImg:match("^rbxassetid://") then
-        resolvedImg = rawImg
-    elseif rawImg:match("^%d+$") and #rawImg > 0 then
-        resolvedImg = "rbxassetid://" .. rawImg
-    else
-        resolvedImg = "rbxassetid://6023426923"
-    end
+    local resolvedImg = resolveImage(opts.Image or "")
+    if resolvedImg == "" then resolvedImg = "rbxassetid://6023426923" end
 
     achievement:WaitForChild("Icon").Image        = resolvedImg
     achievement:WaitForChild("Title").Text        = opts.Title or ""
