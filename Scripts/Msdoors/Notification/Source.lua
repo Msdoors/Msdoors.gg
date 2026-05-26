@@ -47,23 +47,7 @@ local function getAbyssalContainer()
 end
 
 local soundUrlCache = {}
-local _soundCacheReady = false
-
-local function ensureSoundCache()
-    if _soundCacheReady then return end
-    _soundCacheReady = true
-    if not isfolder("msdoors") then makefolder("msdoors") end
-    if not isfolder("msdoors/.cache") then makefolder("msdoors/.cache") end
-    if not isfolder("msdoors/.cache/sounds") then makefolder("msdoors/.cache/sounds") end
-    if isfolder("msdoors/.cache/sounds/notifys") then
-        local ok, files = pcall(listfiles, "msdoors/.cache/sounds/notifys")
-        if ok then
-            for _, path in ipairs(files) do pcall(delfile, path) end
-        end
-    else
-        makefolder("msdoors/.cache/sounds/notifys")
-    end
-end
+local imageUrlCache = {}
 
 local function resolveSound(soundpar, fallback)
     if not soundpar or soundpar == "" then return fallback or DEFAULT_SOUND end
@@ -71,30 +55,19 @@ local function resolveSound(soundpar, fallback)
     if soundpar:match("^%d+$") then return "rbxassetid://" .. soundpar end
     if soundpar:match("^https?://") then
         if soundUrlCache[soundpar] then return soundUrlCache[soundpar] end
-        ensureSoundCache()
         local ext = soundpar:match("%.(%a+)%f[%A]") or "mp3"
-        local key = tostring(#soundpar) .. "_" .. soundpar:sub(-16):gsub("[^%w]", "") .. "." .. ext
-        local cachedPath = "msdoors/.cache/sounds/notifys/snd_" .. key
-        if isfile(cachedPath) then
-            local fn = getcustomasset or getsynasset
-            local asset = fn(cachedPath)
-            soundUrlCache[soundpar] = asset
-            return asset
-        end
-        local ok, data = pcall(game.HttpGet, game, soundpar)
-        if ok then
-            writefile(cachedPath, data)
-            local fn = getcustomasset or getsynasset
-            local asset = fn(cachedPath)
-            soundUrlCache[soundpar] = asset
-            return asset
-        end
-        return fallback or DEFAULT_SOUND
+        local fileName = "customObject_Sound_" .. tostring(#soundpar) .. "." .. ext
+        local success, audioData = pcall(function()
+            return game:HttpGet(soundpar)
+        end)
+        if not success then return fallback or DEFAULT_SOUND end
+        writefile(fileName, audioData)
+        local asset = (getcustomasset or getsynasset)(fileName)
+        soundUrlCache[soundpar] = asset
+        return asset
     end
     return fallback or DEFAULT_SOUND
 end
-
-local imageUrlCache = {}
 
 local function resolveImage(imagepar)
     if not imagepar or imagepar == "" then return "" end
@@ -102,76 +75,43 @@ local function resolveImage(imagepar)
     if imagepar:match("^%d+$") and #imagepar > 0 then return "rbxassetid://" .. imagepar end
     if imagepar:match("^https?://") then
         if imageUrlCache[imagepar] then return imageUrlCache[imagepar] end
-        if not isfolder("msdoors") then makefolder("msdoors") end
-        if not isfolder("msdoors/.cache") then makefolder("msdoors/.cache") end
-        if not isfolder("msdoors/.cache/images") then makefolder("msdoors/.cache/images") end
-        local filename = (imagepar:match("/([^/?#]+)%??") or "image.png"):gsub("[^%w%.%-_]", "")
-        if not filename:match("%.%a+$") then filename = filename .. ".png" end
-        local cachedPath = "msdoors/.cache/images/" .. filename
-        if isfile(cachedPath) then
-            local fn = getcustomasset or getsynasset
-            local ok, asset = pcall(fn, cachedPath)
-            if ok and asset and asset ~= "" then
-                imageUrlCache[imagepar] = asset
-                return asset
-            end
-            pcall(delfile, cachedPath)
-        end
-        local ok, data = pcall(game.HttpGet, game, imagepar)
-        if ok and data and #data > 0 then
-            pcall(writefile, cachedPath, data)
-            local fn = getcustomasset or getsynasset
-            local ok2, asset = pcall(fn, cachedPath)
-            if ok2 and asset and asset ~= "" then
-                imageUrlCache[imagepar] = asset
-                return asset
-            end
-        end
-        return ""
+        local imageName = imagepar:match("/([^/]+)$") or "image"
+        imageName = imageName:gsub("[^%w%-_]", "_")
+        local fileName = "customObject_Image_" .. imageName .. ".png"
+        local success, imageData = pcall(function()
+            return game:HttpGet(imagepar)
+        end)
+        if not success then return "" end
+        writefile(fileName, imageData)
+        local asset = (getcustomasset or getsynasset)(fileName)
+        imageUrlCache[imagepar] = asset
+        return asset
     end
     return ""
 end
 
 local function getOrDownloadMsdoorsSound()
     if d.defaultSound then return d.defaultSound end
-    if not isfolder("msdoors") then makefolder("msdoors") end
-    if isfile(MSDOORS_SOUND_PATH) then
-        local fn = getcustomasset or getsynasset
-        d.defaultSound = fn(MSDOORS_SOUND_PATH)
-        return d.defaultSound
+    local success, data = pcall(function() return game:HttpGet(MSDOORS_SOUND_URL) end)
+    if success then
+        writefile("customObject_Sound_msdoors.mp3", data)
+        d.defaultSound = (getcustomasset or getsynasset)("customObject_Sound_msdoors.mp3")
+    else
+        d.defaultSound = "rbxassetid://10469938989"
     end
-    task.spawn(function()
-        local ok, data = pcall(game.HttpGet, game, MSDOORS_SOUND_URL)
-        if ok then
-            writefile(MSDOORS_SOUND_PATH, data)
-            local fn = getcustomasset or getsynasset
-            d.defaultSound = fn(MSDOORS_SOUND_PATH)
-        else
-            d.defaultSound = "rbxassetid://10469938989"
-        end
-    end)
-    return "rbxassetid://10469938989"
+    return d.defaultSound
 end
 
 local function getOrDownloadParadoxSound()
     if mp.defaultSound then return mp.defaultSound end
-    if not isfolder("msdoors") then makefolder("msdoors") end
-    if isfile(PARADOX_SOUND_PATH) then
-        local fn = getcustomasset or getsynasset
-        mp.defaultSound = fn(PARADOX_SOUND_PATH)
-        return mp.defaultSound
+    local success, data = pcall(function() return game:HttpGet(PARADOX_SOUND_URL) end)
+    if success then
+        writefile("customObject_Sound_paradox.ogg", data)
+        mp.defaultSound = (getcustomasset or getsynasset)("customObject_Sound_paradox.ogg")
+    else
+        mp.defaultSound = DEFAULT_SOUND
     end
-    task.spawn(function()
-        local ok, data = pcall(game.HttpGet, game, PARADOX_SOUND_URL)
-        if ok then
-            writefile(PARADOX_SOUND_PATH, data)
-            local fn = getcustomasset or getsynasset
-            mp.defaultSound = fn(PARADOX_SOUND_PATH)
-        else
-            mp.defaultSound = DEFAULT_SOUND
-        end
-    end)
-    return DEFAULT_SOUND
+    return mp.defaultSound
 end
 
 local function playSound(parent, soundId, volume)
@@ -334,18 +274,7 @@ local function showMsdoors(opts)
     achi.F.Det.Title.Text  = opts.Title or "Achievement"
     achi.F.Det.Desc.Text   = opts.Description or ""
     achi.F.Det.Reason.Text = opts.Reason or ""
-
-    local resolved = resolveImage(opts.Image)
-    achi.F.Img.Image = resolved ~= "" and resolved or "rbxassetid://6023426923"
-    if resolved == "" and opts.Image and opts.Image ~= "" then
-        local imgRef = achi.F.Img
-        task.spawn(function()
-            local asset = resolveImage(opts.Image)
-            if asset ~= "" and imgRef and imgRef.Parent then
-                imgRef.Image = asset
-            end
-        end)
-    end
+    achi.F.Img.Image       = resolveImage(opts.Image) ~= "" and resolveImage(opts.Image) or "rbxassetid://6023426923"
 
     local col = opts.Color or Color3.fromRGB(255, 222, 189)
     achi.F.Top.TextColor3  = col
@@ -466,13 +395,6 @@ local function notifyParadox(opts)
     if iconImage   then
         local resolved = resolveImage(opts.Image)
         iconImage.Image = resolved ~= "" and resolved or "rbxassetid://6023426923"
-        if resolved == "" and opts.Image and opts.Image ~= "" then
-            local ref = iconImage
-            task.spawn(function()
-                local asset = resolveImage(opts.Image)
-                if asset ~= "" and ref and ref.Parent then ref.Image = asset end
-            end)
-        end
     end
 
     local soundId = resolveSound(opts.Sound, "rbxassetid://91986934883173")
@@ -537,13 +459,6 @@ local function notifyDoors(opts)
 
     local resolvedImg = resolveImage(opts.Image)
     achievement.Frame.ImageLabel.Image = resolvedImg ~= "" and resolvedImg or "rbxassetid://6023426923"
-    if resolvedImg == "" and opts.Image and opts.Image ~= "" then
-        local ref = achievement.Frame.ImageLabel
-        task.spawn(function()
-            local asset = resolveImage(opts.Image)
-            if asset ~= "" and ref and ref.Parent then ref.Image = asset end
-        end)
-    end
 
     local col = opts.Color or Color3.new(1, 1, 1)
     achievement.Frame.TextLabel.TextColor3 = col
@@ -1019,14 +934,7 @@ local function showMParadox(opts)
     local resolvedImg = resolveImage(opts.Image or "")
     if resolvedImg == "" then resolvedImg = "rbxassetid://6023426923" end
 
-    local iconRef = achievement:WaitForChild("Icon")
-    iconRef.Image = resolvedImg
-    if resolvedImg == "rbxassetid://6023426923" and opts.Image and opts.Image ~= "" then
-        task.spawn(function()
-            local asset = resolveImage(opts.Image)
-            if asset ~= "" and iconRef and iconRef.Parent then iconRef.Image = asset end
-        end)
-    end
+    achievement:WaitForChild("Icon").Image        = resolvedImg
     achievement:WaitForChild("Title").Text        = opts.Title or ""
     achievement:WaitForChild("Description").Text  = opts.Description or ""
     achievement:WaitForChild("Action").Text       = opts.Reason or ""
