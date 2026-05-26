@@ -96,56 +96,33 @@ end
 
 local imageUrlCache = {}
 
-local function resolveImage(imagepar, callback)
-    if not imagepar or imagepar == "" then
-        if callback then callback("") end
-        return ""
-    end
-    if imagepar:match("^rbxassetid://") then
-        if callback then callback(imagepar) end
-        return imagepar
-    end
-    if imagepar:match("^%d+$") and #imagepar > 0 then
-        local result = "rbxassetid://" .. imagepar
-        if callback then callback(result) end
-        return result
-    end
+local function resolveImage(imagepar)
+    if not imagepar or imagepar == "" then return "" end
+    if imagepar:match("^rbxassetid://") then return imagepar end
+    if imagepar:match("^%d+$") and #imagepar > 0 then return "rbxassetid://" .. imagepar end
     if imagepar:match("^https?://") then
-        if imageUrlCache[imagepar] then
-            if callback then callback(imageUrlCache[imagepar]) end
-            return imageUrlCache[imagepar]
+        if imageUrlCache[imagepar] then return imageUrlCache[imagepar] end
+        if not isfolder("msdoors") then makefolder("msdoors") end
+        if not isfolder("msdoors/.cache") then makefolder("msdoors/.cache") end
+        if not isfolder("msdoors/.cache/images") then makefolder("msdoors/.cache/images") end
+        local filename = imagepar:match("/([^/]+)$") or "image.png"
+        local cachedPath = "msdoors/.cache/images/" .. filename
+        if isfile(cachedPath) then
+            local fn = getcustomasset or getsynasset
+            local asset = fn(cachedPath)
+            imageUrlCache[imagepar] = asset
+            return asset
         end
-        if not callback then
-            return ""
+        local ok, data = pcall(game.HttpGet, game, imagepar)
+        if ok then
+            writefile(cachedPath, data)
+            local fn = getcustomasset or getsynasset
+            local asset = fn(cachedPath)
+            imageUrlCache[imagepar] = asset
+            return asset
         end
-        task.spawn(function()
-            if not isfolder("msdoors") then makefolder("msdoors") end
-            if not isfolder("msdoors/.cache") then makefolder("msdoors/.cache") end
-            if not isfolder("msdoors/.cache/images") then makefolder("msdoors/.cache/images") end
-            local filename = imagepar:match("/([^/]+)$") or "image.png"
-            filename = filename:gsub("[^%w%.%-_]", "_")
-            local cachedPath = "msdoors/.cache/images/" .. filename
-            if isfile(cachedPath) then
-                local fn = getcustomasset or getsynasset
-                local asset = fn(cachedPath)
-                imageUrlCache[imagepar] = asset
-                callback(asset)
-                return
-            end
-            local ok, data = pcall(game.HttpGet, game, imagepar)
-            if ok and data and #data > 0 then
-                writefile(cachedPath, data)
-                local fn = getcustomasset or getsynasset
-                local asset = fn(cachedPath)
-                imageUrlCache[imagepar] = asset
-                callback(asset)
-            else
-                callback("")
-            end
-        end)
         return ""
     end
-    if callback then callback("") end
     return ""
 end
 
@@ -351,9 +328,7 @@ local function showMsdoors(opts)
     achi.F.Det.Title.Text  = opts.Title or "Achievement"
     achi.F.Det.Desc.Text   = opts.Description or ""
     achi.F.Det.Reason.Text = opts.Reason or ""
-    resolveImage(opts.Image, function(img)
-        achi.F.Img.Image = img ~= "" and img or "rbxassetid://6023426923"
-    end)
+    achi.F.Img.Image       = resolveImage(opts.Image) ~= "" and resolveImage(opts.Image) or "rbxassetid://6023426923"
 
     local col = opts.Color or Color3.fromRGB(255, 222, 189)
     achi.F.Top.TextColor3  = col
@@ -472,9 +447,8 @@ local function notifyParadox(opts)
     if descLabel   then descLabel.Text   = opts.Description or "" end
     if actionLabel then actionLabel.Text = opts.Action or "" end
     if iconImage   then
-        resolveImage(opts.Image, function(img)
-            iconImage.Image = img ~= "" and img or "rbxassetid://6023426923"
-        end)
+        local resolved = resolveImage(opts.Image)
+        iconImage.Image = resolved ~= "" and resolved or "rbxassetid://6023426923"
     end
 
     local soundId = resolveSound(opts.Sound, "rbxassetid://91986934883173")
@@ -537,9 +511,8 @@ local function notifyDoors(opts)
     achievement.Frame.Details.Desc.Text   = opts.Description or "Sem Descrição"
     achievement.Frame.Details.Reason.Text = opts.Reason or ""
 
-    resolveImage(opts.Image, function(img)
-        achievement.Frame.ImageLabel.Image = img ~= "" and img or "rbxassetid://6023426923"
-    end)
+    local resolvedImg = resolveImage(opts.Image)
+    achievement.Frame.ImageLabel.Image = resolvedImg ~= "" and resolvedImg or "rbxassetid://6023426923"
 
     local col = opts.Color or Color3.new(1, 1, 1)
     achievement.Frame.TextLabel.TextColor3 = col
@@ -638,15 +611,15 @@ local function notifyAbyssal(opts)
         Line.Position = UDim2.new(0, 0, 1, -3)
         Line.Size = UDim2.new(0, 0, 0, 3)
 
-        resolveImage(opts.Image or "", function(img)
-            Warning.Image = img ~= "" and img or "rbxassetid://3944668821"
-        end)
+        local resolvedImg = resolveImage(opts.Image or "")
+        if resolvedImg == "" then resolvedImg = "rbxassetid://3944668821" end
 
         Warning.Name = "Warning"
         Warning.Parent = Notification
         Warning.BackgroundTransparency = 1
         Warning.Position = UDim2.new(0, 10, 0, 5)
         Warning.Size = UDim2.new(0, 40, 0, 40)
+        Warning.Image = resolvedImg
         Warning.ImageColor3 = accentColor
         Warning.ScaleType = Enum.ScaleType.Fit
 
@@ -1012,9 +985,10 @@ local function showMParadox(opts)
     local achievement = clone:WaitForChild("Achievement")
     local glow        = clone:WaitForChild("Glow")
 
-    resolveImage(opts.Image or "", function(img)
-        achievement:WaitForChild("Icon").Image = img ~= "" and img or "rbxassetid://6023426923"
-    end)
+    local resolvedImg = resolveImage(opts.Image or "")
+    if resolvedImg == "" then resolvedImg = "rbxassetid://6023426923" end
+
+    achievement:WaitForChild("Icon").Image        = resolvedImg
     achievement:WaitForChild("Title").Text        = opts.Title or ""
     achievement:WaitForChild("Description").Text  = opts.Description or ""
     achievement:WaitForChild("Action").Text       = opts.Reason or ""
