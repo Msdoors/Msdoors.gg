@@ -1,6 +1,5 @@
 if not shared.notifyap then shared.notifyap = {} end
 
-
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 
@@ -10,6 +9,23 @@ local MSDOORS_SOUND_PATH = "msdoors/DOORS-ACHIEVEMENT.mp3"
 local PARADOX_SOUND_URL = "https://github.com/Msdoors/Msdoors.gg/raw/refs/heads/main/Scripts/Msdoors/Notification/PARADOX-ACHIEVIMENT.ogg"
 local PARADOX_SOUND_PATH = "msdoors/PARADOX-ACHIEVEMENT.ogg"
 local ABYSSAL_DEFAULT_SOUND = "rbxassetid://8784885431"
+
+local cloneref = cloneref or clonereference or function(instance)
+    return instance
+end
+
+local protectgui = protectgui or (syn and syn.protect_gui) or function() end
+
+local gethui = gethui or function()
+    return cloneref(game:GetService("CoreGui"))
+end
+
+local function getGuiParent(opts)
+    if opts and opts.protect then
+        return gethui()
+    end
+    return Players.LocalPlayer:WaitForChild("PlayerGui")
+end
 
 shared.ACHIDATA = shared.ACHIDATA or { template = nil, gui = nil, queue = {}, processing = false, defaultSound = nil }
 local d = shared.ACHIDATA
@@ -21,17 +37,20 @@ local AbyssalState = {
     Container = nil,
 }
 
-local function getAbyssalContainer()
+local function getAbyssalContainer(opts)
     if AbyssalState.Container and AbyssalState.Container.Parent then
         return AbyssalState.Container
     end
-    local pg = Players.LocalPlayer:WaitForChild("PlayerGui")
+    local pg = getGuiParent(opts)
     local sg = pg:FindFirstChild("AbyssalNotifyUI")
     if not sg then
         sg = Instance.new("ScreenGui")
         sg.Name = "AbyssalNotifyUI"
         sg.ResetOnSpawn = false
         sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+        if opts and opts.protect then
+            protectgui(sg)
+        end
         sg.Parent = pg
     end
     local c = sg:FindFirstChild("Container")
@@ -96,33 +115,61 @@ end
 
 local imageUrlCache = {}
 
-local function resolveImage(imagepar)
-    if not imagepar or imagepar == "" then return "" end
-    if imagepar:match("^rbxassetid://") then return imagepar end
-    if imagepar:match("^%d+$") and #imagepar > 0 then return "rbxassetid://" .. imagepar end
-    if imagepar:match("^https?://") then
-        if imageUrlCache[imagepar] then return imageUrlCache[imagepar] end
-        if not isfolder("msdoors") then makefolder("msdoors") end
-        if not isfolder("msdoors/.cache") then makefolder("msdoors/.cache") end
-        if not isfolder("msdoors/.cache/images") then makefolder("msdoors/.cache/images") end
-        local filename = imagepar:match("/([^/]+)$") or "image.png"
-        local cachedPath = "msdoors/.cache/images/" .. filename
-        if isfile(cachedPath) then
-            local fn = getcustomasset or getsynasset
-            local asset = fn(cachedPath)
-            imageUrlCache[imagepar] = asset
-            return asset
-        end
-        local ok, data = pcall(game.HttpGet, game, imagepar)
-        if ok then
-            writefile(cachedPath, data)
-            local fn = getcustomasset or getsynasset
-            local asset = fn(cachedPath)
-            imageUrlCache[imagepar] = asset
-            return asset
-        end
+local function resolveImage(imagepar, callback)
+    if not imagepar or imagepar == "" then
+        if callback then callback("") end
         return ""
     end
+    if imagepar:match("^rbxassetid://") then
+        if callback then callback(imagepar) end
+        return imagepar
+    end
+    if imagepar:match("^%d+$") and #imagepar > 0 then
+        local result = "rbxassetid://" .. imagepar
+        if callback then callback(result) end
+        return result
+    end
+    if imagepar:match("^https?://") then
+        if imageUrlCache[imagepar] then
+            if callback then callback(imageUrlCache[imagepar]) end
+            return imageUrlCache[imagepar]
+        end
+
+        if not callback then
+            return ""
+        end
+
+        task.spawn(function()
+            if not isfolder("msdoors") then makefolder("msdoors") end
+            if not isfolder("msdoors/.cache") then makefolder("msdoors/.cache") end
+            if not isfolder("msdoors/.cache/images") then makefolder("msdoors/.cache/images") end
+
+            local filename = imagepar:match("/([^/]+)$") or "image.png"
+            filename = filename:gsub("[^%w%.%-_]", "_")
+            local cachedPath = "msdoors/.cache/images/" .. filename
+
+            if isfile(cachedPath) then
+                local fn = getcustomasset or getsynasset
+                local asset = fn(cachedPath)
+                imageUrlCache[imagepar] = asset
+                callback(asset)
+                return
+            end
+
+            local ok, data = pcall(game.HttpGet, game, imagepar)
+            if ok and data and #data > 0 then
+                writefile(cachedPath, data)
+                local fn = getcustomasset or getsynasset
+                local asset = fn(cachedPath)
+                imageUrlCache[imagepar] = asset
+                callback(asset)
+            else
+                callback("")
+            end
+        end)
+        return ""
+    end
+    if callback then callback("") end
     return ""
 end
 
@@ -181,14 +228,17 @@ local function playSound(parent, soundId, volume)
     end)
 end
 
-local function initMsdoorsUI()
+local function initMsdoorsUI(opts)
     if d.gui then return end
 
-    local pg = Players.LocalPlayer:WaitForChild("PlayerGui")
+    local pg = getGuiParent(opts)
     local sg = Instance.new("ScreenGui")
     sg.Name = "AchievementUI"
     sg.ResetOnSpawn = false
     sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    if opts and opts.protect then
+        protectgui(sg)
+    end
     sg.Parent = pg
 
     local holder = Instance.new("Frame")
@@ -328,7 +378,10 @@ local function showMsdoors(opts)
     achi.F.Det.Title.Text  = opts.Title or "Achievement"
     achi.F.Det.Desc.Text   = opts.Description or ""
     achi.F.Det.Reason.Text = opts.Reason or ""
-    achi.F.Img.Image       = resolveImage(opts.Image) ~= "" and resolveImage(opts.Image) or "rbxassetid://6023426923"
+
+    resolveImage(opts.Image, function(img)
+        achi.F.Img.Image = img ~= "" and img or "rbxassetid://6023426923"
+    end)
 
     local col = opts.Color or Color3.fromRGB(255, 222, 189)
     achi.F.Top.TextColor3  = col
@@ -415,7 +468,7 @@ local function paradox_tweenOut(obj)
 end
 
 local function notifyParadox(opts)
-    local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+    local playerGui = getGuiParent(opts)
 
     local achievementGui = playerGui
         :WaitForChild("Initiate")
@@ -424,10 +477,13 @@ local function notifyParadox(opts)
         :WaitForChild("Achievement")
 
     local template = achievementGui:WaitForChild("Template")
-    local achievementHolder = playerGui:WaitForChild("MainUI"):WaitForChild("AchievementHolder")
+    local achievementHolder = Players.LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("MainUI"):WaitForChild("AchievementHolder")
 
     local clone = template:Clone()
     clone.Name = "msdoorsAchievementNotify"
+    if opts.protect then
+        protectgui(clone)
+    end
     clone.Parent = achievementHolder
 
     local achievement = clone:WaitForChild("Achievement")
@@ -446,9 +502,11 @@ local function notifyParadox(opts)
     if titleLabel  then titleLabel.Text  = opts.Title or "Achievement" end
     if descLabel   then descLabel.Text   = opts.Description or "" end
     if actionLabel then actionLabel.Text = opts.Action or "" end
-    if iconImage   then
-        local resolved = resolveImage(opts.Image)
-        iconImage.Image = resolved ~= "" and resolved or "rbxassetid://6023426923"
+
+    if iconImage then
+        resolveImage(opts.Image, function(img)
+            iconImage.Image = img ~= "" and img or "rbxassetid://6023426923"
+        end)
     end
 
     local soundId = resolveSound(opts.Sound, "rbxassetid://91986934883173")
@@ -511,14 +569,18 @@ local function notifyDoors(opts)
     achievement.Frame.Details.Desc.Text   = opts.Description or "Sem Descrição"
     achievement.Frame.Details.Reason.Text = opts.Reason or ""
 
-    local resolvedImg = resolveImage(opts.Image)
-    achievement.Frame.ImageLabel.Image = resolvedImg ~= "" and resolvedImg or "rbxassetid://6023426923"
+    resolveImage(opts.Image, function(img)
+        achievement.Frame.ImageLabel.Image = img ~= "" and img or "rbxassetid://6023426923"
+    end)
 
     local col = opts.Color or Color3.new(1, 1, 1)
     achievement.Frame.TextLabel.TextColor3 = col
     achievement.Frame.UIStroke.Color       = col
     achievement.Frame.Glow.ImageColor3     = col
 
+    if opts.protect then
+        protectgui(achievement)
+    end
     achievement.Parent = achievementsHolder
 
     local soundId = resolveSound(opts.Sound, "rbxassetid://10469938989")
@@ -573,7 +635,7 @@ end
 
 local function notifyAbyssal(opts)
     task.spawn(function()
-        local Container = getAbyssalContainer()
+        local Container = getAbyssalContainer(opts)
 
         local accentColor     = opts.Color or Color3.fromRGB(255, 100, 100)
         local backgroundColor = opts.BackgroundColor or Color3.fromRGB(30, 30, 35)
@@ -611,15 +673,15 @@ local function notifyAbyssal(opts)
         Line.Position = UDim2.new(0, 0, 1, -3)
         Line.Size = UDim2.new(0, 0, 0, 3)
 
-        local resolvedImg = resolveImage(opts.Image or "")
-        if resolvedImg == "" then resolvedImg = "rbxassetid://3944668821" end
+        resolveImage(opts.Image or "", function(img)
+            Warning.Image = img ~= "" and img or "rbxassetid://3944668821"
+        end)
 
         Warning.Name = "Warning"
         Warning.Parent = Notification
         Warning.BackgroundTransparency = 1
         Warning.Position = UDim2.new(0, 10, 0, 5)
         Warning.Size = UDim2.new(0, 40, 0, 40)
-        Warning.Image = resolvedImg
         Warning.ImageColor3 = accentColor
         Warning.ScaleType = Enum.ScaleType.Fit
 
@@ -685,15 +747,18 @@ local function notifyAbyssal(opts)
     end)
 end
 
-local function initMParadoxUI()
+local function initMParadoxUI(opts)
     if mp.holder then return end
 
-    local pg = Players.LocalPlayer:WaitForChild("PlayerGui")
+    local pg = getGuiParent(opts)
 
     local sg = Instance.new("ScreenGui")
     sg.Name = "MParadoxUI"
     sg.ResetOnSpawn = false
     sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    if opts and opts.protect then
+        protectgui(sg)
+    end
     sg.Parent = pg
 
     local holder = Instance.new("Frame")
@@ -985,10 +1050,10 @@ local function showMParadox(opts)
     local achievement = clone:WaitForChild("Achievement")
     local glow        = clone:WaitForChild("Glow")
 
-    local resolvedImg = resolveImage(opts.Image or "")
-    if resolvedImg == "" then resolvedImg = "rbxassetid://6023426923" end
+    resolveImage(opts.Image or "", function(img)
+        achievement:WaitForChild("Icon").Image = img ~= "" and img or "rbxassetid://6023426923"
+    end)
 
-    achievement:WaitForChild("Icon").Image        = resolvedImg
     achievement:WaitForChild("Title").Text        = opts.Title or ""
     achievement:WaitForChild("Description").Text  = opts.Description or ""
     achievement:WaitForChild("Action").Text       = opts.Reason or ""
@@ -1086,7 +1151,7 @@ local function processMParadoxQueue()
 end
 
 local function notifyMParadox(opts)
-    initMParadoxUI()
+    initMParadoxUI(opts)
     table.insert(mp.queue, opts)
     task.spawn(processMParadoxQueue)
 end
@@ -1097,7 +1162,7 @@ local STYLES = {
     Obsdian  = notifyLinoria,
     Doors    = notifyDoors,
     msdoors  = function(opts)
-        initMsdoorsUI()
+        initMsdoorsUI(opts)
         table.insert(d.queue, opts)
         processMsdoorsQueue()
     end,
