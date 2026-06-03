@@ -325,13 +325,8 @@ end
 
 local function resolveGroupboxSide(addonSide)
     local side = type(addonSide) == "string" and addonSide:lower() or nil
-
-    if side == "left" then
-        return "Left"
-    elseif side == "right" then
-        return "Right"
-    end
-
+    if side == "left" then return "Left" end
+    if side == "right" then return "Right" end
     if LastGroupSide == "Right" then
         LastGroupSide = "Left"
         return "Left"
@@ -341,12 +336,15 @@ local function resolveGroupboxSide(addonSide)
     end
 end
 
-local function createGroupbox(title, side)
-    if side == "Left" then
-        return AddonTab:AddLeftGroupbox(title)
-    else
-        return AddonTab:AddRightGroupbox(title)
-    end
+local function buildAddonEnv(extras)
+    local env = setmetatable(extras or {}, {
+        __index = function(_, k)
+            local v = rawget(_realenv, k)
+            if v ~= nil then return v end
+            return _realenv[k]
+        end,
+    })
+    return env
 end
 
 local function tryLoadAddon(file, fileName)
@@ -357,52 +355,120 @@ local function tryLoadAddon(file, fileName)
         error("Syntax error: " .. tostring(loadErr))
     end
 
-    task.spawn(function()
-        local addon = addonFunc()
+    local isMspaintStyle = fileContent:find("mspaint%.AddonInfo") or fileContent:find("mspaint%.Groupbox")
 
-        if type(addon) ~= "table" then
-            warn("[msdoors] Addon '" .. fileName .. "' didn't load: Invalid return type.")
-            return
+    if isMspaintStyle then
+        local addonInfo = nil
+        local groupbox = nil
+
+        local infoBlock = fileContent:match("mspaint%.AddonInfo%s*=%s*(%b{})")
+        if infoBlock then
+            local infoFunc, _ = loadstring("return " .. infoBlock)
+            if infoFunc then
+                local ok, result = pcall(setfenv(infoFunc, _realenv))
+                if ok and type(result) == "table" then
+                    addonInfo = result
+                end
+            end
         end
 
-        if type(addon.Name) ~= "string" or type(addon.Elements) ~= "table" then
-            warn("[msdoors] Addon '" .. fileName .. "' didn't load: Invalid Name/Elements.")
-            return
+        if not addonInfo or type(addonInfo.Name) ~= "string" then
+            error("mspaint.AddonInfo not found or invalid.")
         end
 
-        if not validateGame(addon, fileName) then return end
+        if not validateGame(addonInfo, fileName) then return true end
 
-        addon.Name = addon.Name:gsub("%s+", "")
-        if type(addon.Title) ~= "string" then
-            addon.Title = addon.Name
+        addonInfo.Name = addonInfo.Name:gsub("%s+", "")
+        local title = type(addonInfo.Title) == "string" and addonInfo.Title or addonInfo.Name
+
+        local side = resolveGroupboxSide(addonInfo.Side)
+        if side == "Left" then
+            groupbox = AddonTab:AddLeftGroupbox("")
+        else
+            groupbox = AddonTab:AddRightGroupbox("")
         end
 
-        local side = resolveGroupboxSide(addon.Side)
-        local groupbox = createGroupbox("", side)
+        groupbox:AddLabel(title)
 
-        groupbox:AddLabel(addon.Title)
-
-        if type(addon.Description) == "string" then
-            groupbox:AddLabel(addon.Description, true)
+        if type(addonInfo.Description) == "string" then
+            groupbox:AddLabel(addonInfo.Description, true)
         end
 
-        if addon.Author ~= nil then
-            local authors = type(addon.Author) == "table" and table.concat(addon.Author, ", ") or tostring(addon.Author)
-            groupbox:AddLabel("By: " .. authors)
+        local Library = getgenv().Library or getgenv().lib
+
+        local realFunc, realErr = loadstring(fileContent)
+        if not realFunc then
+            realFunc = addonFunc
         end
 
-        if type(addon.Version) == "string" then
-            groupbox:AddLabel("v" .. addon.Version)
-        end
+        local realEnv = buildAddonEnv({
+            mspaint = setmetatable({}, {
+                __newindex = function() end,
+                __index = function(_, k)
+                    if k == "AddonInfo" then return addonInfo end
+                    if k == "Groupbox" then return groupbox end
+                    return nil
+                end
+            }),
+            Library = Library,
+            Toggles = shared.Toggles or {},
+            Options = shared.Options or {},
+        })
 
-        if addon.Description or addon.Author or addon.Version then
-            groupbox:AddDivider()
-        end
+        task.spawn(setfenv(realFunc, realEnv))
+        return true
+    else
+        task.spawn(function()
+            local addon = addonFunc()
 
-        loadElements(groupbox, addon.Name, addon.Elements)
-    end)
+            if type(addon) ~= "table" then
+                warn("[msdoors] Addon '" .. fileName .. "' didn't load: Invalid return type.")
+                return
+            end
 
-    return true
+            if type(addon.Name) ~= "string" or type(addon.Elements) ~= "table" then
+                warn("[msdoors] Addon '" .. fileName .. "' didn't load: Invalid Name/Elements.")
+                return
+            end
+
+            if not validateGame(addon, fileName) then return end
+
+            addon.Name = addon.Name:gsub("%s+", "")
+            if type(addon.Title) ~= "string" then
+                addon.Title = addon.Name
+            end
+
+            local side = resolveGroupboxSide(addon.Side)
+            local groupbox
+            if side == "Left" then
+                groupbox = AddonTab:AddLeftGroupbox("")
+            else
+                groupbox = AddonTab:AddRightGroupbox("")
+            end
+
+            groupbox:AddLabel(addon.Title)
+
+            if type(addon.Description) == "string" then
+                groupbox:AddLabel(addon.Description, true)
+            end
+
+            if addon.Author ~= nil then
+                local authors = type(addon.Author) == "table" and table.concat(addon.Author, ", ") or tostring(addon.Author)
+                groupbox:AddLabel("By: " .. authors)
+            end
+
+            if type(addon.Version) == "string" then
+                groupbox:AddLabel("v" .. addon.Version)
+            end
+
+            if addon.Description or addon.Author or addon.Version then
+                groupbox:AddDivider()
+            end
+
+            loadElements(groupbox, addon.Name, addon.Elements)
+        end)
+        return true
+    end
 end
 
 function AddonsAPI:Initialize(Window)
