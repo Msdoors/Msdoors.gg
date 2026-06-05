@@ -59,7 +59,7 @@ function misctabs:AddWarnTabDoors(Tab)
     Tab:UpdateWarningBox({
         Title = shared.translationapi:getTranslate("Update Summary", "Resumo de Atualizações"),
         Icon = "layout-grid",
-        Text = "23.05.2026\n-- GENERAL --\n[ ✓ ] Fixed Speed bypass\n[ > ] Improved deathfarm\n[ + ] Deathfarm now shows time since start and total matches\n[ ✓ ] Fixed deathfarm randomly stopping and crashes\n[ ✓ ] Notification system no longer stores multiple audio files\n-- THE MINES --\n[ + ] Added Minecart Teleport\n[ > ] Improved performance\n» join our Discord to suggest features! «",
+        Text = "04.06.2026\n--GENERAL--\n[ > ] improved freecam\n [ > ] improved fly\n[ + ] entity despawn notify\n[ > ] Improved performance\n» join our Discord to suggest features! «",
         IsNormal = true,
         Visible = true,
         LockSize = true,
