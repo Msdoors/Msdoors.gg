@@ -59,7 +59,7 @@ function misctabs:AddWarnTabDoors(Tab)
     Tab:UpdateWarningBox({
         Title = shared.translationapi:getTranslate("Update Summary", "Resumo de Atualizações"),
         Icon = "layout-grid",
-        Text = "04.06.2026\n--GENERAL--\n[ > ] improved freecam\n [ > ] improved fly\n[ + ] entity despawn notify\n[ > ] Improved performance\n» join our Discord to suggest features! «",
+        Text = "04.06.2026\n--GENERAL--\n[ > ] improved freecam\n[ > ] improved fly\n[ + ] entity despawn notify\n[ > ] Improved performance\n» join our Discord to suggest features! «",
         IsNormal = true,
         Visible = true,
         LockSize = true,
