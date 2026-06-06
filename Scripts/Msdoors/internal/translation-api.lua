@@ -60,7 +60,6 @@ local function safeHttpGet(url)
             return nil
         end,
     }
-
     for i, method in ipairs(methods) do
         local ok, result = pcall(method)
         if ok and result and result ~= "" then
@@ -69,46 +68,34 @@ local function safeHttpGet(url)
             warn("[msdoors - translation api] Método de request " .. i .. " falhou para " .. url .. ": " .. tostring(result))
         end
     end
-
     warn("[msdoors - translation api] Todos os métodos de request falharam para: " .. url)
     return nil
 end
 
 local function safeIsFile(path)
     local ok, result = pcall(isfile, path)
-    if not ok then
-        warn("[msdoors - translation api] isfile não suportado neste executor: " .. tostring(result))
-        return false
-    end
+    if not ok then return false end
     return result
 end
 
 local function safeReadFile(path)
     local ok, result = pcall(readfile, path)
-    if not ok then
-        warn("[msdoors - translation api] readfile não suportado neste executor: " .. tostring(result))
-        return nil
-    end
+    if not ok then return nil end
     return result
 end
 
 local function safeWriteFile(path, content)
     local ok, err = pcall(writefile, path, content)
-    if not ok then
-        warn("[msdoors - translation api] writefile não suportado neste executor: " .. tostring(err))
-        return false
-    end
+    if not ok then return false end
     return true
 end
 
 local function parseJSON(jsonString)
+    if type(jsonString) ~= "string" or jsonString == "" then return nil end
     local success, result = pcall(function()
         return HttpService:JSONDecode(jsonString)
     end)
-    if not success then
-        warn("[msdoors - translation api] Erro ao decodificar JSON: " .. tostring(result))
-        return nil
-    end
+    if not success or type(result) ~= "table" then return nil end
     return result
 end
 
@@ -116,10 +103,7 @@ local function encodeJSON(t)
     local success, result = pcall(function()
         return HttpService:JSONEncode(t)
     end)
-    if not success then
-        warn("[msdoors - translation api] Erro ao codificar JSON: " .. tostring(result))
-        return "{}"
-    end
+    if not success then return "{}" end
     return result
 end
 
@@ -161,6 +145,18 @@ function Cache:clear()
     self.lastUpdate = 0
 end
 
+function Cache:setTranslations(languageCode, data)
+    if type(data) == "table" then
+        self.translations[languageCode] = data
+    end
+end
+
+function Cache:getTranslations(languageCode)
+    local t = self.translations[languageCode]
+    if type(t) == "table" then return t end
+    return nil
+end
+
 function TranslationAPI.new()
     local self = setmetatable({}, TranslationAPI)
     self.currentLanguage = shared.msdoors_language
@@ -179,14 +175,12 @@ end
 
 function TranslationAPI:loadSavedLanguage()
     local savedLanguage = nil
-
     if safeIsFile(CONFIG.LOCAL_FILE) then
         local content = safeReadFile(CONFIG.LOCAL_FILE)
         if content and content ~= "" then
             savedLanguage = content:gsub("%s+", "")
         end
     end
-
     if savedLanguage and savedLanguage ~= "" then
         self.currentLanguage = savedLanguage
         shared.msdoors_language = savedLanguage
@@ -205,29 +199,25 @@ end
 
 function TranslationAPI:saveCurrentLanguage()
     local success = safeWriteFile(CONFIG.LOCAL_FILE, self.currentLanguage)
-    if success then
-        shared.msdoors_language = self.currentLanguage
-        return true
-    else
+    shared.msdoors_language = self.currentLanguage
+    if not success then
         warn("[msdoors - translation api] Falha ao salvar idioma no arquivo, continuando apenas em memória.")
-        shared.msdoors_language = self.currentLanguage
         return false
     end
+    return true
 end
 
 function TranslationAPI:discoverAvailableLanguages()
     if not Cache:isExpired() and #Cache.availableLanguages > 0 then
         return Cache.availableLanguages
     end
-
     local apiResponse = safeHttpGet(CONFIG.GITHUB_API_URL)
-
     if apiResponse then
         local files = parseJSON(apiResponse)
         if files and type(files) == "table" and #files > 0 then
             Cache.availableLanguages = {}
             for _, file in ipairs(files) do
-                if file.name and file.name:match("%.json$") then
+                if type(file) == "table" and file.name and file.name:match("%.json$") then
                     local code = file.name:gsub("%.json$", "")
                     table.insert(Cache.availableLanguages, code)
                 end
@@ -241,12 +231,10 @@ function TranslationAPI:discoverAvailableLanguages()
     else
         warn("[msdoors - translation api] Falha ao acessar API do GitHub, usando lista de fallback")
     end
-
     if #Cache.availableLanguages == 0 then
         Cache.availableLanguages = FALLBACK_LANGUAGES
         Cache:updateTimestamp()
     end
-
     return Cache.availableLanguages
 end
 
@@ -271,56 +259,54 @@ function TranslationAPI:getLanguageDisplayName(languageCode)
 end
 
 function TranslationAPI:loadLanguageTranslations(languageCode)
-    if Cache.translations[languageCode] and not Cache:isExpired() then
+    if Cache:getTranslations(languageCode) and not Cache:isExpired() then
         return true
     end
-
     local url = CONFIG.GITHUB_BASE_URL .. "/" .. CONFIG.LANGUAGES_FOLDER .. "/" .. languageCode .. ".json"
     local response = safeHttpGet(url)
-
     if not response then
         warn("[msdoors - translation api] Falha ao carregar traduções para: " .. languageCode)
         return false
     end
-
     local translations = parseJSON(response)
     if not translations then
         warn("[msdoors - translation api] Falha ao decodificar traduções para: " .. languageCode)
         return false
     end
-
-    Cache.translations[languageCode] = translations
+    Cache:setTranslations(languageCode, translations)
     Cache:updateTimestamp()
     return true
 end
 
 function TranslationAPI:getTranslate(key, fallback)
-    if not key or key == "" then return fallback or "MISSING_KEY" end
-
-    if not Cache.translations[self.currentLanguage] then
-        if not self:loadLanguageTranslations(self.currentLanguage) then
-            if self.currentLanguage ~= CONFIG.DEFAULT_LANGUAGE then
-                if not self:loadLanguageTranslations(CONFIG.DEFAULT_LANGUAGE) then
-                    return fallback or key
-                end
-                return Cache.translations[CONFIG.DEFAULT_LANGUAGE][key] or fallback or key
-            end
-            return fallback or key
+    if not key or key == "" then
+        return type(fallback) == "string" and fallback or "Missing translation"
+    end
+    local currentTranslations = Cache:getTranslations(self.currentLanguage)
+    if not currentTranslations then
+        self:loadLanguageTranslations(self.currentLanguage)
+        currentTranslations = Cache:getTranslations(self.currentLanguage)
+    end
+    if currentTranslations then
+        local value = currentTranslations[key]
+        if type(value) == "string" and value ~= "" then
+            return value
         end
     end
-
-    local translation = Cache.translations[self.currentLanguage][key]
-
-    if not translation and self.currentLanguage ~= CONFIG.DEFAULT_LANGUAGE then
-        if not Cache.translations[CONFIG.DEFAULT_LANGUAGE] then
+    if self.currentLanguage ~= CONFIG.DEFAULT_LANGUAGE then
+        local defaultTranslations = Cache:getTranslations(CONFIG.DEFAULT_LANGUAGE)
+        if not defaultTranslations then
             self:loadLanguageTranslations(CONFIG.DEFAULT_LANGUAGE)
+            defaultTranslations = Cache:getTranslations(CONFIG.DEFAULT_LANGUAGE)
         end
-        if Cache.translations[CONFIG.DEFAULT_LANGUAGE] then
-            translation = Cache.translations[CONFIG.DEFAULT_LANGUAGE][key]
+        if defaultTranslations then
+            local value = defaultTranslations[key]
+            if type(value) == "string" and value ~= "" then
+                return value
+            end
         end
     end
-
-    return translation or fallback or key
+    return type(fallback) == "string" and fallback or "Missing translation"
 end
 
 function TranslationAPI:getCurrentLanguage()
@@ -332,21 +318,17 @@ function TranslationAPI:setLanguage(languageCode)
         warn("[msdoors - translation api] Código de idioma inválido")
         return false
     end
-
     if not self:loadLanguageTranslations(languageCode) then
         warn("[msdoors - translation api] Falha ao carregar idioma: " .. languageCode)
         return false
     end
-
     local oldLanguage = self.currentLanguage
     self.currentLanguage = languageCode
     shared.msdoors_language = languageCode
-
     local saveSuccess = self:saveCurrentLanguage()
     if not saveSuccess then
         warn("[msdoors - translation api] Falha ao salvar arquivo, continuando com o idioma em memória: " .. languageCode)
     end
-
     self:executeLanguageChangedCallbacks(oldLanguage, languageCode)
     return true
 end
@@ -368,17 +350,14 @@ end
 
 function TranslationAPI:createLanguageDropdown(tab, options)
     options = options or {}
-
     local availableLanguages = self:getAvailableLanguages()
     local dropdownValues = {"Select language"}
     local languageCodeMap = {}
-
     for _, code in ipairs(availableLanguages) do
         local displayName = self:getLanguageDisplayName(code)
         table.insert(dropdownValues, displayName)
         languageCodeMap[displayName] = code
     end
-
     if #dropdownValues <= 1 then
         warn("[msdoors - translation api] Nenhum idioma disponível para o dropdown, tentando redescobrir...")
         Cache:clear()
@@ -391,13 +370,16 @@ function TranslationAPI:createLanguageDropdown(tab, options)
             languageCodeMap[displayName] = code
         end
     end
-
+    local labelText = self:getTranslate("LanguageSelector", "Language")
+    local tooltipText = self:getTranslate("LanguageTooltip", "Select your preferred language")
+    if type(labelText) ~= "string" then labelText = "Language" end
+    if type(tooltipText) ~= "string" then tooltipText = "Select your preferred language" end
     local dropdown = tab:AddDropdown("LanguageSelector", {
         Values = dropdownValues,
         Default = "Select language",
         Multi = false,
-        Text = self:getTranslate("LanguageSelector", "Language"),
-        Tooltip = self:getTranslate("LanguageTooltip", "Select your preferred language"),
+        Text = labelText,
+        Tooltip = tooltipText,
         Callback = function(selected)
             if selected == "Select language" then return end
             local languageCode = languageCodeMap[selected]
@@ -413,7 +395,6 @@ function TranslationAPI:createLanguageDropdown(tab, options)
             end
         end
     })
-
     return dropdown
 end
 
@@ -433,7 +414,6 @@ function TranslationAPI:getSystemInfo()
         cacheStatus = {
             lastUpdate = Cache.lastUpdate,
             isExpired = Cache:isExpired(),
-            cachedLanguages = Cache.translations and table.concat(Cache.translations, ", ") or "Nenhum"
         },
         isInitialized = self.isInitialized,
         fileExists = safeIsFile(CONFIG.LOCAL_FILE)
@@ -442,12 +422,14 @@ end
 
 function TranslationAPI:validateTranslations(languageCode)
     languageCode = languageCode or self.currentLanguage
-    if not Cache.translations[languageCode] then
+    local translations = Cache:getTranslations(languageCode)
+    if not translations then
         if not self:loadLanguageTranslations(languageCode) then
             return false, "Falha ao carregar traduções"
         end
+        translations = Cache:getTranslations(languageCode)
     end
-    local translations = Cache.translations[languageCode]
+    if not translations then return false, "Traduções não encontradas" end
     local count = 0
     for key, value in pairs(translations) do
         if type(value) == "string" and value ~= "" then count = count + 1 end
