@@ -1000,6 +1000,19 @@ function Library:MapValue(Value, MinA, MaxA, MinB, MaxB)
     return (1 - ((Value - MinA) / (MaxA - MinA))) * MinB + ((Value - MinA) / (MaxA - MinA)) * MaxB
 end
 
+function Library:GetTextBounds(Text: string, Font: Font, Size: number, Width: number?): (number, number)
+    local Params = Instance.new("GetTextBoundsParams")
+    Params.Text = Text
+    Params.RichText = true
+    Params.Font = Font
+    Params.Size = Size
+    Params.Width = Width or workspace.CurrentCamera.ViewportSize.X - 32
+
+    local Bounds = TextService:GetTextBoundsAsync(Params)
+    return Bounds.X, Bounds.Y
+end
+
+--[[ OLD TEXTBOUNDS
 function Library:GetTextBounds(Text, Font, Size, Resolution)
     -- Ignores rich text formatting --
     if typeof(Resolution) == "number" then
@@ -1009,6 +1022,7 @@ function Library:GetTextBounds(Text, Font, Size, Resolution)
     local Bounds = TextService:GetTextSize(Text:gsub("<%/?[%w:]+[^>]*>", ""), Size, Font, Resolution or Vector2.new(1920, 1080))
     return Bounds.X, Bounds.Y
 end
+]]--
 
 function Library:GetDarkerColor(Color)
     local H, S, V = Color3.toHSV(Color)
