@@ -1006,12 +1006,8 @@ function Library:GetTextBounds(Text, Font, Size, Width)
     Params.RichText = true
     Params.Size = Size
     Params.Width = Width or workspace.CurrentCamera.ViewportSize.X - 32
-
-    --// Fix?
+    --// FIX? maybe works now
     if typeof(Font) == "EnumItem" then
-        Params.Font = Font:GetDefaultSize() ~= nil 
-            and Font:GetDefaultSize() 
-            or FontFace.fromEnum(Font)
         Params.Font = FontFace.fromEnum(Font)
     else
         Params.Font = Font
