@@ -1005,12 +1005,18 @@ function Library:GetTextBounds(Text, Font, Size, Width)
     Params.Text = tostring(Text)
     Params.RichText = true
     Params.Size = Size
-    Params.Width = Width or workspace.CurrentCamera.ViewportSize.X - 32
-    --// FIX? maybe works now
-    if typeof(Font) == "EnumItem" then
-        Params.Font = FontFace.fromEnum(Font)
+    --// dawn roblox docs ;(
+    if typeof(Width) == "Vector2" then
+        Params.Width = Width.X
     else
-        Params.Font = Font
+        Params.Width = Width or workspace.CurrentCamera.ViewportSize.X - 32
+    end
+
+    local ok = pcall(function() Params.Font = Font end)
+    if not ok then
+        pcall(function()
+            Params.Font = Font.Name
+        end)
     end
 
     local Bounds = TextService:GetTextBoundsAsync(Params)
