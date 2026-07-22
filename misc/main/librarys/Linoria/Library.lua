@@ -1005,18 +1005,20 @@ function Library:GetTextBounds(Text, Font, Size, Width)
     Params.Text = tostring(Text)
     Params.RichText = true
     Params.Size = Size
-    --// dawn roblox docs ;(
+
     if typeof(Width) == "Vector2" then
         Params.Width = Width.X
     else
         Params.Width = Width or workspace.CurrentCamera.ViewportSize.X - 32
     end
 
-    local ok = pcall(function() Params.Font = Font end)
-    if not ok then
-        pcall(function()
-            Params.Font = Font.Name
-        end)
+    if typeof(Font) == "EnumItem" then
+        local TempLabel = Instance.new("TextLabel")
+        TempLabel.Font = Font
+        Params.Font = TempLabel.FontFace
+        TempLabel:Destroy()
+    else
+        Params.Font = Font
     end
 
     local Bounds = TextService:GetTextBoundsAsync(Params)
