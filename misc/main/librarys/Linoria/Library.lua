@@ -1004,14 +1004,23 @@ function Library:GetTextBounds(Text, Font, Size, Width)
     local Params = Instance.new("GetTextBoundsParams")
     Params.Text = tostring(Text)
     Params.RichText = true
-    Params.Font = Font
     Params.Size = Size
-    Params.Width = Width or (typeof(Width) == "number" and Width) or workspace.CurrentCamera.ViewportSize.X - 32
+    Params.Width = Width or workspace.CurrentCamera.ViewportSize.X - 32
+
+    --// Fix?
+    if typeof(Font) == "EnumItem" then
+        Params.Font = Font:GetDefaultSize() ~= nil 
+            and Font:GetDefaultSize() 
+            or FontFace.fromEnum(Font)
+        Params.Font = FontFace.fromEnum(Font)
+    else
+        Params.Font = Font
+    end
 
     local Bounds = TextService:GetTextBoundsAsync(Params)
     return Bounds.X, Bounds.Y
 end
-
+			
 --[[
 function Library:GetTextBounds(Text, Font, Size, Resolution)
     -- Ignores rich text formatting --
