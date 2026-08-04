@@ -480,7 +480,7 @@ function AddonsAPI:Initialize(Window)
     self.Window = Window
 
     AddonTab = Window:AddTab({
-        Name = "Addons",
+        Name = shared.translationapi:getTranslate("addons", "Complementos"),
         Icon = "diamond-plus"
     })
 
