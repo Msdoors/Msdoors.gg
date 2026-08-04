@@ -484,14 +484,6 @@ function AddonsAPI:Initialize(Window)
         Icon = "diamond-plus"
     })
 
-    AddonsTab:UpdateWarningBox({
-        Title = "Warning",
-        Icon = "layout-grid",
-        Text = "This tab is for UN-OFFICIAL addons made for mspaint. We are not responsible for what addons you will use. You are putting yourself AT RISK since you are executing third-party scripts.",
-        IsNormal = true,
-        Visible = true,
-        LockSize = true,
-    })
 
     task.spawn(function()
         waitForLoaded()
