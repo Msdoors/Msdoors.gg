@@ -60,7 +60,7 @@ function misctabs:AddWarnTabDoors(Tab)
     Tab:UpdateWarningBox({
         Title = shared.translationapi:getTranslate("Update Summary", "Resumo de Atualizações"),
         Icon = "layout-grid",
-        Text = "04.07.2026\n--GENERAL--\n[ + ] Added Herobrine\n[ > ] improved freecam\n[ > ] improved fly\n[ + ] entity despawn notify\n[ > ] Improved performance\n» join our Discord to suggest features! «",
+        Text = "22.08.2026\n[ + ] Figure Godmode\n[ + ] Fix godmode colision\n[ + ] See entities path\n[ + ] Infinite Crucifix\n[ + ] Fixed Item esp( @SeekAlegriaFla )\n[ + ] Fixed Nofog\n[ + ] Improved godmode\n[ + ] Keysystem improved/fixed for some executors\n[ + ] Improved Anti Jumpscares(now works on Timothy)\n[ + ] Fixed keybind not working when auto load or load an config\n[ + ] Fixed entity selection on esp Dropdown\n[ + ] Improved bring items\n[ + ] Improved noclip bypass\n[ + ] Optmized a LOT\n[ + ] Some Memory leaks Removed\n[ + ] Added Herobrine again\n[ - ] Removed Verity\n[ - ] Removed Lsplash\n» join our Discord to suggest features! «",
         IsNormal = true,
         Visible = true,
         LockSize = true,
