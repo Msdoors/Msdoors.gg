@@ -79,7 +79,7 @@ if HatAsset and MainFrame and MainFrame.Parent then
         Hat.BackgroundTransparency = 1
         Hat.Size = UDim2.fromOffset(120, 120)
         Hat.AnchorPoint = Vector2.new(1, 0)
-        Hat.Position = UDim2.new(1, 50, 0, -66)
+        Hat.Position = UDim2.new(1, 50, 0, -65)
         Hat.ZIndex = BaseZIndex
         Hat.Rotation = 25
         Hat.ScaleType = Enum.ScaleType.Fit
