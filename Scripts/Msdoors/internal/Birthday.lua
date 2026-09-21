@@ -42,65 +42,30 @@ local CachePath = "msdoors/.cache/images/"
 local function EnsureCacheFolder()
     local success = pcall(function()
         if not isfolder or not makefolder then return end
-        
-        if not isfolder("msdoors") then
-            makefolder("msdoors")
-        end
-        if not isfolder("msdoors/.cache") then
-            makefolder("msdoors/.cache")
-        end
-        if not isfolder(CachePath) then
-            makefolder(CachePath)
-        end
+        if not isfolder("msdoors") then makefolder("msdoors") end
+        if not isfolder("msdoors/.cache") then makefolder("msdoors/.cache") end
+        if not isfolder(CachePath) then makefolder(CachePath) end
     end)
-    
     return success and isfolder and isfolder(CachePath)
 end
 
 local function GetImageAsset(url, name)
     if not EnsureCacheFolder() then return nil end
     if not writefile or not isfile then return nil end
-    
     local assetFunc = getcustomasset or getsynasset
     if not assetFunc then return nil end
-    
     local fileName = CachePath .. tostring(name) .. ".png"
-    
     local cacheSuccess, cacheResult = pcall(function()
-        if isfile(fileName) then
-            return assetFunc(fileName)
-        end
+        if isfile(fileName) then return assetFunc(fileName) end
         return nil
     end)
-    
-    if cacheSuccess and cacheResult then
-        return cacheResult
-    end
-    
-    local downloadSuccess, imageData = pcall(function()
-        return game:HttpGet(url)
-    end)
-    
-    if not downloadSuccess or not imageData then
-        return nil
-    end
-    
-    local writeSuccess = pcall(function()
-        writefile(fileName, imageData)
-    end)
-    
-    if not writeSuccess then
-        return nil
-    end
-    
-    local assetSuccess, asset = pcall(function()
-        return assetFunc(fileName)
-    end)
-    
-    if not assetSuccess then
-        return nil
-    end
-    
+    if cacheSuccess and cacheResult then return cacheResult end
+    local downloadSuccess, imageData = pcall(function() return game:HttpGet(url) end)
+    if not downloadSuccess or not imageData then return nil end
+    local writeSuccess = pcall(function() writefile(fileName, imageData) end)
+    if not writeSuccess then return nil end
+    local assetSuccess, asset = pcall(function() return assetFunc(fileName) end)
+    if not assetSuccess then return nil end
     return asset
 end
 
@@ -114,7 +79,7 @@ if HatAsset and MainFrame and MainFrame.Parent then
         Hat.BackgroundTransparency = 1
         Hat.Size = UDim2.fromOffset(120, 120)
         Hat.AnchorPoint = Vector2.new(1, 0)
-        Hat.Position = UDim2.new(1, 50, 0, -46)
+        Hat.Position = UDim2.new(1, 50, 0, -65)
         Hat.ZIndex = BaseZIndex
         Hat.Rotation = 25
         Hat.ScaleType = Enum.ScaleType.Fit
@@ -138,32 +103,24 @@ local function spawnConfettiPiece()
     if not ConfettiContainer or not ConfettiContainer.Parent then return end
     if not MainFrame or not MainFrame.Parent then return end
     if not MainFrame.Visible then return end
-    
     pcall(function()
         local piece = Instance.new("Frame")
         piece.Size = UDim2.fromOffset(math.random(6, 12), math.random(6, 12))
         piece.BackgroundColor3 = CONFETTI_COLORS[math.random(1, #CONFETTI_COLORS)]
         piece.BorderSizePixel = 0
         piece.AnchorPoint = Vector2.new(0.5, 0.5)
-
         local screenWidth = ConfettiContainer.AbsoluteSize.X
-
         local startX = math.random(0, screenWidth)
         local startY = -20
-
         piece.Position = UDim2.fromOffset(startX, startY)
         piece.Rotation = math.random(0, 360)
         piece.ZIndex = BaseZIndex
         piece.Parent = ConfettiContainer
-
-        local vy = math.random(110, 200) 
-
-        local swayAmplitude = math.random(15, 45) 
-        local swayFrequency = math.random(2, 5)   
-        local swayOffset = math.random(0, math.pi * 2) 
-        
+        local vy = math.random(110, 200)
+        local swayAmplitude = math.random(15, 45)
+        local swayFrequency = math.random(2, 5)
+        local swayOffset = math.random(0, math.pi * 2)
         local rotationSpeed = math.random(-120, 120)
-
         activeConfetti[piece] = {
             startX = startX,
             x = startX,
@@ -191,28 +148,21 @@ if ConfettiContainer then
                 end
                 return
             end
-            
             if not MainFrame or not MainFrame.Parent then return end
             if not MainFrame.Visible then return end
-            
             local now = tick()
             if now - lastSpawn >= spawnInterval then
                 lastSpawn = now
                 spawnConfettiPiece()
                 spawnConfettiPiece()
             end
-
             local screenHeight = ConfettiContainer.AbsoluteSize.Y
             for piece, data in pairs(activeConfetti) do
                 data.life += dt
-                
                 data.y += data.vy * dt
-                
                 data.x = data.startX + math.sin(data.life * data.swayFreq + data.swayOff) * data.swayAmp
-
                 piece.Position = UDim2.fromOffset(data.x, data.y)
                 piece.Rotation += data.rotSpeed * dt
-
                 if data.y > screenHeight + 50 then
                     if piece and piece.Parent then
                         piece:Destroy()
@@ -221,7 +171,6 @@ if ConfettiContainer then
                 end
             end
         end)
-        
         if not success and ConfettiConnection then
             ConfettiConnection:Disconnect()
             ConfettiConnection = nil
@@ -236,7 +185,6 @@ local function Cleanup()
             ConfettiConnection = nil
         end
     end)
-    
     pcall(function()
         for piece, data in pairs(activeConfetti) do
             if piece and piece.Parent then
@@ -245,13 +193,11 @@ local function Cleanup()
         end
         activeConfetti = {}
     end)
-    
     pcall(function()
         if ConfettiContainer and ConfettiContainer.Parent then
             ConfettiContainer:Destroy()
         end
     end)
-    
     pcall(function()
         if Hat and Hat.Parent then
             Hat:Destroy()
