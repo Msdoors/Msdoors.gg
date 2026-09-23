@@ -15,7 +15,8 @@ local REQUIRED_FUNCTIONS = {
     "isnetworkowner",
     "firesignal",
     "require",
-    "fireproximityprompt"
+    "fireproximityprompt",
+    "firetouchinterest"
 }
 
 local function isRequired(n)
