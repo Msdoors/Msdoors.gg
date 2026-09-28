@@ -1154,7 +1154,9 @@ end
 
 local function SetProps(obj, props)
     for k, v in pairs(props) do
-        obj[k] = v
+        pcall(function()
+            obj[k] = v
+        end)
     end
     return obj
 end
@@ -1215,8 +1217,8 @@ local function notifyOrion(opts)
             AutomaticSize = Enum.AutomaticSize.Y,
             ZIndex = 9999
         }), {
-            SetProps(MakeElement("Stroke", Color3.fromRGB(93, 93, 93), 1.2), { ZIndex = 10000 }),
-            SetProps(MakeElement("Padding", 12, 12, 12, 12), { ZIndex = 10000 }),
+            SetProps(MakeElement("Stroke", Color3.fromRGB(93, 93, 93), 1.2), {}),
+            SetProps(MakeElement("Padding", 12, 12, 12, 12), {}),
             SetProps(MakeElement("Image", NotificationConfig.Image), {
                 Size = UDim2.new(0, 20, 0, 20),
                 ImageColor3 = Color3.fromRGB(240, 240, 240),
