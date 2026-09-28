@@ -193,6 +193,10 @@ local function playSound(parent, soundId, volume)
     end)
 end
 
+local function darkenColor(c, amount)
+    return Color3.new(c.R * amount, c.G * amount, c.B * amount)
+end
+
 local function initMsdoorsUI()
     if d.gui then return end
 
@@ -429,71 +433,94 @@ local function paradox_tweenOut(obj)
 end
 
 local function notifyParadox(opts)
-    local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+    task.spawn(function()
+        local ok, playerGui = pcall(function() return Players.LocalPlayer:WaitForChild("PlayerGui", 5) end)
+        if not ok or not playerGui then return warn("PlayerGui não encontrado para Paradox.") end
 
-    local achievementGui = playerGui
-        :WaitForChild("Initiate")
-        :WaitForChild("Library")
-        :WaitForChild("GUI")
-        :WaitForChild("Achievement")
+        local ok2, achievementGui = pcall(function()
+            return playerGui:WaitForChild("Initiate", 5):WaitForChild("Library", 5):WaitForChild("GUI", 5):WaitForChild("Achievement", 5)
+        end)
+        if not ok2 or not achievementGui then return warn("UI do Paradox não encontrada.") end
 
-    local template = achievementGui:WaitForChild("Template")
-    local achievementHolder = playerGui:WaitForChild("MainUI"):WaitForChild("AchievementHolder")
+        local ok3, template = pcall(function() return achievementGui:WaitForChild("Template", 5) end)
+        if not ok3 or not template then return warn("Template do Paradox não encontrado.") end
 
-    local clone = template:Clone()
-    clone.Name = "msdoorsAchievementNotify"
-    clone.Parent = achievementHolder
+        local ok4, achievementHolder = pcall(function()
+            return playerGui:WaitForChild("MainUI", 5):WaitForChild("AchievementHolder", 5)
+        end)
+        if not ok4 or not achievementHolder then return warn("AchievementHolder do Paradox não encontrado.") end
 
-    local achievement = clone:WaitForChild("Achievement")
-    local glow = clone:WaitForChild("Glow")
+        local clone = template:Clone()
+        clone.Name = "msdoorsAchievementNotify"
+        clone.Parent = achievementHolder
 
-    paradox_save(clone)
-    for _, obj in clone:GetDescendants() do paradox_save(obj) end
+        local achievement = clone:WaitForChild("Achievement", 5)
+        local glow = clone:WaitForChild("Glow", 5)
+        if not achievement or not glow then return warn("Elementos do Paradox não encontrados.") end
 
-    achievement.Position = UDim2.new(0.5, 0, 1.25, 0)
+        paradox_save(clone)
+        for _, obj in clone:GetDescendants() do paradox_save(obj) end
 
-    local titleLabel  = achievement:FindFirstChild("Title")
-    local descLabel   = achievement:FindFirstChild("Description")
-    local actionLabel = achievement:FindFirstChild("Action")
-    local iconImage   = achievement:FindFirstChild("Icon")
+        achievement.Position = UDim2.new(0.5, 0, 1.25, 0)
 
-    if titleLabel  then titleLabel.Text  = opts.Title or "Achievement" end
-    if descLabel   then descLabel.Text   = opts.Description or "" end
-    if actionLabel then actionLabel.Text = opts.Action or "" end
-    if iconImage   then
-        local resolved = resolveImage(opts.Image)
-        iconImage.Image = resolved ~= "" and resolved or "rbxassetid://6023426923"
-    end
+        local titleLabel  = achievement:FindFirstChild("Title")
+        local descLabel   = achievement:FindFirstChild("Description")
+        local actionLabel = achievement:FindFirstChild("Action")
+        local iconImage   = achievement:FindFirstChild("Icon")
 
-    local soundId = resolveSound(opts.Sound, "rbxassetid://91986934883173")
-    playSound(achievementHolder, soundId, 5)
+        if titleLabel  then titleLabel.Text  = opts.Title or "Achievement" end
+        if descLabel   then descLabel.Text   = opts.Description or "" end
+        if actionLabel then actionLabel.Text = opts.Action or "" end
+        if iconImage   then
+            local resolved = resolveImage(opts.Image)
+            iconImage.Image = resolved ~= "" and resolved or "rbxassetid://6023426923"
+        end
 
-    local moveTween = TweenService:Create(achievement, TweenInfo.new(0.8, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0.5, 0, 0.5, 0)
-    })
+        local soundId = resolveSound(opts.Sound, "rbxassetid://91986934883173")
+        playSound(achievementHolder, soundId, 5)
 
-    task.wait(0.5)
+        local moveTween = TweenService:Create(achievement, TweenInfo.new(0.8, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0.5, 0, 0.5, 0)
+        })
 
-    paradox_tweenIn(clone)
-    for _, obj in clone:GetDescendants() do paradox_tweenIn(obj) end
+        task.wait(0.5)
 
-    moveTween:Play()
+        paradox_tweenIn(clone)
+        for _, obj in clone:GetDescendants() do paradox_tweenIn(obj) end
 
-    task.delay(0.8, function()
-        TweenService:Create(glow, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { ImageTransparency = 1 }):Play()
+        moveTween:Play()
+
+        task.delay(0.8, function()
+            TweenService:Create(glow, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { ImageTransparency = 1 }):Play()
+        end)
+
+        task.wait(opts.Time or 5)
+
+        paradox_tweenOut(clone)
+        for _, obj in clone:GetDescendants() do paradox_tweenOut(obj) end
+
+        task.wait(0.5)
+        clone:Destroy()
     end)
-
-    task.wait(opts.Time or 5)
-
-    paradox_tweenOut(clone)
-    for _, obj in clone:GetDescendants() do paradox_tweenOut(obj) end
-
-    task.wait(0.5)
-    clone:Destroy()
 end
 
 local Library_Active = {}
 local function notifyLibrary(opts)
+    if Library and Library.Notify then
+        local soundId = resolveSound(opts.Sound, DEFAULT_SOUND)
+        playSound(game.Workspace, soundId, 1)
+        Library:Notify({
+            Title       = opts.Title or "Sem Título",
+            Description = opts.Description or "Sem Descrição",
+            Time        = opts.Time or 5,
+        })
+    else
+        warn("Library não encontrada.")
+    end
+end
+
+local Linoria_Active = {}
+local function notifyLinoria(opts)
     task.spawn(function()
         local Title = opts.Title or ""
         local Desc = opts.Description or ""
@@ -521,7 +548,7 @@ local function notifyLibrary(opts)
 
         local container = getMainUiContainer()
 
-        for _, notif in ipairs(Library_Active) do
+        for _, notif in ipairs(Linoria_Active) do
             local currY = notif.Position.Y.Offset
             TweenService:Create(notif, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 Position = UDim2.new(1, -10, 1, currY - YSize - 5)
@@ -536,7 +563,7 @@ local function notifyLibrary(opts)
         NotifyOuter.ClipsDescendants = true
         NotifyOuter.ZIndex = 9999
         NotifyOuter.Parent = container
-        table.insert(Library_Active, NotifyOuter)
+        table.insert(Linoria_Active, NotifyOuter)
 
         local NotifyInner = Instance.new("Frame")
         NotifyInner.BackgroundColor3 = MainColor
@@ -555,7 +582,7 @@ local function notifyLibrary(opts)
 
         local Gradient = Instance.new("UIGradient")
         Gradient.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, MainColor * 0.8),
+            ColorSequenceKeypoint.new(0, darkenColor(MainColor, 0.8)),
             ColorSequenceKeypoint.new(1, MainColor),
         })
         Gradient.Rotation = -90
@@ -610,10 +637,10 @@ local function notifyLibrary(opts)
         task.wait(0.4)
         NotifyOuter:Destroy()
 
-        local index = table.find(Library_Active, NotifyOuter)
-        if index then table.remove(Library_Active, index) end
+        local index = table.find(Linoria_Active, NotifyOuter)
+        if index then table.remove(Linoria_Active, index) end
 
-        for _, notif in ipairs(Library_Active) do
+        for _, notif in ipairs(Linoria_Active) do
             local currY = notif.Position.Y.Offset
             TweenService:Create(notif, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 Position = UDim2.new(1, -10, 1, currY + YSize + 5)
@@ -1184,10 +1211,10 @@ local function mp_tweenIn(obj, cache)
     local ti = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     if obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
         TweenService:Create(obj, ti, { ImageTransparency = data.ImageTransparency or 0 }):Play()
-        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = data.StrokeTransparency or 0 }):Play() end
+        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = data.StrokeTransparency or 0}):Play() end
     elseif obj:IsA("TextLabel") or obj:IsA("TextButton") then
         TweenService:Create(obj, ti, { TextTransparency = data.TextTransparency or 0, BackgroundTransparency = data.BackgroundTransparency or 1 }):Play()
-        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = data.StrokeTransparency or 0}):Play() end
+        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = data.StrokeTransparency or 0 }):Play() end
     elseif obj:IsA("Frame") or obj:IsA("ScrollingFrame") or obj:IsA("ViewportFrame") then
         TweenService:Create(obj, ti, { BackgroundTransparency = data.BackgroundTransparency or 0 }):Play()
         if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = data.StrokeTransparency or 0 }):Play() end
@@ -1478,7 +1505,7 @@ local function notifyOrion(opts)
         local NotificationFrame = SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(25, 25, 25), 0, 10), {
             Parent = NotificationParent, 
             Size = UDim2.new(1, 0, 0, 0),
-            Position = UDim2.new(1, -55, 0, 0),
+            Position = UDim2.new(1, 0, 0, 0),
             BackgroundTransparency = 0,
             AutomaticSize = Enum.AutomaticSize.Y,
             ZIndex = 9999
@@ -1510,7 +1537,7 @@ local function notifyOrion(opts)
             })
         })
 
-        task.wait()
+        task.wait(0.1)
         local notifHeight = NotificationParent.AbsoluteSize.Y
         local holderHeight = NotificationHolder.AbsoluteSize.Y
         local baseYOffset = holderHeight - notifHeight
@@ -1524,11 +1551,7 @@ local function notifyOrion(opts)
 
         table.insert(Orion_Active, NotificationParent)
 
-        NotificationParent.Position = UDim2.new(0, 0, 0, baseYOffset + notifHeight + 5)
-
-        TweenService:Create(NotificationParent, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-            Position = UDim2.new(0, 0, 0, baseYOffset)
-        }):Play()
+        NotificationParent.Position = UDim2.new(0, 0, 0, baseYOffset)
 
         TweenService:Create(NotificationFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {Position = UDim2.new(0, 0, 0, 0)}):Play()
 
@@ -1773,7 +1796,7 @@ end
 
 local STYLES = {
     Library  = notifyLibrary,
-    Linoria  = notifyLibrary,
+    Linoria  = notifyLinoria,
     Obsidian = notifyObsidian,
     Doors    = notifyDoors,
     msdoors  = function(opts)
@@ -1781,9 +1804,7 @@ local STYLES = {
         table.insert(d.queue, opts)
         processMsdoorsQueue()
     end,
-    Paradox  = function(opts)
-        task.spawn(notifyParadox, opts)
-    end,
+    Paradox  = notifyParadox,
     MParadox = notifyMParadox,
     Roblox   = notifyRoblox,
     Abyssal  = notifyAbyssal,
