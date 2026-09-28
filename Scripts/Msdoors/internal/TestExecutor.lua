@@ -1,5 +1,3 @@
--- Based on: https://github.com/mspaint-cc/mspaint/blob/main/Src/Utils/ExecutorSupport.luau
-
 if shared.testexecutor then
     return shared.testexecutor
 end
@@ -62,6 +60,10 @@ local broken = {
     Solara = {require = true}
 }
 
+local function getGlobal(n)
+    return getgenv()[n] or getfenv(0)[n]
+end
+
 local function test(n, f, cb)
     if not isRequired(n) then return false end
     if broken[name] and broken[name][n] then return false end
@@ -70,7 +72,7 @@ local function test(n, f, cb)
     if cb ~= false then
         success, err = pcall(f)
     else
-        success = typeof(f) == "function"
+        success = typeof(getGlobal(n)) == "function"
     end
 
     if not success then
@@ -83,9 +85,20 @@ local function test(n, f, cb)
 end
 
 local function safe(n, f)
-    if not isRequired(n) then return end
-    if getfenv()[n] then
-        test(n, f, false)
+    if broken[name] and broken[name][n] then 
+        exec[n] = false
+        shared.testexecutor[n] = false
+        table.insert(errors, "[" .. n .. "] skipped: known broken feature")
+        return 
+    end
+
+    if getGlobal(n) then
+        if isRequired(n) then
+            test(n, f, false)
+        else
+            exec[n] = true
+            shared.testexecutor[n] = true
+        end
     else
         exec[n] = false
         shared.testexecutor[n] = false
@@ -132,9 +145,81 @@ safe("sethiddenproperty", sethiddenproperty)
 safe("gethiddenproperty", gethiddenproperty)
 safe("saveinstance", saveinstance)
 safe("getconnections", getconnections)
-safe("firesignal", firesignal)
-safe("replicatesignal", replicatesignal)
-safe("firetouchinterest", firetouchinterest)
+
+if isRequired("firesignal") then
+    if getGlobal("firesignal") then
+        test("firesignal", function()
+            local TestEvent = Instance.new("RemoteEvent")
+            local Fired = false
+            local Connection = TestEvent.OnClientEvent:Connect(function()
+                Fired = true
+            end)
+            firesignal(TestEvent.OnClientEvent, "Example", 10, true)
+            local Tries = 0
+            while not Fired and Tries < 10 do
+                Tries = Tries + 1
+                task.wait(0.1)
+            end
+            Connection:Disconnect()
+            TestEvent:Destroy()
+            assert(Fired == true, "Failed to fire a signal")
+        end)
+    else
+        exec["firesignal"] = false
+        shared.testexecutor.firesignal = false
+        table.insert(errors, "[firesignal] FUNCTION NOT AVAILABLE")
+    end
+end
+
+if isRequired("replicatesignal") then
+    if getGlobal("replicatesignal") then
+        test("replicatesignal", function()
+            local TestButton = Instance.new("Frame")
+            replicatesignal(TestButton.MouseWheelForward, 69, 420)
+            local Success = pcall(function()
+                replicatesignal(TestButton.MouseWheelForward)
+                replicatesignal(TestButton.MouseWheelForward, 69)
+            end)
+            TestButton:Destroy()
+            assert(Success == false, "Did not throw an error with invalid arguments")
+        end)
+    else
+        exec["replicatesignal"] = false
+        shared.testexecutor.replicatesignal = false
+        table.insert(errors, "[replicatesignal] FUNCTION NOT AVAILABLE")
+    end
+end
+
+if isRequired("firetouchinterest") then
+    if getGlobal("firetouchinterest") then
+        test("firetouchinterest", function()
+            local TestPart1 = Instance.new("Part", workspace)
+            TestPart1.Position = Vector3.new(0, 1000, 0)
+            local TestPart2 = Instance.new("Part", workspace)
+            TestPart2.Position = Vector3.new(0, 1000, 0)
+            local Fired = false
+            local Connection = TestPart1.Touched:Connect(function(Child)
+                if Child == TestPart2 then Fired = true end
+            end)
+            firetouchinterest(TestPart1, TestPart2, 0)
+            task.wait()
+            firetouchinterest(TestPart1, TestPart2, 1)
+            local Tries = 0
+            while not Fired and Tries < 10 do
+                Tries = Tries + 1
+                task.wait(0.1)
+            end
+            Connection:Disconnect()
+            TestPart1:Destroy()
+            TestPart2:Destroy()
+            assert(Fired == true, "Failed to fire a touch interest")
+        end)
+    else
+        exec["firetouchinterest"] = false
+        shared.testexecutor.firetouchinterest = false
+        table.insert(errors, "[firetouchinterest] FUNCTION NOT AVAILABLE")
+    end
+end
 
 safe("fireclickdetector", fireclickdetector)
 safe("mouse1click", mouse1click)
@@ -145,7 +230,7 @@ safe("keypress", keypress)
 safe("keyrelease", keyrelease)
 
 if isRequired("require") then
-    if getfenv()["require"] then
+    if getGlobal("require") then
         test("require", function()
             local plr = game:GetService("Players").LocalPlayer
             local ps = plr:FindFirstChild("PlayerScripts")
@@ -168,7 +253,7 @@ if isRequired("require") then
 end
 
 if isRequired("hookmetamethod") then
-    if getfenv()["hookmetamethod"] then
+    if getGlobal("hookmetamethod") then
         test("hookmetamethod", function()
             local obj = setmetatable({}, {__index = newcclosure(function() return false end), __metatable = "Locked!"})
             local ref = hookmetamethod(obj, "__index", function() return true end)
@@ -238,7 +323,7 @@ else
 end
 
 if isRequired("isnetworkowner") then
-    if getfenv()["isnetworkowner"] then
+    if getGlobal("isnetworkowner") then
         test("isnetworkowner", function()
             local p = Instance.new("Part", workspace)
             p.Anchored = true
@@ -246,7 +331,7 @@ if isRequired("isnetworkowner") then
             p:Destroy()
             assert(typeof(r) == "boolean", "Expected boolean")
         end)
-    elseif getfenv()["isnetowner"] then
+    elseif getGlobal("isnetowner") then
         local ok2, err2 = pcall(function()
             local p = Instance.new("Part", workspace)
             p.Anchored = true
