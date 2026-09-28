@@ -2,6 +2,7 @@ if not shared.notifyap then shared.notifyap = {} end
 
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
+local TextService = game:GetService("TextService")
 
 local DEFAULT_SOUND = "rbxassetid://4590657391"
 local MSDOORS_SOUND_URL = "https://github.com/Msdoors/Msdoors.gg/raw/refs/heads/main/Scripts/Msdoors/Notification/DOORS-ACHIEVIMENT.mp3"
@@ -491,18 +492,291 @@ local function notifyParadox(opts)
     clone:Destroy()
 end
 
-local function notifyLinoria(opts)
-    if Library and Library.Notify then
+local Library_Active = {}
+local function notifyLibrary(opts)
+    task.spawn(function()
+        local Title = opts.Title or ""
+        local Desc = opts.Description or ""
+        local Time = opts.Time or 5
+        local Icon = opts.Image or ""
+        
         local soundId = resolveSound(opts.Sound, DEFAULT_SOUND)
-        playSound(game.Workspace, soundId, 1)
-        Library:Notify({
-            Title       = opts.Title or "Sem Título",
-            Description = opts.Description or "Sem Descrição",
-            Time        = opts.Time or 5,
+        playSound(getMainUiContainer(), soundId, 1)
+
+        local MainColor = Color3.fromRGB(45, 45, 45)
+        local OutlineColor = Color3.fromRGB(20, 20, 20)
+        local AccentColor = Color3.fromRGB(100, 100, 255)
+        local FontColor = Color3.fromRGB(240, 240, 240)
+        if Library then
+            MainColor = Library.MainColor or MainColor
+            OutlineColor = Library.OutlineColor or OutlineColor
+            AccentColor = Library.AccentColor or AccentColor
+            FontColor = Library.FontColor or FontColor
+        end
+
+        local Text = (Title == "" and "" or "[" .. Title .. "] ") .. Desc
+        local bounds = TextService:GetTextSize(Text, 14, Enum.Font.Code, Vector2.new(300, 1000))
+        local YSize = bounds.Y + 7
+        local XSize = bounds.X
+
+        local container = getMainUiContainer()
+
+        for _, notif in ipairs(Library_Active) do
+            local currY = notif.Position.Y.Offset
+            TweenService:Create(notif, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Position = UDim2.new(1, -10, 1, currY - YSize - 5)
+            }):Play()
+        end
+
+        local NotifyOuter = Instance.new("Frame")
+        NotifyOuter.AnchorPoint = Vector2.new(1, 0)
+        NotifyOuter.Position = UDim2.new(1, -10, 1, -10 + YSize + 5)
+        NotifyOuter.Size = UDim2.new(0, 0, 0, YSize)
+        NotifyOuter.BackgroundTransparency = 1
+        NotifyOuter.ClipsDescendants = true
+        NotifyOuter.ZIndex = 9999
+        NotifyOuter.Parent = container
+        table.insert(Library_Active, NotifyOuter)
+
+        local NotifyInner = Instance.new("Frame")
+        NotifyInner.BackgroundColor3 = MainColor
+        NotifyInner.BorderColor3 = OutlineColor
+        NotifyInner.Size = UDim2.new(1, 0, 1, 0)
+        NotifyInner.ZIndex = 10000
+        NotifyInner.Parent = NotifyOuter
+
+        local InnerFrame = Instance.new("Frame")
+        InnerFrame.BackgroundColor3 = Color3.new(1, 1, 1)
+        InnerFrame.BorderSizePixel = 0
+        InnerFrame.Position = UDim2.new(0, 1, 0, 1)
+        InnerFrame.Size = UDim2.new(1, -2, 1, -2)
+        InnerFrame.ZIndex = 10001
+        InnerFrame.Parent = NotifyInner
+
+        local Gradient = Instance.new("UIGradient")
+        Gradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, MainColor * 0.8),
+            ColorSequenceKeypoint.new(1, MainColor),
         })
-    else
-        warn("Library não encontrada.")
-    end
+        Gradient.Rotation = -90
+        Gradient.Parent = InnerFrame
+
+        local ExtraWidth = 0
+        local IconLabel
+        if Icon ~= "" then
+            ExtraWidth = 20
+            IconLabel = Instance.new("ImageLabel")
+            IconLabel.BackgroundTransparency = 1
+            IconLabel.AnchorPoint = Vector2.new(0, 0.5)
+            IconLabel.Position = UDim2.new(0, 4, 0.5, 0)
+            IconLabel.Size = UDim2.fromOffset(14, 14)
+            IconLabel.Image = resolveImage(Icon)
+            IconLabel.ImageColor3 = FontColor
+            IconLabel.ZIndex = 10003
+            IconLabel.Parent = InnerFrame
+        end
+
+        local NotifyLabel = Instance.new("TextLabel")
+        NotifyLabel.AnchorPoint = Vector2.new(1, 0)
+        NotifyLabel.Position = UDim2.new(1, -4, 0, 0)
+        NotifyLabel.Size = UDim2.new(1, -8 - ExtraWidth, 1, 0)
+        NotifyLabel.BackgroundTransparency = 1
+        NotifyLabel.Text = Text
+        NotifyLabel.TextColor3 = FontColor
+        NotifyLabel.Font = Enum.Font.Code
+        NotifyLabel.TextSize = 14
+        NotifyLabel.TextXAlignment = Enum.TextXAlignment.Right
+        NotifyLabel.TextYAlignment = Enum.TextYAlignment.Center
+        NotifyLabel.RichText = true
+        NotifyLabel.ZIndex = 10002
+        NotifyLabel.Parent = InnerFrame
+
+        local SideColor = Instance.new("Frame")
+        SideColor.AnchorPoint = Vector2.new(1, 0)
+        SideColor.Position = UDim2.new(1, 0, 0, 0)
+        SideColor.BackgroundColor3 = AccentColor
+        SideColor.BorderSizePixel = 0
+        SideColor.Size = UDim2.new(0, 3, 1, 0)
+        SideColor.ZIndex = 10004
+        SideColor.Parent = NotifyOuter
+
+        TweenService:Create(NotifyOuter, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Position = UDim2.new(1, -10, 1, -10 - YSize)
+        }):Play()
+        NotifyOuter:TweenSize(UDim2.new(0, XSize + 8 + ExtraWidth, 0, YSize), "Out", "Quad", 0.4, true)
+
+        task.wait(Time)
+        NotifyOuter:TweenSize(UDim2.new(0, 0, 0, YSize), "Out", "Quad", 0.4, true)
+        task.wait(0.4)
+        NotifyOuter:Destroy()
+
+        local index = table.find(Library_Active, NotifyOuter)
+        if index then table.remove(Library_Active, index) end
+
+        for _, notif in ipairs(Library_Active) do
+            local currY = notif.Position.Y.Offset
+            TweenService:Create(notif, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Position = UDim2.new(1, -10, 1, currY + YSize + 5)
+            }):Play()
+        end
+    end)
+end
+
+local Obsidian_Active = {}
+local function notifyObsidian(opts)
+    task.spawn(function()
+        local Title = opts.Title or ""
+        local Desc = opts.Description or ""
+        local Time = opts.Time or 5
+        local Icon = opts.Image or ""
+        local Closable = opts.Closable == true
+        
+        local soundId = resolveSound(opts.Sound, DEFAULT_SOUND)
+        playSound(getMainUiContainer(), soundId, 1)
+
+        local MainColor = Color3.fromRGB(45, 45, 45)
+        local OutlineColor = Color3.fromRGB(20, 20, 20)
+        local AccentColor = Color3.fromRGB(100, 100, 255)
+        local FontColor = Color3.fromRGB(240, 240, 240)
+        if Library then
+            MainColor = Library.MainColor or MainColor
+            OutlineColor = Library.OutlineColor or OutlineColor
+            AccentColor = Library.AccentColor or AccentColor
+            FontColor = Library.FontColor or FontColor
+        end
+
+        local container = getMainUiContainer()
+        local MaxWidth = 300
+        local TitleBounds = TextService:GetTextSize(Title, 15, Enum.Font.GothamMedium, Vector2.new(MaxWidth, 1000))
+        local DescBounds = TextService:GetTextSize(Desc, 14, Enum.Font.GothamMedium, Vector2.new(MaxWidth, 1000))
+        local NotifHeight = 8 + (Title ~= "" and TitleBounds.Y + 4 or 0) + DescBounds.Y + 8
+
+        for _, notif in ipairs(Obsidian_Active) do
+            local currY = notif.Position.Y.Offset
+            TweenService:Create(notif, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Position = UDim2.new(1, -10, 1, currY - NotifHeight - 8)
+            }):Play()
+        end
+
+        local FakeBackground = Instance.new("Frame")
+        FakeBackground.AnchorPoint = Vector2.new(1, 0)
+        FakeBackground.AutomaticSize = Enum.AutomaticSize.Y
+        FakeBackground.Position = UDim2.new(1, -10, 1, -10 + NotifHeight + 8)
+        FakeBackground.Size = UDim2.new(0, 0, 0, 0)
+        FakeBackground.BackgroundTransparency = 1
+        FakeBackground.ZIndex = 9999
+        FakeBackground.Parent = container
+        table.insert(Obsidian_Active, FakeBackground)
+
+        local Holder = Instance.new("Frame")
+        Holder.AutomaticSize = Enum.AutomaticSize.Y
+        Holder.BackgroundColor3 = MainColor
+        Holder.Position = UDim2.new(1, 8, 0, 0)
+        Holder.Size = UDim2.new(0, 0, 0, 0)
+        Holder.ZIndex = 10000
+        Holder.Parent = FakeBackground
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 6)
+        corner.Parent = Holder
+        local stroke = Instance.new("UIStroke")
+        stroke.Color = OutlineColor
+        stroke.Parent = Holder
+
+        local ContentHolder = Instance.new("Frame")
+        ContentHolder.AutomaticSize = Enum.AutomaticSize.Y
+        ContentHolder.BackgroundTransparency = 1
+        ContentHolder.Size = UDim2.new(1, 0, 0, 0)
+        ContentHolder.Parent = Holder
+        local cl = Instance.new("UIListLayout")
+        cl.Padding = UDim.new(0, 4)
+        cl.Parent = ContentHolder
+        local pad = Instance.new("UIPadding")
+        pad.PaddingBottom = UDim.new(0, 8)
+        pad.PaddingLeft = UDim.new(0, 8)
+        pad.PaddingRight = UDim.new(0, 8)
+        pad.PaddingTop = UDim.new(0, 8)
+        pad.Parent = ContentHolder
+
+        local ContentWidth = math.max(TitleBounds.X, DescBounds.X)
+
+        local TextContainer = Instance.new("Frame")
+        TextContainer.AutomaticSize = Enum.AutomaticSize.Y
+        TextContainer.BackgroundTransparency = 1
+        TextContainer.Size = UDim2.new(0, ContentWidth, 0, 0)
+        TextContainer.Parent = ContentHolder
+        local tcl = Instance.new("UIListLayout")
+        tcl.Padding = UDim.new(0, 4)
+        tcl.Parent = TextContainer
+
+        if Title ~= "" then
+            local TitleLbl = Instance.new("TextLabel")
+            TitleLbl.BackgroundTransparency = 1
+            TitleLbl.Size = UDim2.new(0, TitleBounds.X, 0, TitleBounds.Y)
+            TitleLbl.Text = Title
+            TitleLbl.TextColor3 = FontColor
+            TitleLbl.Font = Enum.Font.GothamMedium
+            TitleLbl.TextSize = 15
+            TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+            TitleLbl.Parent = TextContainer
+        end
+
+        if Desc ~= "" then
+            local DescLbl = Instance.new("TextLabel")
+            DescLbl.BackgroundTransparency = 1
+            DescLbl.Size = UDim2.new(0, DescBounds.X, 0, DescBounds.Y)
+            DescLbl.Text = Desc
+            DescLbl.TextColor3 = FontColor
+            DescLbl.Font = Enum.Font.GothamMedium
+            DescLbl.TextSize = 14
+            DescLbl.TextXAlignment = Enum.TextXAlignment.Left
+            DescLbl.TextWrapped = true
+            DescLbl.Parent = TextContainer
+        end
+
+        local TimerHolder = Instance.new("Frame")
+        TimerHolder.BackgroundTransparency = 1
+        TimerHolder.Size = UDim2.new(1, 0, 0, 6)
+        TimerHolder.Parent = ContentHolder
+        local TimerBar = Instance.new("Frame")
+        TimerBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        TimerBar.Position = UDim2.new(0, 0, 0, 2)
+        TimerBar.Size = UDim2.new(1, 0, 0, 2)
+        TimerBar.Parent = TimerHolder
+        local TimerFill = Instance.new("Frame")
+        TimerFill.BackgroundColor3 = AccentColor
+        TimerFill.Size = UDim2.new(1, 0, 1, 0)
+        TimerFill.Parent = TimerBar
+
+        local TargetWidth = ContentWidth + 16
+        FakeBackground.Size = UDim2.new(0, TargetWidth, 0, 0)
+
+        TweenService:Create(Holder, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0, 0, 0, 0)
+        }):Play()
+
+        task.wait(0.1)
+        TweenService:Create(TimerFill, TweenInfo.new(Time, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut), {
+            Size = UDim2.new(0, 0, 1, 0)
+        }):Play()
+
+        task.wait(Time)
+
+        TweenService:Create(Holder, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Position = UDim2.new(1, 8, 0, 0)
+        }):Play()
+        task.wait(0.4)
+
+        FakeBackground:Destroy()
+        local index = table.find(Obsidian_Active, FakeBackground)
+        if index then table.remove(Obsidian_Active, index) end
+
+        for _, notif in ipairs(Obsidian_Active) do
+            local currY = notif.Position.Y.Offset
+            TweenService:Create(notif, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Position = UDim2.new(1, -10, 1, currY + NotifHeight + 8)
+            }):Play()
+        end
+    end)
 end
 
 local function notifyDoors(opts)
@@ -914,7 +1188,7 @@ local function mp_tweenIn(obj, cache)
         if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = data.StrokeTransparency or 0 }):Play() end
     elseif obj:IsA("TextLabel") or obj:IsA("TextButton") then
         TweenService:Create(obj, ti, { TextTransparency = data.TextTransparency or 0, BackgroundTransparency = data.BackgroundTransparency or 1 }):Play()
-        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = data.StrokeTransparency or 0 }):Play() end
+        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = data.StrokeTransparency or 0}):Play() end
     elseif obj:IsA("Frame") or obj:IsA("ScrollingFrame") or obj:IsA("ViewportFrame") then
         TweenService:Create(obj, ti, { BackgroundTransparency = data.BackgroundTransparency or 0 }):Play()
         if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = data.StrokeTransparency or 0 }):Play() end
@@ -1123,8 +1397,6 @@ local function MakeElement(class, ...)
         local corner = Instance.new("UICorner")
         corner.CornerRadius = UDim.new(0, radius)
         corner.Parent = obj
-    elseif class == "List" then
-        obj = Instance.new("UIListLayout")
     elseif class == "Image" then
         local img = ...
         obj = Instance.new("ImageLabel")
@@ -1177,18 +1449,7 @@ if not Orion then
     Orion.Parent = getMainUiContainer()
 end
 
-local OrionLayout = SetProps(MakeElement("List"), {
-    HorizontalAlignment = Enum.HorizontalAlignment.Center,
-    SortOrder = Enum.SortOrder.LayoutOrder,
-    VerticalAlignment = Enum.VerticalAlignment.Bottom,
-    Padding = UDim.new(0, 5)
-})
-OrionLayout.Enabled = false
-OrionLayout.Parent = Orion
-
-local NotificationHolder = SetProps(SetChildren(MakeElement("TFrame"), {
-    OrionLayout
-}), {
+local NotificationHolder = SetProps(MakeElement("TFrame"), {
     Position = UDim2.new(1, -25, 1, -25),
     Size = UDim2.new(0, 300, 1, -25),
     AnchorPoint = Vector2.new(1, 1),
@@ -1512,9 +1773,9 @@ local function notifySTX(opts)
 end
 
 local STYLES = {
-    Linoria  = notifyLinoria,
-    Obsidian = notifyLinoria,
-    Obsdian  = notifyLinoria,
+    Library  = notifyLibrary,
+    Linoria  = notifyLibrary,
+    Obsidian = notifyObsidian,
     Doors    = notifyDoors,
     msdoors  = function(opts)
         initMsdoorsUI()
@@ -1550,7 +1811,7 @@ end
 
 local function callNotify(style, opts)
     if type(style) == "table" and opts == nil then
-        local s = style.NotifyStyle or "Linoria"
+        local s = style.NotifyStyle or "Library"
         NOTIFY(s, style)
     else
         NOTIFY(style, opts or {})
