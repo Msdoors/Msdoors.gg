@@ -1815,6 +1815,8 @@ local STYLES = {
     STX      = notifySTX,
 }
 
+local DEFAULT_STYLE = "Library"
+
 local function normalizeOpts(opts)
     opts.Time   = opts.Time or opts.Duration
     opts.Reason = opts.Reason or opts.Action
@@ -1824,20 +1826,15 @@ end
 
 local function NOTIFY(style, opts)
     opts = normalizeOpts(opts or {})
-    local handler = STYLES[style]
-    if handler then
-        handler(opts)
-    else
-        warn("Estilo de notificação inválido: " .. tostring(style))
-    end
+    local handler = STYLES[style] or STYLES[DEFAULT_STYLE]
+    handler(opts)
 end
 
 local function callNotify(style, opts)
     if type(style) == "table" and opts == nil then
-        local s = style.NotifyStyle or "Library"
-        NOTIFY(s, style)
+        NOTIFY(style.NotifyStyle or DEFAULT_STYLE, style)
     else
-        NOTIFY(style, opts or {})
+        NOTIFY(style or DEFAULT_STYLE, opts or {})
     end
 end
 
