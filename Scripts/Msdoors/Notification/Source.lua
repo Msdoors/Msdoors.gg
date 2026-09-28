@@ -7,7 +7,7 @@ local TextService = game:GetService("TextService")
 local DEFAULT_SOUND = "rbxassetid://4590657391"
 local MSDOORS_SOUND_URL = "https://github.com/Msdoors/Msdoors.gg/raw/refs/heads/main/Scripts/Msdoors/Notification/DOORS-ACHIEVIMENT.mp3"
 local MSDOORS_SOUND_PATH = "msdoors/DOORS-ACHIEVEMENT.mp3"
-local PARADOX_SOUND_URL = "https://github.com/Msdoors/Msdoors.gg/raw/refs/heads/main/Scripts/Msdoors/Notification/PARADOX-ACHIEVIMENT.ogg"
+local PARADOX_SOUND_URL = "https://github.com/Msdoors/Msdoors.gg/raw/refs/heads/main/Scripts/Msdoors/Notification/PARADOX-ACHIEVEMENT.ogg"
 local PARADOX_SOUND_PATH = "msdoors/PARADOX-ACHIEVEMENT.ogg"
 local ABYSSAL_DEFAULT_SOUND = "rbxassetid://8784885431"
 
@@ -22,14 +22,14 @@ local AbyssalState = {
 }
 
 local function getMainUiContainer()
-    local cg = (gethui and gethui()) or game:GetService("CoreGui")
-    local main = cg:FindFirstChild("msdoors")
+    local pg = Players.LocalPlayer:WaitForChild("PlayerGui")
+    local main = pg:FindFirstChild("msdoors")
     if not main then
         main = Instance.new("ScreenGui")
         main.Name = "msdoors"
         main.ResetOnSpawn = false
         main.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-        main.Parent = cg
+        main.Parent = pg
     end
     return main
 end
@@ -411,7 +411,7 @@ local function paradox_tweenIn(obj)
         if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = data.StrokeTransparency or 0 }):Play() end
     elseif obj:IsA("TextLabel") or obj:IsA("TextButton") then
         TweenService:Create(obj, ti, { TextTransparency = data.TextTransparency or 0, BackgroundTransparency = data.BackgroundTransparency or 1 }):Play()
-        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = data.StrokeTransparency or 0 }):Play() end
+        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = data.StrokeTransparency or 0}):Play() end
     elseif obj:IsA("Frame") or obj:IsA("ScrollingFrame") or obj:IsA("ViewportFrame") then
         TweenService:Create(obj, ti, { BackgroundTransparency = data.BackgroundTransparency or 0 }):Play()
         if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = data.StrokeTransparency or 0 }):Play() end
@@ -557,7 +557,7 @@ local function notifyLinoria(opts)
 
         local NotifyOuter = Instance.new("Frame")
         NotifyOuter.AnchorPoint = Vector2.new(1, 0)
-        NotifyOuter.Position = UDim2.new(1, -10, 1, -10 + YSize + 5)
+        NotifyOuter.Position = UDim2.new(1, 10, 1, -10 - YSize)
         NotifyOuter.Size = UDim2.new(0, 0, 0, YSize)
         NotifyOuter.BackgroundTransparency = 1
         NotifyOuter.ClipsDescendants = true
@@ -633,6 +633,9 @@ local function notifyLinoria(opts)
         NotifyOuter:TweenSize(UDim2.new(0, XSize + 8 + ExtraWidth, 0, YSize), "Out", "Quad", 0.4, true)
 
         task.wait(Time)
+        TweenService:Create(NotifyOuter, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Position = UDim2.new(1, 10, 1, -10 - YSize)
+        }):Play()
         NotifyOuter:TweenSize(UDim2.new(0, 0, 0, YSize), "Out", "Quad", 0.4, true)
         task.wait(0.4)
         NotifyOuter:Destroy()
@@ -688,7 +691,7 @@ local function notifyObsidian(opts)
         local FakeBackground = Instance.new("Frame")
         FakeBackground.AnchorPoint = Vector2.new(1, 0)
         FakeBackground.AutomaticSize = Enum.AutomaticSize.Y
-        FakeBackground.Position = UDim2.new(1, -10, 1, -10 + NotifHeight + 8)
+        FakeBackground.Position = UDim2.new(1, 10, 1, -10 - NotifHeight)
         FakeBackground.Size = UDim2.new(0, 0, 0, 0)
         FakeBackground.BackgroundTransparency = 1
         FakeBackground.ZIndex = 9999
@@ -698,7 +701,7 @@ local function notifyObsidian(opts)
         local Holder = Instance.new("Frame")
         Holder.AutomaticSize = Enum.AutomaticSize.Y
         Holder.BackgroundColor3 = MainColor
-        Holder.Position = UDim2.new(1, 8, 0, 0)
+        Holder.Position = UDim2.new(1, 20, 0, 0)
         Holder.Size = UDim2.new(0, 0, 0, 0)
         Holder.ZIndex = 10000
         Holder.Parent = FakeBackground
@@ -789,7 +792,7 @@ local function notifyObsidian(opts)
         task.wait(Time)
 
         TweenService:Create(Holder, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            Position = UDim2.new(1, 8, 0, 0)
+            Position = UDim2.new(1, 20, 0, 0)
         }):Play()
         task.wait(0.4)
 
@@ -1537,7 +1540,7 @@ local function notifyOrion(opts)
             })
         })
 
-        task.wait(0.1)
+        task.wait(0.2)
         local notifHeight = NotificationParent.AbsoluteSize.Y
         local holderHeight = NotificationHolder.AbsoluteSize.Y
         local baseYOffset = holderHeight - notifHeight
