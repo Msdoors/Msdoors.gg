@@ -133,6 +133,8 @@ safe("gethiddenproperty", gethiddenproperty)
 safe("saveinstance", saveinstance)
 safe("getconnections", getconnections)
 safe("firesignal", firesignal)
+safe("replicatesignal", replicatesignal)
+safe("firetouchinterest", firetouchinterest)
 
 safe("fireclickdetector", fireclickdetector)
 safe("mouse1click", mouse1click)
