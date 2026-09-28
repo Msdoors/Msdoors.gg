@@ -7,7 +7,7 @@ local TextService = game:GetService("TextService")
 local DEFAULT_SOUND = "rbxassetid://4590657391"
 local MSDOORS_SOUND_URL = "https://github.com/Msdoors/Msdoors.gg/raw/refs/heads/main/Scripts/Msdoors/Notification/DOORS-ACHIEVIMENT.mp3"
 local MSDOORS_SOUND_PATH = "msdoors/DOORS-ACHIEVEMENT.mp3"
-local PARADOX_SOUND_URL = "https://github.com/Msdoors/Msdoors.gg/raw/refs/heads/main/Scripts/Msdoors/Notification/PARADOX-ACHIEVEMENT.ogg"
+local PARADOX_SOUND_URL = "https://github.com/Msdoors/Msdoors.gg/raw/refs/heads/main/Scripts/Msdoors/Notification/PARADOX-ACHIEVIMENT.ogg"
 local PARADOX_SOUND_PATH = "msdoors/PARADOX-ACHIEVEMENT.ogg"
 local ABYSSAL_DEFAULT_SOUND = "rbxassetid://8784885431"
 
