@@ -8,7 +8,7 @@ local DEFAULT_SOUND = "rbxassetid://4590657391"
 local MSDOORS_SOUND_URL = "https://github.com/Msdoors/Msdoors.gg/raw/refs/heads/main/Scripts/Msdoors/Notification/DOORS-ACHIEVIMENT.mp3"
 local MSDOORS_SOUND_PATH = "msdoors/DOORS-ACHIEVEMENT.mp3"
 local PARADOX_SOUND_URL = "https://github.com/Msdoors/Msdoors.gg/raw/refs/heads/main/Scripts/Msdoors/Notification/PARADOX-ACHIEVIMENT.ogg"
-local PARADOX_SOUND_PATH = "msdoors/PARADOX-ACHIEVEMENT.ogg"
+local PARADOX_SOUND_PATH = "msdoors/PARADOX-ACHIEVIMENT.ogg"
 local ABYSSAL_DEFAULT_SOUND = "rbxassetid://8784885431"
 
 shared.ACHIDATA = shared.ACHIDATA or { template = nil, gui = nil, queue = {}, processing = false, defaultSound = nil }
@@ -408,10 +408,10 @@ local function paradox_tweenIn(obj)
     local ti = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     if obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
         TweenService:Create(obj, ti, { ImageTransparency = data.ImageTransparency or 0 }):Play()
-        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = data.StrokeTransparency or 0 }):Play() end
+        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = data.StrokeTransparency or 0}):Play() end
     elseif obj:IsA("TextLabel") or obj:IsA("TextButton") then
         TweenService:Create(obj, ti, { TextTransparency = data.TextTransparency or 0, BackgroundTransparency = data.BackgroundTransparency or 1 }):Play()
-        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = data.StrokeTransparency or 0}):Play() end
+        if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = data.StrokeTransparency or 0 }):Play() end
     elseif obj:IsA("Frame") or obj:IsA("ScrollingFrame") or obj:IsA("ViewportFrame") then
         TweenService:Create(obj, ti, { BackgroundTransparency = data.BackgroundTransparency or 0 }):Play()
         if obj:FindFirstChildOfClass("UIStroke") then TweenService:Create(obj.UIStroke, ti, { Transparency = data.StrokeTransparency or 0 }):Play() end
@@ -504,7 +504,6 @@ local function notifyParadox(opts)
     end)
 end
 
-local Library_Active = {}
 local function notifyLibrary(opts)
     if Library and Library.Notify then
         local soundId = resolveSound(opts.Sound, DEFAULT_SOUND)
@@ -551,19 +550,19 @@ local function notifyLinoria(opts)
         for _, notif in ipairs(Linoria_Active) do
             local currY = notif.Position.Y.Offset
             TweenService:Create(notif, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Position = UDim2.new(1, -10, 1, currY - YSize - 5)
+                Position = UDim2.new(1, -10, 0, currY + YSize + 5)
             }):Play()
         end
 
         local NotifyOuter = Instance.new("Frame")
         NotifyOuter.AnchorPoint = Vector2.new(1, 0)
-        NotifyOuter.Position = UDim2.new(1, 10, 1, -10 - YSize)
+        NotifyOuter.Position = UDim2.new(1, 10, 0, 10)
         NotifyOuter.Size = UDim2.new(0, 0, 0, YSize)
         NotifyOuter.BackgroundTransparency = 1
         NotifyOuter.ClipsDescendants = true
         NotifyOuter.ZIndex = 9999
         NotifyOuter.Parent = container
-        table.insert(Linoria_Active, NotifyOuter)
+        table.insert(Linoria_Active, 1, NotifyOuter)
 
         local NotifyInner = Instance.new("Frame")
         NotifyInner.BackgroundColor3 = MainColor
@@ -628,13 +627,13 @@ local function notifyLinoria(opts)
         SideColor.Parent = NotifyOuter
 
         TweenService:Create(NotifyOuter, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            Position = UDim2.new(1, -10, 1, -10 - YSize)
+            Position = UDim2.new(1, -10, 0, 10)
         }):Play()
         NotifyOuter:TweenSize(UDim2.new(0, XSize + 8 + ExtraWidth, 0, YSize), "Out", "Quad", 0.4, true)
 
         task.wait(Time)
         TweenService:Create(NotifyOuter, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            Position = UDim2.new(1, 10, 1, -10 - YSize)
+            Position = UDim2.new(1, 10, 0, 10)
         }):Play()
         NotifyOuter:TweenSize(UDim2.new(0, 0, 0, YSize), "Out", "Quad", 0.4, true)
         task.wait(0.4)
@@ -646,7 +645,7 @@ local function notifyLinoria(opts)
         for _, notif in ipairs(Linoria_Active) do
             local currY = notif.Position.Y.Offset
             TweenService:Create(notif, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Position = UDim2.new(1, -10, 1, currY + YSize + 5)
+                Position = UDim2.new(1, -10, 0, currY - YSize - 5)
             }):Play()
         end
     end)
@@ -679,30 +678,29 @@ local function notifyObsidian(opts)
         local MaxWidth = 300
         local TitleBounds = TextService:GetTextSize(Title, 15, Enum.Font.GothamMedium, Vector2.new(MaxWidth, 1000))
         local DescBounds = TextService:GetTextSize(Desc, 14, Enum.Font.GothamMedium, Vector2.new(MaxWidth, 1000))
-        local NotifHeight = 8 + (Title ~= "" and TitleBounds.Y + 4 or 0) + DescBounds.Y + 8
+        local NotifHeight = 8 + (Title ~= "" and TitleBounds.Y + 4 or 0) + DescBounds.Y + 8 + 4
 
         for _, notif in ipairs(Obsidian_Active) do
             local currY = notif.Position.Y.Offset
             TweenService:Create(notif, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Position = UDim2.new(1, -10, 1, currY - NotifHeight - 8)
+                Position = UDim2.new(1, -10, 0, currY + NotifHeight + 8)
             }):Play()
         end
 
         local FakeBackground = Instance.new("Frame")
         FakeBackground.AnchorPoint = Vector2.new(1, 0)
         FakeBackground.AutomaticSize = Enum.AutomaticSize.Y
-        FakeBackground.Position = UDim2.new(1, 10, 1, -10 - NotifHeight)
+        FakeBackground.Position = UDim2.new(1, 10, 0, 10)
         FakeBackground.Size = UDim2.new(0, 0, 0, 0)
         FakeBackground.BackgroundTransparency = 1
         FakeBackground.ZIndex = 9999
         FakeBackground.Parent = container
-        table.insert(Obsidian_Active, FakeBackground)
+        table.insert(Obsidian_Active, 1, FakeBackground)
 
         local Holder = Instance.new("Frame")
         Holder.AutomaticSize = Enum.AutomaticSize.Y
         Holder.BackgroundColor3 = MainColor
-        Holder.Position = UDim2.new(1, 20, 0, 0)
-        Holder.Size = UDim2.new(0, 0, 0, 0)
+        Holder.Size = UDim2.new(1, 0, 0, 0)
         Holder.ZIndex = 10000
         Holder.Parent = FakeBackground
         local corner = Instance.new("UICorner")
@@ -765,23 +763,25 @@ local function notifyObsidian(opts)
 
         local TimerHolder = Instance.new("Frame")
         TimerHolder.BackgroundTransparency = 1
-        TimerHolder.Size = UDim2.new(1, 0, 0, 6)
+        TimerHolder.Size = UDim2.new(1, 0, 0, 4)
         TimerHolder.Parent = ContentHolder
         local TimerBar = Instance.new("Frame")
-        TimerBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        TimerBar.Position = UDim2.new(0, 0, 0, 2)
+        TimerBar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        TimerBar.BorderSizePixel = 0
+        TimerBar.Position = UDim2.new(0, 0, 0, 1)
         TimerBar.Size = UDim2.new(1, 0, 0, 2)
         TimerBar.Parent = TimerHolder
         local TimerFill = Instance.new("Frame")
         TimerFill.BackgroundColor3 = AccentColor
+        TimerFill.BorderSizePixel = 0
         TimerFill.Size = UDim2.new(1, 0, 1, 0)
         TimerFill.Parent = TimerBar
 
         local TargetWidth = ContentWidth + 16
         FakeBackground.Size = UDim2.new(0, TargetWidth, 0, 0)
 
-        TweenService:Create(Holder, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            Position = UDim2.new(0, 0, 0, 0)
+        TweenService:Create(FakeBackground, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Position = UDim2.new(1, -10, 0, 10)
         }):Play()
 
         task.wait(0.1)
@@ -791,8 +791,8 @@ local function notifyObsidian(opts)
 
         task.wait(Time)
 
-        TweenService:Create(Holder, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            Position = UDim2.new(1, 20, 0, 0)
+        TweenService:Create(FakeBackground, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Position = UDim2.new(1, 20, 0, 10)
         }):Play()
         task.wait(0.4)
 
@@ -803,7 +803,7 @@ local function notifyObsidian(opts)
         for _, notif in ipairs(Obsidian_Active) do
             local currY = notif.Position.Y.Offset
             TweenService:Create(notif, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Position = UDim2.new(1, -10, 1, currY + NotifHeight + 8)
+                Position = UDim2.new(1, -10, 0, currY - NotifHeight - 8)
             }):Play()
         end
     end)
@@ -1552,7 +1552,7 @@ local function notifyOrion(opts)
             }):Play()
         end
 
-        table.insert(Orion_Active, NotificationParent)
+        table.insert(Orion_Active, 1, NotificationParent)
 
         NotificationParent.Position = UDim2.new(0, 0, 0, baseYOffset)
 
