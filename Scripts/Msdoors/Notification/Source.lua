@@ -1177,19 +1177,25 @@ if not Orion then
     Orion.Parent = getMainUiContainer()
 end
 
+local OrionLayout = SetProps(MakeElement("List"), {
+    HorizontalAlignment = Enum.HorizontalAlignment.Center,
+    SortOrder = Enum.SortOrder.LayoutOrder,
+    VerticalAlignment = Enum.VerticalAlignment.Bottom,
+    Padding = UDim.new(0, 5)
+})
+OrionLayout.Enabled = false
+OrionLayout.Parent = Orion
+
 local NotificationHolder = SetProps(SetChildren(MakeElement("TFrame"), {
-    SetProps(MakeElement("List"), {
-        HorizontalAlignment = Enum.HorizontalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        VerticalAlignment = Enum.VerticalAlignment.Bottom,
-        Padding = UDim.new(0, 5)
-    })
+    OrionLayout
 }), {
     Position = UDim2.new(1, -25, 1, -25),
     Size = UDim2.new(0, 300, 1, -25),
     AnchorPoint = Vector2.new(1, 1),
     Parent = Orion
 })
+
+local Orion_Active = {}
 
 local function notifyOrion(opts)
     task.spawn(function()
@@ -1244,13 +1250,35 @@ local function notifyOrion(opts)
             })
         })
 
+        task.wait()
+        local notifHeight = NotificationParent.AbsoluteSize.Y
+        local holderHeight = NotificationHolder.AbsoluteSize.Y
+        local baseYOffset = holderHeight - notifHeight
+
+        for _, notif in ipairs(Orion_Active) do
+            local currY = notif.Position.Y.Offset
+            TweenService:Create(notif, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                Position = UDim2.new(0, 0, 0, currY - notifHeight - 5)
+            }):Play()
+        end
+
+        table.insert(Orion_Active, NotificationParent)
+
+        NotificationParent.Position = UDim2.new(0, 0, 0, baseYOffset + notifHeight + 5)
+
+        TweenService:Create(NotificationParent, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0, 0, 0, baseYOffset)
+        }):Play()
+
         TweenService:Create(NotificationFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {Position = UDim2.new(0, 0, 0, 0)}):Play()
 
         task.wait(NotificationConfig.Time - 0.88)
         TweenService:Create(NotificationFrame.Icon, TweenInfo.new(0.4, Enum.EasingStyle.Quint), {ImageTransparency = 1}):Play()
         TweenService:Create(NotificationFrame, TweenInfo.new(0.8, Enum.EasingStyle.Quint), {BackgroundTransparency = 0.6}):Play()
         task.wait(0.3)
-        TweenService:Create(NotificationFrame.UIStroke, TweenInfo.new(0.6, Enum.EasingStyle.Quint), {Transparency = 0.9}):Play()
+        if NotificationFrame:FindFirstChild("UIStroke") then
+            TweenService:Create(NotificationFrame.UIStroke, TweenInfo.new(0.6, Enum.EasingStyle.Quint), {Transparency = 0.9}):Play()
+        end
         TweenService:Create(NotificationFrame.Title, TweenInfo.new(0.6, Enum.EasingStyle.Quint), {TextTransparency = 0.4}):Play()
         TweenService:Create(NotificationFrame.Content, TweenInfo.new(0.6, Enum.EasingStyle.Quint), {TextTransparency = 0.5}):Play()
         task.wait(0.05)
@@ -1258,7 +1286,36 @@ local function notifyOrion(opts)
         NotificationFrame:TweenPosition(UDim2.new(1, 20, 0, 0),'In','Quint',0.8,true)
         task.wait(1.35)
         NotificationFrame:Destroy()
+        NotificationParent:Destroy()
+
+        local index = table.find(Orion_Active, NotificationParent)
+        if index then table.remove(Orion_Active, index) end
+
+        for _, notif in ipairs(Orion_Active) do
+            local currY = notif.Position.Y.Offset
+            TweenService:Create(notif, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                Position = UDim2.new(0, 0, 0, currY + notifHeight + 5)
+            }):Play()
+        end
     end)
+end
+
+local STX_Active = {}
+
+local function destroySTX(ambientShadow, height)
+    local index = table.find(STX_Active, ambientShadow)
+    if index then table.remove(STX_Active, index) end
+
+    ambientShadow:TweenSize(UDim2.new(0, 0, 0, 0), "Out", "Linear", 0.2)
+    task.wait(0.2)
+    ambientShadow:Destroy()
+
+    for _, notif in ipairs(STX_Active) do
+        local currYOffset = notif.Position.Y.Offset
+        TweenService:Create(notif, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+            Position = UDim2.new(notif.Position.X.Scale, notif.Position.X.Offset, notif.Position.Y.Scale, currYOffset + height + 10)
+        }):Play()
+    end
 end
 
 local function notifySTX(opts)
@@ -1345,18 +1402,31 @@ local function notifySTX(opts)
     WindowDescription.TextXAlignment = Enum.TextXAlignment.Left
     WindowDescription.TextYAlignment = Enum.TextYAlignment.Top
 
+    local height = 90
+    if middledebug.Type == "option" then height = 110 end
+
+    for _, notif in ipairs(STX_Active) do
+        local currYOffset = notif.Position.Y.Offset
+        TweenService:Create(notif, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+            Position = UDim2.new(notif.Position.X.Scale, notif.Position.X.Offset, notif.Position.Y.Scale, currYOffset - height - 10)
+        }):Play()
+    end
+
+    table.insert(STX_Active, ambientShadow)
+
+    ambientShadow.Position = UDim2.new(0.91525954, 0, 0.936809778, height + 10)
+
+    TweenService:Create(ambientShadow, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0.91525954, 0, 0.936809778, 0)
+    }):Play()
+
     if middledebug.Type == "default" then
         task.spawn(function()
             ambientShadow:TweenSize(UDim2.new(0, 240, 0, 90), "Out", "Linear", 0.2)
             Window.Size = UDim2.new(0, 230, 0, 80)
             Outline_A:TweenSize(UDim2.new(0, 0, 0, 2), "Out", "Linear", middledebug.Time)
-
             task.wait(middledebug.Time)
-
-            ambientShadow:TweenSize(UDim2.new(0, 0, 0, 0), "Out", "Linear", 0.2)
-
-            task.wait(0.2)
-            ambientShadow:Destroy()
+            destroySTX(ambientShadow, 90)
         end)
     elseif middledebug.Type == "image" then
         ambientShadow:TweenSize(UDim2.new(0, 240, 0, 90), "Out", "Linear", 0.2)
@@ -1376,13 +1446,8 @@ local function notifySTX(opts)
 
         task.spawn(function()
             Outline_A:TweenSize(UDim2.new(0, 0, 0, 2), "Out", "Linear", middledebug.Time)
-
             task.wait(middledebug.Time)
-
-            ambientShadow:TweenSize(UDim2.new(0, 0, 0, 0), "Out", "Linear", 0.2)
-
-            task.wait(0.2)
-            ambientShadow:Destroy()
+            destroySTX(ambientShadow, 90)
         end)
     elseif middledebug.Type == "option" then
         ambientShadow:TweenSize(UDim2.new(0, 240, 0, 110), "Out", "Linear", 0.2)
@@ -1420,21 +1485,17 @@ local function notifySTX(opts)
                 pcall(function()
                     all.Callback(false)
                 end)
-                ambientShadow:TweenSize(UDim2.new(0, 0, 0, 0), "Out", "Linear", 0.2)
-
-                task.wait(0.2)
-                ambientShadow:Destroy()
+                if not Stilthere then return end
                 Stilthere = false
+                destroySTX(ambientShadow, 110)
             end
             local function Checked()
                 pcall(function()
                     all.Callback(true)
                 end)
-                ambientShadow:TweenSize(UDim2.new(0, 0, 0, 0), "Out", "Linear", 0.2)
-
-                task.wait(0.2)
-                ambientShadow:Destroy()
+                if not Stilthere then return end
                 Stilthere = false
+                destroySTX(ambientShadow, 110)
             end
             Uncheck.MouseButton1Click:Connect(Unchecked)
             Check.MouseButton1Click:Connect(Checked)
@@ -1444,10 +1505,7 @@ local function notifySTX(opts)
             task.wait(middledebug.Time)
 
             if Stilthere == true then
-                ambientShadow:TweenSize(UDim2.new(0, 0, 0, 0), "Out", "Linear", 0.2)
-
-                task.wait(0.2)
-                ambientShadow:Destroy()
+                destroySTX(ambientShadow, 110)
             end
         end)
     end
