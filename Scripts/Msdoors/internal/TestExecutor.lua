@@ -1,3 +1,5 @@
+-- Based on: https://github.com/mspaint-cc/mspaint/blob/main/Src/Utils/ExecutorSupport.luau
+
 if shared.testexecutor then
     return shared.testexecutor
 end
@@ -61,44 +63,49 @@ local broken = {
 }
 
 local function getGlobal(n)
-    return getgenv()[n] or getfenv(0)[n]
+    local g = getgenv()
+    if g and typeof(g[n]) == "function" then return g[n] end
+    local f = getfenv(0)
+    if f and typeof(f[n]) == "function" then return f[n] end
+    return nil
 end
 
-local function test(n, f, cb)
+local function test(n, f)
     if not isRequired(n) then return false end
-    if broken[name] and broken[name][n] then return false end
-
-    local success, err = false, nil
-    if cb ~= false then
-        success, err = pcall(f)
-    else
-        success = typeof(getGlobal(n)) == "function"
-    end
-
-    if not success then
-        table.insert(errors, "[" .. n .. "] " .. (err and tostring(err) or "FAILED"))
-    end
-
-    exec[n] = success
-    shared.testexecutor[n] = success
-    return success
-end
-
-local function safe(n, f)
     if broken[name] and broken[name][n] then 
         exec[n] = false
         shared.testexecutor[n] = false
         table.insert(errors, "[" .. n .. "] skipped: known broken feature")
-        return 
+        return false 
     end
 
+    local func = getGlobal(n)
+    if not func then
+        exec[n] = false
+        shared.testexecutor[n] = false
+        table.insert(errors, "[" .. n .. "] FUNCTION NOT AVAILABLE")
+        return false
+    end
+
+    local success, err = pcall(f)
+    if not success then
+        exec[n] = false
+        shared.testexecutor[n] = false
+        table.insert(errors, "[" .. n .. "] " .. (err and tostring(err) or "FAILED"))
+        return false
+    end
+
+    exec[n] = true
+    shared.testexecutor[n] = true
+    return true
+end
+
+local function safe(n, f)
+    if not isRequired(n) then return end
+    
     if getGlobal(n) then
-        if isRequired(n) then
-            test(n, f, false)
-        else
-            exec[n] = true
-            shared.testexecutor[n] = true
-        end
+        exec[n] = true
+        shared.testexecutor[n] = true
     else
         exec[n] = false
         shared.testexecutor[n] = false
@@ -106,180 +113,97 @@ local function safe(n, f)
     end
 end
 
-safe("readfile", readfile)
-safe("listfiles", listfiles)
-safe("writefile", writefile)
-safe("makefolder", makefolder)
-safe("appendfile", appendfile)
-safe("isfile", isfile)
-safe("isfolder", isfolder)
-safe("delfile", delfile)
-safe("delfolder", delfolder)
-safe("loadfile", loadfile)
-
-safe("getrenv", getrenv)
-safe("getgenv", getgenv)
-safe("getsenv", getsenv)
-safe("getfenv", getfenv)
-safe("getrawmetatable", getrawmetatable)
-safe("setrawmetatable", setrawmetatable)
-safe("setreadonly", setreadonly)
-safe("getnamecallmethod", getnamecallmethod)
-safe("setclipboard", setclipboard)
-safe("getcustomasset", getcustomasset)
-safe("getsynasset", getsynasset)
-safe("isluau", isluau)
-safe("checkcaller", checkcaller)
-
-safe("request", request)
-safe("http_request", http_request)
-safe("httprequest", httprequest)
-
-safe("queue_on_teleport", queue_on_teleport)
-safe("getcallingscript", getcallingscript)
-safe("gethui", gethui)
-safe("getgc", getgc)
-safe("getinstances", getinstances)
-safe("getnilinstances", getnilinstances)
-safe("sethiddenproperty", sethiddenproperty)
-safe("gethiddenproperty", gethiddenproperty)
-safe("saveinstance", saveinstance)
-safe("getconnections", getconnections)
-
-if isRequired("firesignal") then
-    if getGlobal("firesignal") then
-        test("firesignal", function()
-            local TestEvent = Instance.new("RemoteEvent")
-            local Fired = false
-            local Connection = TestEvent.OnClientEvent:Connect(function()
-                Fired = true
-            end)
-            firesignal(TestEvent.OnClientEvent, "Example", 10, true)
-            local Tries = 0
-            while not Fired and Tries < 10 do
-                Tries = Tries + 1
-                task.wait(0.1)
-            end
-            Connection:Disconnect()
-            TestEvent:Destroy()
-            assert(Fired == true, "Failed to fire a signal")
-        end)
-    else
-        exec["firesignal"] = false
-        shared.testexecutor.firesignal = false
-        table.insert(errors, "[firesignal] FUNCTION NOT AVAILABLE")
-    end
-end
-
-if isRequired("replicatesignal") then
-    if getGlobal("replicatesignal") then
-        test("replicatesignal", function()
-            local TestButton = Instance.new("Frame")
-            replicatesignal(TestButton.MouseWheelForward, 69, 420)
-            local Success = pcall(function()
-                replicatesignal(TestButton.MouseWheelForward)
-                replicatesignal(TestButton.MouseWheelForward, 69)
-            end)
-            TestButton:Destroy()
-            assert(Success == false, "Did not throw an error with invalid arguments")
-        end)
-    else
-        exec["replicatesignal"] = false
-        shared.testexecutor.replicatesignal = false
-        table.insert(errors, "[replicatesignal] FUNCTION NOT AVAILABLE")
-    end
-end
-
-if isRequired("firetouchinterest") then
-    if getGlobal("firetouchinterest") then
-        test("firetouchinterest", function()
-            local TestPart1 = Instance.new("Part", workspace)
-            TestPart1.Position = Vector3.new(0, 1000, 0)
-            local TestPart2 = Instance.new("Part", workspace)
-            TestPart2.Position = Vector3.new(0, 1000, 0)
-            local Fired = false
-            local Connection = TestPart1.Touched:Connect(function(Child)
-                if Child == TestPart2 then Fired = true end
-            end)
-            firetouchinterest(TestPart1, TestPart2, 0)
-            task.wait()
-            firetouchinterest(TestPart1, TestPart2, 1)
-            local Tries = 0
-            while not Fired and Tries < 10 do
-                Tries = Tries + 1
-                task.wait(0.1)
-            end
-            Connection:Disconnect()
-            TestPart1:Destroy()
-            TestPart2:Destroy()
-            assert(Fired == true, "Failed to fire a touch interest")
-        end)
-    else
-        exec["firetouchinterest"] = false
-        shared.testexecutor.firetouchinterest = false
-        table.insert(errors, "[firetouchinterest] FUNCTION NOT AVAILABLE")
-    end
-end
-
-safe("fireclickdetector", fireclickdetector)
-safe("mouse1click", mouse1click)
-safe("mouse1press", mouse1press)
-safe("mouse1release", mouse1release)
-safe("mouse2click", mouse2click)
-safe("keypress", keypress)
-safe("keyrelease", keyrelease)
-
-if isRequired("require") then
-    if getGlobal("require") then
-        test("require", function()
-            local plr = game:GetService("Players").LocalPlayer
-            local ps = plr:FindFirstChild("PlayerScripts")
-            if ps then
-                local ms = ps:FindFirstChildWhichIsA("ModuleScript", true)
-                if ms then
-                    require(ms)
-                else
-                    error("ModuleScript not found")
-                end
-            else
-                error("PlayerScripts not found")
-            end
-        end)
-    else
-        exec["require"] = false
-        shared.testexecutor.require = false
-        table.insert(errors, "[require] FUNCTION NOT AVAILABLE")
-    end
-end
-
-if isRequired("hookmetamethod") then
-    if getGlobal("hookmetamethod") then
-        test("hookmetamethod", function()
-            local obj = setmetatable({}, {__index = newcclosure(function() return false end), __metatable = "Locked!"})
-            local ref = hookmetamethod(obj, "__index", function() return true end)
-            assert(obj.test == true, "Failed to hook a metamethod and change the return value")
-            assert(ref() == false, "Did not return the original function")
-        end)
-    else
-        exec["hookmetamethod"] = false
-        shared.testexecutor.hookmetamethod = false
-        table.insert(errors, "[hookmetamethod] FUNCTION NOT AVAILABLE")
-    end
-end
-
-local canFire = false
-if isRequired("fireproximityprompt") then
-    canFire = test("fireproximityprompt", function()
-        local p = Instance.new("ProximityPrompt", Instance.new("Part", workspace))
-        local triggered = false
-        p.Triggered:Once(function() triggered = true end)
-        fireproximityprompt(p)
-        task.wait(0.1)
-        p.Parent:Destroy()
-        assert(triggered, "Failed to fire proximity prompt")
+test("firesignal", function()
+    local TestEvent = Instance.new("RemoteEvent")
+    local Fired = false
+    local Connection = TestEvent.OnClientEvent:Connect(function()
+        Fired = true
     end)
-    shared.testexecutor.fireProximityPrompt = canFire
-end
+    firesignal(TestEvent.OnClientEvent, "Example", 10, true)
+    local Tries = 0
+    while not Fired and Tries < 10 do
+        Tries = Tries + 1
+        task.wait(0.1)
+    end
+    Connection:Disconnect()
+    TestEvent:Destroy()
+    assert(Fired == true, "Failed to fire a signal")
+end)
+
+test("replicatesignal", function()
+    local TestButton = Instance.new("Frame")
+    replicatesignal(TestButton.MouseWheelForward, 69, 420)
+    local Success = pcall(function()
+        replicatesignal(TestButton.MouseWheelForward)
+        replicatesignal(TestButton.MouseWheelForward, 69)
+    end)
+    TestButton:Destroy()
+    assert(Success == false, "Did not throw an error with invalid arguments")
+end)
+
+test("firetouchinterest", function()
+    local TestPart1 = Instance.new("Part", workspace)
+    TestPart1.Position = Vector3.new(0, 1000, 0)
+    local TestPart2 = Instance.new("Part", workspace)
+    TestPart2.Position = Vector3.new(0, 1000, 0)
+    local Fired = false
+    local Connection = TestPart1.Touched:Connect(function(Child)
+        if Child == TestPart2 then Fired = true end
+    end)
+    firetouchinterest(TestPart1, TestPart2, 0)
+    task.wait()
+    firetouchinterest(TestPart1, TestPart2, 1)
+    local Tries = 0
+    while not Fired and Tries < 10 do
+        Tries = Tries + 1
+        task.wait(0.1)
+    end
+    Connection:Disconnect()
+    TestPart1:Destroy()
+    TestPart2:Destroy()
+    assert(Fired == true, "Failed to fire a touch interest")
+end)
+
+test("require", function()
+    local plr = game:GetService("Players").LocalPlayer
+    local ps = plr:FindFirstChild("PlayerScripts")
+    if ps then
+        local ms = ps:FindFirstChildWhichIsA("ModuleScript", true)
+        if ms then
+            require(ms)
+        else
+            error("ModuleScript not found")
+        end
+    else
+        error("PlayerScripts not found")
+    end
+end)
+
+test("hookmetamethod", function()
+    local obj = setmetatable({}, {__index = newcclosure(function() return false end), __metatable = "Locked!"})
+    local ref = hookmetamethod(obj, "__index", function() return true end)
+    assert(obj.test == true, "Failed to hook a metamethod and change the return value")
+    assert(ref() == false, "Did not return the original function")
+end)
+
+local canFire = test("fireproximityprompt", function()
+    local p = Instance.new("ProximityPrompt", Instance.new("Part", workspace))
+    local triggered = false
+    p.Triggered:Once(function() triggered = true end)
+    fireproximityprompt(p)
+    task.wait(0.1)
+    p.Parent:Destroy()
+    assert(triggered, "Failed to fire proximity prompt")
+end)
+shared.testexecutor.fireProximityPrompt = canFire
+
+test("isnetworkowner", function()
+    local p = Instance.new("Part", workspace)
+    p.Anchored = true
+    local r = isnetworkowner(p)
+    p:Destroy()
+    assert(typeof(r) == "boolean", "Expected boolean")
+end)
 
 local function fireProx(p, look, instant)
     if not p:IsA("ProximityPrompt") then
@@ -322,16 +246,8 @@ else
     getgenv().fireproximityprompt = getgenv().msdoors_fireprompt
 end
 
-if isRequired("isnetworkowner") then
-    if getGlobal("isnetworkowner") then
-        test("isnetworkowner", function()
-            local p = Instance.new("Part", workspace)
-            p.Anchored = true
-            local r = isnetworkowner(p)
-            p:Destroy()
-            assert(typeof(r) == "boolean", "Expected boolean")
-        end)
-    elseif getGlobal("isnetowner") then
+if not exec["isnetworkowner"] then
+    if getGlobal("isnetowner") then
         local ok2, err2 = pcall(function()
             local p = Instance.new("Part", workspace)
             p.Anchored = true
@@ -362,6 +278,53 @@ if isRequired("isnetworkowner") then
         end
     end
 end
+
+safe("readfile", readfile)
+safe("listfiles", listfiles)
+safe("writefile", writefile)
+safe("makefolder", makefolder)
+safe("appendfile", appendfile)
+safe("isfile", isfile)
+safe("isfolder", isfolder)
+safe("delfile", delfile)
+safe("delfolder", delfolder)
+safe("loadfile", loadfile)
+
+safe("getrenv", getrenv)
+safe("getgenv", getgenv)
+safe("getsenv", getsenv)
+safe("getfenv", getfenv)
+safe("getrawmetatable", getrawmetatable)
+safe("setrawmetatable", setrawmetatable)
+safe("setreadonly", setreadonly)
+safe("getnamecallmethod", getnamecallmethod)
+safe("setclipboard", setclipboard)
+safe("getcustomasset", getcustomasset)
+safe("getsynasset", getsynasset)
+safe("isluau", isluau)
+safe("checkcaller", checkcaller)
+
+safe("request", request)
+safe("http_request", http_request)
+safe("httprequest", httprequest)
+
+safe("queue_on_teleport", queue_on_teleport)
+safe("getcallingscript", getcallingscript)
+safe("gethui", gethui)
+safe("getgc", getgc)
+safe("getinstances", getinstances)
+safe("getnilinstances", getnilinstances)
+safe("sethiddenproperty", sethiddenproperty)
+safe("gethiddenproperty", gethiddenproperty)
+safe("saveinstance", saveinstance)
+safe("getconnections", getconnections)
+safe("fireclickdetector", fireclickdetector)
+safe("mouse1click", mouse1click)
+safe("mouse1press", mouse1press)
+safe("mouse1release", mouse1release)
+safe("mouse2click", mouse2click)
+safe("keypress", keypress)
+safe("keyrelease", keyrelease)
 
 safe("getrunningscripts", getrunningscripts)
 safe("getscripts", getscripts)
