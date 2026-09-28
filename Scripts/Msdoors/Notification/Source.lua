@@ -1,6 +1,5 @@
 if not shared.notifyap then shared.notifyap = {} end
 
-
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 
@@ -21,18 +20,30 @@ local AbyssalState = {
     Container = nil,
 }
 
+local function getMainUiContainer()
+    local cg = (gethui and gethui()) or game:GetService("CoreGui")
+    local main = cg:FindFirstChild("msdoors")
+    if not main then
+        main = Instance.new("ScreenGui")
+        main.Name = "msdoors"
+        main.ResetOnSpawn = false
+        main.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+        main.Parent = cg
+    end
+    return main
+end
+
 local function getAbyssalContainer()
     if AbyssalState.Container and AbyssalState.Container.Parent then
         return AbyssalState.Container
     end
-    local pg = Players.LocalPlayer:WaitForChild("PlayerGui")
-    local sg = pg:FindFirstChild("AbyssalNotifyUI")
+    local sg = getMainUiContainer():FindFirstChild("AbyssalNotifyUI")
     if not sg then
-        sg = Instance.new("ScreenGui")
+        sg = Instance.new("Frame")
         sg.Name = "AbyssalNotifyUI"
-        sg.ResetOnSpawn = false
-        sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-        sg.Parent = pg
+        sg.Size = UDim2.new(1, 0, 1, 0)
+        sg.BackgroundTransparency = 1
+        sg.Parent = getMainUiContainer()
     end
     local c = sg:FindFirstChild("Container")
     if not c then
@@ -184,12 +195,14 @@ end
 local function initMsdoorsUI()
     if d.gui then return end
 
-    local pg = Players.LocalPlayer:WaitForChild("PlayerGui")
-    local sg = Instance.new("ScreenGui")
-    sg.Name = "AchievementUI"
-    sg.ResetOnSpawn = false
-    sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    sg.Parent = pg
+    local sg = getMainUiContainer():FindFirstChild("AchievementUI")
+    if not sg then
+        sg = Instance.new("Frame")
+        sg.Name = "AchievementUI"
+        sg.Size = UDim2.new(1, 0, 1, 0)
+        sg.BackgroundTransparency = 1
+        sg.Parent = getMainUiContainer()
+    end
 
     local holder = Instance.new("Frame")
     holder.Name = "Holder"
@@ -602,6 +615,7 @@ local function notifyAbyssal(opts)
         Notification.BorderSizePixel = 0
         Notification.Position = UDim2.new(1, 5, 0, 60)
         Notification.Size = UDim2.new(0, 420, 0, 50)
+        Notification.ZIndex = 9999
         abyssalSetLogicalY(Notification, 60)
 
         Line.Name = "Line"
@@ -610,6 +624,7 @@ local function notifyAbyssal(opts)
         Line.BorderSizePixel = 0
         Line.Position = UDim2.new(0, 0, 1, -3)
         Line.Size = UDim2.new(0, 0, 0, 3)
+        Line.ZIndex = 10000
 
         local resolvedImg = resolveImage(opts.Image or "")
         if resolvedImg == "" then resolvedImg = "rbxassetid://3944668821" end
@@ -622,6 +637,7 @@ local function notifyAbyssal(opts)
         Warning.Image = resolvedImg
         Warning.ImageColor3 = accentColor
         Warning.ScaleType = Enum.ScaleType.Fit
+        Warning.ZIndex = 10000
 
         UICorner.CornerRadius = UDim.new(0, 20)
         UICorner.Parent = Warning
@@ -639,6 +655,7 @@ local function notifyAbyssal(opts)
         Title.TextSize = 10
         Title.TextStrokeTransparency = 0.75
         Title.TextXAlignment = Enum.TextXAlignment.Left
+        Title.ZIndex = 10000
 
         Description.Name = "Description"
         Description.Parent = Notification
@@ -651,6 +668,7 @@ local function notifyAbyssal(opts)
         Description.TextSize = 10
         Description.TextStrokeTransparency = 0.75
         Description.TextXAlignment = Enum.TextXAlignment.Left
+        Description.ZIndex = 10000
 
         local soundId = resolveSound(opts.Sound, ABYSSAL_DEFAULT_SOUND)
         playSound(Container, soundId, 3)
@@ -688,13 +706,14 @@ end
 local function initMParadoxUI()
     if mp.holder then return end
 
-    local pg = Players.LocalPlayer:WaitForChild("PlayerGui")
-
-    local sg = Instance.new("ScreenGui")
-    sg.Name = "MParadoxUI"
-    sg.ResetOnSpawn = false
-    sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    sg.Parent = pg
+    local sg = getMainUiContainer():FindFirstChild("MParadoxUI")
+    if not sg then
+        sg = Instance.new("Frame")
+        sg.Name = "MParadoxUI"
+        sg.Size = UDim2.new(1, 0, 1, 0)
+        sg.BackgroundTransparency = 1
+        sg.Parent = getMainUiContainer()
+    end
 
     local holder = Instance.new("Frame")
     holder.Name = "AchievementHolder"
@@ -1091,6 +1110,347 @@ local function notifyMParadox(opts)
     task.spawn(processMParadoxQueue)
 end
 
+local function MakeElement(class, ...)
+    local obj
+    if class == "TFrame" then
+        obj = Instance.new("Frame")
+        obj.BackgroundTransparency = 1
+    elseif class == "RoundFrame" then
+        local color, transp, radius = ...
+        obj = Instance.new("Frame")
+        obj.BackgroundColor3 = color
+        obj.BackgroundTransparency = transp
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, radius)
+        corner.Parent = obj
+    elseif class == "List" then
+        obj = Instance.new("UIListLayout")
+    elseif class == "Image" then
+        local img = ...
+        obj = Instance.new("ImageLabel")
+        obj.Image = img
+        obj.BackgroundTransparency = 1
+    elseif class == "Label" then
+        local text, size = ...
+        obj = Instance.new("TextLabel")
+        obj.Text = text
+        obj.TextSize = size
+        obj.BackgroundTransparency = 1
+    elseif class == "Stroke" then
+        local color, thick = ...
+        obj = Instance.new("UIStroke")
+        obj.Color = color
+        obj.Thickness = thick
+    elseif class == "Padding" then
+        local p1, p2, p3, p4 = ...
+        obj = Instance.new("UIPadding")
+        obj.PaddingTop = UDim.new(0, p1)
+        obj.PaddingRight = UDim.new(0, p2)
+        obj.PaddingBottom = UDim.new(0, p3)
+        obj.PaddingLeft = UDim.new(0, p4)
+    end
+    return obj
+end
+
+local function SetProps(obj, props)
+    for k, v in pairs(props) do
+        obj[k] = v
+    end
+    return obj
+end
+
+local function SetChildren(obj, children)
+    for _, child in ipairs(children) do
+        child.Parent = obj
+    end
+    return obj
+end
+
+local Orion = getMainUiContainer():FindFirstChild("OrionNotifyHolder")
+if not Orion then
+    Orion = Instance.new("Frame")
+    Orion.Name = "OrionNotifyHolder"
+    Orion.Size = UDim2.new(1, 0, 1, 0)
+    Orion.BackgroundTransparency = 1
+    Orion.Parent = getMainUiContainer()
+end
+
+local NotificationHolder = SetProps(SetChildren(MakeElement("TFrame"), {
+    SetProps(MakeElement("List"), {
+        HorizontalAlignment = Enum.HorizontalAlignment.Center,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        VerticalAlignment = Enum.VerticalAlignment.Bottom,
+        Padding = UDim.new(0, 5)
+    })
+}), {
+    Position = UDim2.new(1, -25, 1, -25),
+    Size = UDim2.new(0, 300, 1, -25),
+    AnchorPoint = Vector2.new(1, 1),
+    Parent = Orion
+})
+
+local function notifyOrion(opts)
+    task.spawn(function()
+        local NotificationConfig = {
+            Name = opts.Title or "Notification",
+            Content = opts.Description or "Test",
+            Image = opts.Image or "rbxassetid://4384403532",
+            Time = opts.Time or 15
+        }
+
+        local soundId = resolveSound(opts.Sound, DEFAULT_SOUND)
+        playSound(NotificationHolder, soundId, 1)
+
+        local NotificationParent = SetProps(MakeElement("TFrame"), {
+            Size = UDim2.new(1, 0, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
+            Parent = NotificationHolder
+        })
+
+        local NotificationFrame = SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(25, 25, 25), 0, 10), {
+            Parent = NotificationParent, 
+            Size = UDim2.new(1, 0, 0, 0),
+            Position = UDim2.new(1, -55, 0, 0),
+            BackgroundTransparency = 0,
+            AutomaticSize = Enum.AutomaticSize.Y,
+            ZIndex = 9999
+        }), {
+            SetProps(MakeElement("Stroke", Color3.fromRGB(93, 93, 93), 1.2), { ZIndex = 10000 }),
+            SetProps(MakeElement("Padding", 12, 12, 12, 12), { ZIndex = 10000 }),
+            SetProps(MakeElement("Image", NotificationConfig.Image), {
+                Size = UDim2.new(0, 20, 0, 20),
+                ImageColor3 = Color3.fromRGB(240, 240, 240),
+                Name = "Icon",
+                ZIndex = 10000
+            }),
+            SetProps(MakeElement("Label", NotificationConfig.Name, 15), {
+                Size = UDim2.new(1, -30, 0, 20),
+                Position = UDim2.new(0, 30, 0, 0),
+                Font = Enum.Font.GothamBold,
+                Name = "Title",
+                ZIndex = 10000
+            }),
+            SetProps(MakeElement("Label", NotificationConfig.Content, 14), {
+                Size = UDim2.new(1, 0, 0, 0),
+                Position = UDim2.new(0, 0, 0, 25),
+                Font = Enum.Font.GothamSemibold,
+                Name = "Content",
+                AutomaticSize = Enum.AutomaticSize.Y,
+                TextColor3 = Color3.fromRGB(200, 200, 200),
+                TextWrapped = true,
+                ZIndex = 10000
+            })
+        })
+
+        TweenService:Create(NotificationFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {Position = UDim2.new(0, 0, 0, 0)}):Play()
+
+        task.wait(NotificationConfig.Time - 0.88)
+        TweenService:Create(NotificationFrame.Icon, TweenInfo.new(0.4, Enum.EasingStyle.Quint), {ImageTransparency = 1}):Play()
+        TweenService:Create(NotificationFrame, TweenInfo.new(0.8, Enum.EasingStyle.Quint), {BackgroundTransparency = 0.6}):Play()
+        task.wait(0.3)
+        TweenService:Create(NotificationFrame.UIStroke, TweenInfo.new(0.6, Enum.EasingStyle.Quint), {Transparency = 0.9}):Play()
+        TweenService:Create(NotificationFrame.Title, TweenInfo.new(0.6, Enum.EasingStyle.Quint), {TextTransparency = 0.4}):Play()
+        TweenService:Create(NotificationFrame.Content, TweenInfo.new(0.6, Enum.EasingStyle.Quint), {TextTransparency = 0.5}):Play()
+        task.wait(0.05)
+
+        NotificationFrame:TweenPosition(UDim2.new(1, 20, 0, 0),'In','Quint',0.8,true)
+        task.wait(1.35)
+        NotificationFrame:Destroy()
+    end)
+end
+
+local function notifySTX(opts)
+    local GUI = getMainUiContainer():FindFirstChild("STX_Nofitication")
+    if not GUI then
+        GUI = Instance.new("Frame")
+        GUI.Name = "STX_Nofitication"
+        GUI.Size = UDim2.new(1, 0, 1, 0)
+        GUI.BackgroundTransparency = 1
+        GUI.Parent = getMainUiContainer()
+    end
+
+    local nofdebug = { Title = opts.Title or "Notification", Description = opts.Description or "" }
+    local middledebug = { Type = string.lower(tostring(opts.Type or "default")), OutlineColor = opts.Color or Color3.fromRGB(93, 93, 93), Time = opts.Time or 5 }
+    local all = { Image = opts.Image or "rbxassetid://0", ImageColor = opts.ImageColor or Color3.fromRGB(255, 255, 255), Callback = opts.Callback or function() end }
+
+    local soundId = resolveSound(opts.Sound, DEFAULT_SOUND)
+    playSound(GUI, soundId, 1)
+
+    local ambientShadow = Instance.new("ImageLabel")
+    local Window = Instance.new("Frame")
+    local Outline_A = Instance.new("Frame")
+    local WindowTitle = Instance.new("TextLabel")
+    local WindowDescription = Instance.new("TextLabel")
+
+    ambientShadow.Name = "ambientShadow"
+    ambientShadow.Parent = GUI
+    ambientShadow.AnchorPoint = Vector2.new(0.5, 0.5)
+    ambientShadow.BackgroundTransparency = 1.000
+    ambientShadow.BorderSizePixel = 0
+    ambientShadow.Position = UDim2.new(0.91525954, 0, 0.936809778, 0)
+    ambientShadow.Size = UDim2.new(0, 0, 0, 0)
+    ambientShadow.Image = "rbxassetid://1316045217"
+    ambientShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    ambientShadow.ImageTransparency = 0.400
+    ambientShadow.ScaleType = Enum.ScaleType.Slice
+    ambientShadow.SliceCenter = Rect.new(10, 10, 118, 118)
+
+    Window.Name = "Window"
+    Window.Parent = ambientShadow
+    Window.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    Window.BorderSizePixel = 0
+    Window.Position = UDim2.new(0, 5, 0, 5)
+    Window.Size = UDim2.new(0, 230, 0, 80)
+    Window.ZIndex = 9999
+
+    Outline_A.Name = "Outline_A"
+    Outline_A.Parent = Window
+    Outline_A.BackgroundColor3 = middledebug.OutlineColor
+    Outline_A.BorderSizePixel = 0
+    Outline_A.Position = UDim2.new(0, 0, 0, 25)
+    Outline_A.Size = UDim2.new(0, 230, 0, 2)
+    Outline_A.ZIndex = 10000
+
+    WindowTitle.Name = "WindowTitle"
+    WindowTitle.Parent = Window
+    WindowTitle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    WindowTitle.BackgroundTransparency = 1.000
+    WindowTitle.BorderColor3 = Color3.fromRGB(27, 42, 53)
+    WindowTitle.BorderSizePixel = 0
+    WindowTitle.Position = UDim2.new(0, 8, 0, 2)
+    WindowTitle.Size = UDim2.new(0, 222, 0, 22)
+    WindowTitle.ZIndex = 10001
+    WindowTitle.Font = Enum.Font.GothamSemibold
+    WindowTitle.Text = nofdebug.Title
+    WindowTitle.TextColor3 = Color3.fromRGB(220, 220, 220)
+    WindowTitle.TextSize = 12.000
+    WindowTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    WindowDescription.Name = "WindowDescription"
+    WindowDescription.Parent = Window
+    WindowDescription.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    WindowDescription.BackgroundTransparency = 1.000
+    WindowDescription.BorderColor3 = Color3.fromRGB(27, 42, 53)
+    WindowDescription.BorderSizePixel = 0
+    WindowDescription.Position = UDim2.new(0, 8, 0, 34)
+    WindowDescription.Size = UDim2.new(0, 216, 0, 40)
+    WindowDescription.ZIndex = 10001
+    WindowDescription.Font = Enum.Font.GothamSemibold
+    WindowDescription.Text = nofdebug.Description
+    WindowDescription.TextColor3 = Color3.fromRGB(180, 180, 180)
+    WindowDescription.TextSize = 12.000
+    WindowDescription.TextWrapped = true
+    WindowDescription.TextXAlignment = Enum.TextXAlignment.Left
+    WindowDescription.TextYAlignment = Enum.TextYAlignment.Top
+
+    if middledebug.Type == "default" then
+        task.spawn(function()
+            ambientShadow:TweenSize(UDim2.new(0, 240, 0, 90), "Out", "Linear", 0.2)
+            Window.Size = UDim2.new(0, 230, 0, 80)
+            Outline_A:TweenSize(UDim2.new(0, 0, 0, 2), "Out", "Linear", middledebug.Time)
+
+            task.wait(middledebug.Time)
+
+            ambientShadow:TweenSize(UDim2.new(0, 0, 0, 0), "Out", "Linear", 0.2)
+
+            task.wait(0.2)
+            ambientShadow:Destroy()
+        end)
+    elseif middledebug.Type == "image" then
+        ambientShadow:TweenSize(UDim2.new(0, 240, 0, 90), "Out", "Linear", 0.2)
+        Window.Size = UDim2.new(0, 230, 0, 80)
+        WindowTitle.Position = UDim2.new(0, 24, 0, 2)
+        local ImageButton = Instance.new("ImageButton")
+        ImageButton.Parent = Window
+        ImageButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        ImageButton.BackgroundTransparency = 1.000
+        ImageButton.BorderSizePixel = 0
+        ImageButton.Position = UDim2.new(0, 4, 0, 4)
+        ImageButton.Size = UDim2.new(0, 18, 0, 18)
+        ImageButton.ZIndex = 10002
+        ImageButton.AutoButtonColor = false
+        ImageButton.Image = all.Image
+        ImageButton.ImageColor3 = all.ImageColor
+
+        task.spawn(function()
+            Outline_A:TweenSize(UDim2.new(0, 0, 0, 2), "Out", "Linear", middledebug.Time)
+
+            task.wait(middledebug.Time)
+
+            ambientShadow:TweenSize(UDim2.new(0, 0, 0, 0), "Out", "Linear", 0.2)
+
+            task.wait(0.2)
+            ambientShadow:Destroy()
+        end)
+    elseif middledebug.Type == "option" then
+        ambientShadow:TweenSize(UDim2.new(0, 240, 0, 110), "Out", "Linear", 0.2)
+        Window.Size = UDim2.new(0, 230, 0, 100)
+        local Uncheck = Instance.new("ImageButton")
+        local Check = Instance.new("ImageButton")
+
+        Uncheck.Name = "Uncheck"
+        Uncheck.Parent = Window
+        Uncheck.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        Uncheck.BackgroundTransparency = 1.000
+        Uncheck.BorderSizePixel = 0
+        Uncheck.Position = UDim2.new(0, 7, 0, 76)
+        Uncheck.Size = UDim2.new(0, 18, 0, 18)
+        Uncheck.ZIndex = 10002
+        Uncheck.AutoButtonColor = false
+        Uncheck.Image = "http://www.roblox.com/asset/?id=6031094678"
+        Uncheck.ImageColor3 = Color3.fromRGB(255, 84, 84)
+
+        Check.Name = "Check"
+        Check.Parent = Window
+        Check.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        Check.BackgroundTransparency = 1.000
+        Check.BorderSizePixel = 0
+        Check.Position = UDim2.new(0, 28, 0, 76)
+        Check.Size = UDim2.new(0, 18, 0, 18)
+        Check.ZIndex = 10002
+        Check.AutoButtonColor = false
+        Check.Image = "http://www.roblox.com/asset/?id=6031094667"
+        Check.ImageColor3 = Color3.fromRGB(83, 230, 50)
+
+        task.spawn(function()
+            local Stilthere = true
+            local function Unchecked()
+                pcall(function()
+                    all.Callback(false)
+                end)
+                ambientShadow:TweenSize(UDim2.new(0, 0, 0, 0), "Out", "Linear", 0.2)
+
+                task.wait(0.2)
+                ambientShadow:Destroy()
+                Stilthere = false
+            end
+            local function Checked()
+                pcall(function()
+                    all.Callback(true)
+                end)
+                ambientShadow:TweenSize(UDim2.new(0, 0, 0, 0), "Out", "Linear", 0.2)
+
+                task.wait(0.2)
+                ambientShadow:Destroy()
+                Stilthere = false
+            end
+            Uncheck.MouseButton1Click:Connect(Unchecked)
+            Check.MouseButton1Click:Connect(Checked)
+
+            Outline_A:TweenSize(UDim2.new(0, 0, 0, 2), "Out", "Linear", middledebug.Time)
+
+            task.wait(middledebug.Time)
+
+            if Stilthere == true then
+                ambientShadow:TweenSize(UDim2.new(0, 0, 0, 0), "Out", "Linear", 0.2)
+
+                task.wait(0.2)
+                ambientShadow:Destroy()
+            end
+        end)
+    end
+end
+
 local STYLES = {
     Linoria  = notifyLinoria,
     Obsidian = notifyLinoria,
@@ -1107,6 +1467,8 @@ local STYLES = {
     MParadox = notifyMParadox,
     Roblox   = notifyRoblox,
     Abyssal  = notifyAbyssal,
+    Orion    = notifyOrion,
+    STX      = notifySTX,
 }
 
 local function normalizeOpts(opts)
