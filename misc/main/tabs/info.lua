@@ -62,7 +62,7 @@ function misctabs:AddWarnTabDoors(Tab)
     Tab:UpdateWarningBox({
         Title = shared.translationapi:getTranslate("Update Summary", "Resumo de Atualizações"),
         Icon = "layout-grid",
-        Text = "22.08.2026\n[ + ] Figure Godmode\n[ + ] Fix godmode colision\n[ + ] See entities path\n[ + ] Infinite Crucifix\n[ + ] Fixed Item esp( @SeekAlegriaFla )\n[ + ] Fixed Nofog\n[ + ] Improved godmode\n[ + ] Keysystem improved/fixed for some executors\n[ + ] Improved Anti Jumpscares(now works on Timothy)\n[ + ] Fixed keybind not working when auto load or load an config\n[ + ] Fixed entity selection on esp Dropdown\n[ + ] Improved bring items\n[ + ] Improved noclip bypass\n[ + ] Optmized a LOT\n[ + ] Some Memory leaks Removed\n[ + ] Added Herobrine again\n[ - ] Removed Verity\n[ - ] Removed Lsplash\n» join our Discord to suggest features! «",
+        Text = "03.10.2026\n[ + ] Added Anti Noise\n[ + ] Added Anti Crusher\n[ + ] Added Destroy Noise TV (Need equip and unequip The TV)\n[ + ] Added trash Esp\n[ + ] Added more things on 'Ignore list' in auto interact\n[ + ] Added auto parry Timothy (need crucifix)\n[ ! ] DO NOT ACTIVE THIS (beta)\n[ + ] Added Enable move tabs or no\n[ + ] Added Notify Structures (Like Stairwell Entrance)\n[ + ] Added Esp Structures (Like Stairwell Entrance)\n[ + ] Fixed Mandrake on auto interact ignore list\n[ + ] Added auto alma\n[ + ] Improved Fire alarm esp\n[ + ] Fixed some bugs\n[ + ] Improved performance (a bit)\n[ + ] Added More notification styles\n[ + ] Added WireFrame View\n» join our Discord to suggest features! «",
         IsNormal = true,
         Visible = true,
         LockSize = true,
