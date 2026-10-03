@@ -14,6 +14,7 @@ function misctabs:AddMiscTab(Tab)
     local EspecialCreditsMsdoors = GroupInspirations:AddLabel('<font color="rgb(138, 43, 226)">msdoors by Mstudio45</font>', true)
     
     local EspecialCreditsGeirge = GroupContributors:AddLabel('<font color="rgb(138, 43, 226)">[CookieMonster]</font> | It helped me with Anti Water Electrified and continues to help me with more resources and tips. ', true)
+    local EspecialCreditsKkaiouve = GroupContributors:AddLabel('<font color="rgb(138, 43, 226)">[Kkaiouve]</font> | (ty for Notify Structures) It helps me test msdoors before updates and always suggests new features.', true)
     local EspecialCreditsCoookis = GroupContributors:AddLabel('<font color="rgb(138, 43, 226)">[George]</font> | He helped me with the anti-Mandrake and always helps me when needed.', true)
     local EspecialCreditsSeikoso = GroupContributors:AddLabel('<font color="rgb(138, 43, 226)">[Seikoso]</font> | It helped me with tips and to not give up on this script.', true)
     local EspecialCreditsJack = GroupContributors:AddLabel('<font color="rgb(138, 43, 226)">[Jack]</font> | Noclip bypass was made available to me and helped me with several functions.', true)
