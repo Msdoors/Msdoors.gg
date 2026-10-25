@@ -392,6 +392,7 @@ function Island.new(config)
     self.queue = {}
     self.notifyBusy = false
     self.cardCurrent = nil
+    self.cardActive = nil
     self.cardSkip = false
     self.cardOver = false
     self.lyrics = {}
@@ -434,6 +435,83 @@ function Island.new(config)
     self:_retarget()
     table.insert(instances, self)
     return self
+end
+
+function Island:_makeCard(parent, accent)
+    local c = {}
+    c.group = new("CanvasGroup", {
+        AnchorPoint = Vector2.new(0.5, 0),
+        BackgroundColor3 = Scheme.BackgroundColor,
+        BackgroundTransparency = 0.1,
+        Position = UDim2.fromOffset(0, -200),
+        Size = UDim2.fromOffset(300, 60),
+        GroupTransparency = 1,
+        Visible = false,
+        ZIndex = 50,
+        Parent = parent,
+    })
+    c.scale = new("UIScale", { Parent = c.group })
+    new("UICorner", { CornerRadius = UDim.new(0, 12), Parent = c.group })
+    new("UIStroke", {
+        Color = Scheme.OutlineColor,
+        Thickness = 1,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        Parent = c.group,
+    })
+    c.icon = new("Frame", {
+        BackgroundColor3 = accent,
+        Position = UDim2.fromOffset(10, 10),
+        Size = UDim2.fromOffset(28, 28),
+        ZIndex = 51,
+        Parent = c.group,
+    })
+    new("UICorner", { CornerRadius = UDim.new(0, 6), Parent = c.icon })
+    c.glyph = label(c.icon, {
+        Size = UDim2.fromScale(1, 1),
+        TextSize = 14,
+        TextColor3 = Scheme.DarkColor,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        ZIndex = 52,
+    })
+    c.iconImage = new("ImageLabel", {
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        ScaleType = Enum.ScaleType.Fit,
+        Visible = false,
+        ZIndex = 52,
+        Parent = c.icon,
+    })
+    c.title = label(c.group, {
+        Position = UDim2.fromOffset(46, 8),
+        Size = UDim2.new(1, -56, 0, 16),
+        TextSize = 14,
+        ZIndex = 51,
+    })
+    c.text = label(c.group, {
+        Position = UDim2.fromOffset(46, 26),
+        Size = UDim2.fromOffset(236, 14),
+        TextSize = 12,
+        TextColor3 = Scheme.DimColor,
+        TextWrapped = true,
+        TextTruncate = Enum.TextTruncate.None,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        ZIndex = 51,
+    })
+    c.timer = new("Frame", {
+        BackgroundColor3 = accent,
+        Position = UDim2.new(0, 0, 1, -2),
+        Size = UDim2.fromOffset(300, 2),
+        ZIndex = 52,
+        Parent = c.group,
+    })
+    c.hit = new("TextButton", {
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        Text = "",
+        ZIndex = 60,
+        Parent = c.group,
+    })
+    return c
 end
 
 function Island:_build()
@@ -528,77 +606,8 @@ function Island:_build()
         Parent = self.shell,
     })
 
-    self.card = new("CanvasGroup", {
-        AnchorPoint = Vector2.new(0.5, 0),
-        BackgroundColor3 = Scheme.BackgroundColor,
-        BackgroundTransparency = 0.1,
-        Position = UDim2.fromOffset(0, -200),
-        Size = UDim2.fromOffset(300, 60),
-        GroupTransparency = 1,
-        Visible = false,
-        ZIndex = 50,
-        Parent = self.gui,
-    })
-    new("UICorner", { CornerRadius = UDim.new(0, 12), Parent = self.card })
-    new("UIStroke", {
-        Color = Scheme.OutlineColor,
-        Thickness = 1,
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-        Parent = self.card,
-    })
-    self.cardIcon = new("Frame", {
-        BackgroundColor3 = self.Accent,
-        Position = UDim2.fromOffset(10, 10),
-        Size = UDim2.fromOffset(28, 28),
-        ZIndex = 51,
-        Parent = self.card,
-    })
-    new("UICorner", { CornerRadius = UDim.new(0, 6), Parent = self.cardIcon })
-    self.cardGlyph = label(self.cardIcon, {
-        Size = UDim2.fromScale(1, 1),
-        TextSize = 14,
-        TextColor3 = Scheme.DarkColor,
-        TextXAlignment = Enum.TextXAlignment.Center,
-        ZIndex = 52,
-    })
-    self.cardIconImage = new("ImageLabel", {
-        BackgroundTransparency = 1,
-        Size = UDim2.fromScale(1, 1),
-        ScaleType = Enum.ScaleType.Fit,
-        Visible = false,
-        ZIndex = 52,
-        Parent = self.cardIcon,
-    })
-    self.cardTitle = label(self.card, {
-        Position = UDim2.fromOffset(46, 8),
-        Size = UDim2.new(1, -56, 0, 16),
-        TextSize = 14,
-        ZIndex = 51,
-    })
-    self.cardText = label(self.card, {
-        Position = UDim2.fromOffset(46, 26),
-        Size = UDim2.fromOffset(236, 14),
-        TextSize = 12,
-        TextColor3 = Scheme.DimColor,
-        TextWrapped = true,
-        TextTruncate = Enum.TextTruncate.None,
-        TextYAlignment = Enum.TextYAlignment.Top,
-        ZIndex = 51,
-    })
-    self.cardTimer = new("Frame", {
-        BackgroundColor3 = self.Accent,
-        Position = UDim2.new(0, 0, 1, -2),
-        Size = UDim2.fromOffset(300, 2),
-        ZIndex = 52,
-        Parent = self.card,
-    })
-    self.cardHit = new("TextButton", {
-        BackgroundTransparency = 1,
-        Size = UDim2.fromScale(1, 1),
-        Text = "",
-        ZIndex = 60,
-        Parent = self.card,
-    })
+    self.center = self:_makeCard(self.gui, self.Accent)
+    self.corner = self:_makeCard(self.gui, self.Accent)
 
     local ml = self.layers.media
     local m = {}
@@ -690,7 +699,11 @@ function Island:_bind()
         self:TogglePlaying()
     end))
 
-    add(self.cardHit.Activated:Connect(function()
+    add(self.center.hit.Activated:Connect(function()
+        self:_onCardTap()
+    end))
+
+    add(self.corner.hit.Activated:Connect(function()
         self:_onCardTap()
     end))
 
@@ -738,10 +751,11 @@ function Island:_inside(pos)
 end
 
 function Island:_insideCard(pos)
-    if not self.card.Visible then
+    local c = self.cardActive
+    if not c or not c.group.Visible then
         return false
     end
-    local p, s = self.card.AbsolutePosition, self.card.AbsoluteSize
+    local p, s = c.group.AbsolutePosition, c.group.AbsoluteSize
     local pad = 8
     return pos.X >= p.X - pad and pos.X <= p.X + s.X + pad and pos.Y >= p.Y - pad and pos.Y <= p.Y + s.Y + pad
 end
@@ -1013,23 +1027,23 @@ function Island:_glowOff()
     self.sGlow.Target = 0
 end
 
-function Island:_fillCard(n)
-    self.cardTitle.Text = n.Title
-    self.cardText.Text = n.Text
+function Island:_fillCard(c, n)
+    c.title.Text = n.Title
+    c.text.Text = n.Text
     local textH = measureHeight(n.Text, 12, 236)
-    self.cardText.Size = UDim2.fromOffset(236, textH)
-    self.card.Size = UDim2.fromOffset(300, math.clamp(34 + textH + 12, 52, 220))
-    self.cardIcon.BackgroundColor3 = n.Color
-    self.cardTimer.BackgroundColor3 = n.Color
+    c.text.Size = UDim2.fromOffset(236, textH)
+    c.group.Size = UDim2.fromOffset(300, math.clamp(34 + textH + 12, 52, 220))
+    c.icon.BackgroundColor3 = n.Color
+    c.timer.BackgroundColor3 = n.Color
     local icon = resolveImage(n.Icon)
     if icon then
-        self.cardIconImage.Image = icon
-        self.cardIconImage.Visible = true
-        self.cardGlyph.Visible = false
+        c.iconImage.Image = icon
+        c.iconImage.Visible = true
+        c.glyph.Visible = false
     else
-        self.cardIconImage.Visible = false
-        self.cardGlyph.Visible = true
-        self.cardGlyph.Text = Glyphs[n.Kind] or "i"
+        c.iconImage.Visible = false
+        c.glyph.Visible = true
+        c.glyph.Text = Glyphs[n.Kind] or "i"
     end
 end
 
@@ -1061,6 +1075,7 @@ function Island:Notify(opts)
         Kind = kind,
         Icon = opts.Icon,
         Callback = opts.Callback,
+        Placement = self.Config.NotifyPlacement == "Corner" and "Corner" or "Island",
     }
     table.insert(self.queue, n)
     while #self.queue > self.Config.MaxQueue do
@@ -1078,18 +1093,27 @@ end
 function Island:_runNotify()
     while #self.queue > 0 and not self.destroyed do
         local n = table.remove(self.queue, 1)
+        local c = n.Placement == "Corner" and self.corner or self.center
         n.Elapsed = 0
         self.cardCurrent = n
+        self.cardActive = c
         self.cardSkip = false
-        self:_fillCard(n)
+        self:_fillCard(c, n)
         self:_glowOn(n.Color)
+        self.sCard.Value = 0
+        self.sCard.Velocity = 0
         self.sCard.Target = 1
         while n.Elapsed < n.Duration and not self.cardSkip and not self.destroyed do
             task.wait()
         end
         self:_glowOff()
         self.sCard.Target = 0
-        task.wait(0.45)
+        local t0 = os.clock()
+        while self.sCard.Value > 0.02 and os.clock() - t0 < 1.5 and not self.destroyed do
+            task.wait()
+        end
+        c.group.Visible = false
+        self.cardActive = nil
         self.cardCurrent = nil
         task.wait(0.1)
     end
@@ -1274,18 +1298,27 @@ function Island:_render(t)
     end
 
     local p = math.clamp(self.sCard.Value, 0, 1)
-    self.card.Visible = p > 0.01
-    self.card.GroupTransparency = 1 - p
-    if cfg.NotifyPlacement == "Corner" then
-        self.card.Position = UDim2.new(1, -162 + (1 - p) * 220, 0, top)
-    else
-        local below = top + H * k + 6
-        self.card.Position = UDim2.new(0.5, 0, 0, below + (1 - p) * -10)
+    local belowY = top + H * k + 6
+    for _, c in ipairs({ self.center, self.corner }) do
+        if c == self.cardActive and p > 0.01 then
+            c.group.Visible = true
+            c.group.GroupTransparency = 1 - p
+            c.scale.Scale = lerp(0.2, 1, p)
+            if c == self.corner then
+                c.group.Position = UDim2.new(lerp(0.5, 1, p), lerp(0, -162, p), 0, top)
+            else
+                c.group.Position = UDim2.new(0.5, 0, 0, lerp(top, belowY, p))
+            end
+        else
+            c.group.Visible = false
+        end
     end
 
     local nc = self.cardCurrent
-    local frac = nc and math.clamp(1 - nc.Elapsed / nc.Duration, 0, 1) or 0
-    self.cardTimer.Size = UDim2.fromOffset(300 * frac, 2)
+    if nc and self.cardActive then
+        local frac = math.clamp(1 - nc.Elapsed / nc.Duration, 0, 1)
+        self.cardActive.timer.Size = UDim2.fromOffset(300 * frac, 2)
+    end
 end
 
 function Island:_layoutMedia(W, H, e, ec)
