@@ -143,8 +143,8 @@ local function measureHeight(text, size, width)
     if ok and bounds then
         return bounds.Y
     end
-    local perLine = math.max(1, math.floor(width / (size * 0.6)))
-    return math.ceil(#text / perLine) * size * 1.2
+    local perLine = math.max(1, math.floor(width / (size * 0.55)))
+    return math.ceil(#text / perLine) * size * 1.3
 end
 
 local TEMP_DIR = "msdoors/DynamicIsland"
@@ -412,7 +412,7 @@ function Island.new(config)
     self.sShow = Spring.new(0, 3, 0.68)
     self.sPulse = Spring.new(0, 5.5, 0.8)
     self.sGlow = Spring.new(0, 2.2, 1)
-    self.sCard = Spring.new(0, 5, 0.85)
+    self.sCard = Spring.new(0, 2.6, 1)
     self.sDock = Spring.new(0, 1.6, 1)
     self.layerSprings = {
         media = Spring.new(0, 6, 1),
@@ -442,12 +442,12 @@ function Island:_makeCard(parent, accent)
     c.group = new("CanvasGroup", {
         AnchorPoint = Vector2.new(0.5, 0),
         BackgroundColor3 = Scheme.BackgroundColor,
-        BackgroundTransparency = 0.1,
+        BackgroundTransparency = 0.35,
         Position = UDim2.fromOffset(0, -200),
         Size = UDim2.fromOffset(300, 60),
         GroupTransparency = 1,
         Visible = false,
-        ZIndex = 50,
+        ZIndex = 1,
         Parent = parent,
     })
     c.scale = new("UIScale", { Parent = c.group })
@@ -462,7 +462,7 @@ function Island:_makeCard(parent, accent)
         BackgroundColor3 = accent,
         Position = UDim2.fromOffset(10, 10),
         Size = UDim2.fromOffset(28, 28),
-        ZIndex = 51,
+        ZIndex = 2,
         Parent = c.group,
     })
     new("UICorner", { CornerRadius = UDim.new(0, 6), Parent = c.icon })
@@ -471,21 +471,21 @@ function Island:_makeCard(parent, accent)
         TextSize = 14,
         TextColor3 = Scheme.DarkColor,
         TextXAlignment = Enum.TextXAlignment.Center,
-        ZIndex = 52,
+        ZIndex = 3,
     })
     c.iconImage = new("ImageLabel", {
         BackgroundTransparency = 1,
         Size = UDim2.fromScale(1, 1),
         ScaleType = Enum.ScaleType.Fit,
         Visible = false,
-        ZIndex = 52,
+        ZIndex = 3,
         Parent = c.icon,
     })
     c.title = label(c.group, {
         Position = UDim2.fromOffset(46, 8),
         Size = UDim2.new(1, -56, 0, 16),
         TextSize = 14,
-        ZIndex = 51,
+        ZIndex = 2,
     })
     c.text = label(c.group, {
         Position = UDim2.fromOffset(46, 26),
@@ -495,20 +495,20 @@ function Island:_makeCard(parent, accent)
         TextWrapped = true,
         TextTruncate = Enum.TextTruncate.None,
         TextYAlignment = Enum.TextYAlignment.Top,
-        ZIndex = 51,
+        ZIndex = 2,
     })
     c.timer = new("Frame", {
         BackgroundColor3 = accent,
         Position = UDim2.new(0, 0, 1, -2),
         Size = UDim2.fromOffset(300, 2),
-        ZIndex = 52,
+        ZIndex = 3,
         Parent = c.group,
     })
     c.hit = new("TextButton", {
         BackgroundTransparency = 1,
         Size = UDim2.fromScale(1, 1),
         Text = "",
-        ZIndex = 60,
+        ZIndex = 4,
         Parent = c.group,
     })
     return c
@@ -530,6 +530,7 @@ function Island:_build()
         AnchorPoint = Vector2.new(0.5, 0),
         Position = UDim2.new(0.5, 0, 0, -80),
         Size = UDim2.fromOffset(0, 0),
+        ZIndex = 10,
         Parent = self.gui,
     })
 
@@ -1031,8 +1032,8 @@ function Island:_fillCard(c, n)
     c.title.Text = n.Title
     c.text.Text = n.Text
     local textH = measureHeight(n.Text, 12, 236)
-    c.text.Size = UDim2.fromOffset(236, textH)
-    c.group.Size = UDim2.fromOffset(300, math.clamp(34 + textH + 12, 52, 220))
+    c.text.Size = UDim2.fromOffset(236, textH + 6)
+    c.group.Size = UDim2.fromOffset(300, math.clamp(34 + textH + 16, 52, 420))
     c.icon.BackgroundColor3 = n.Color
     c.timer.BackgroundColor3 = n.Color
     local icon = resolveImage(n.Icon)
@@ -1109,13 +1110,13 @@ function Island:_runNotify()
         self:_glowOff()
         self.sCard.Target = 0
         local t0 = os.clock()
-        while self.sCard.Value > 0.02 and os.clock() - t0 < 1.5 and not self.destroyed do
+        while self.sCard.Value > 0.01 and os.clock() - t0 < 3 and not self.destroyed do
             task.wait()
         end
         c.group.Visible = false
         self.cardActive = nil
         self.cardCurrent = nil
-        task.wait(0.1)
+        task.wait(0.15)
     end
     self.notifyBusy = false
 end
@@ -1298,16 +1299,18 @@ function Island:_render(t)
     end
 
     local p = math.clamp(self.sCard.Value, 0, 1)
-    local belowY = top + H * k + 6
+    local bottom = top + H * k
+    local hidden = bottom - 22
+    local belowY = bottom + 6
     for _, c in ipairs({ self.center, self.corner }) do
-        if c == self.cardActive and p > 0.01 then
+        if c == self.cardActive and p > 0.005 then
             c.group.Visible = true
             c.group.GroupTransparency = 1 - p
-            c.scale.Scale = lerp(0.2, 1, p)
+            c.scale.Scale = lerp(0.96, 1, p)
             if c == self.corner then
                 c.group.Position = UDim2.new(lerp(0.5, 1, p), lerp(0, -162, p), 0, top)
             else
-                c.group.Position = UDim2.new(0.5, 0, 0, lerp(top, belowY, p))
+                c.group.Position = UDim2.new(0.5, 0, 0, lerp(hidden, belowY, p))
             end
         else
             c.group.Visible = false
