@@ -437,12 +437,15 @@ function Island.new(config)
     return self
 end
 
-function Island:_makeCard(parent, accent)
+function Island:_makeCard(parent, accent, anchorX)
     local c = {}
+    c.targetW = 300
+    c.targetH = 60
     c.group = new("CanvasGroup", {
-        AnchorPoint = Vector2.new(0.5, 0),
+        AnchorPoint = Vector2.new(anchorX, 0),
         BackgroundColor3 = Scheme.BackgroundColor,
         BackgroundTransparency = 0.35,
+        ClipsDescendants = true,
         Position = UDim2.fromOffset(0, -200),
         Size = UDim2.fromOffset(300, 60),
         GroupTransparency = 1,
@@ -450,8 +453,7 @@ function Island:_makeCard(parent, accent)
         ZIndex = 1,
         Parent = parent,
     })
-    c.scale = new("UIScale", { Parent = c.group })
-    new("UICorner", { CornerRadius = UDim.new(0, 12), Parent = c.group })
+    c.radius = new("UICorner", { CornerRadius = UDim.new(0, 12), Parent = c.group })
     new("UIStroke", {
         Color = Scheme.OutlineColor,
         Thickness = 1,
@@ -500,7 +502,7 @@ function Island:_makeCard(parent, accent)
     c.timer = new("Frame", {
         BackgroundColor3 = accent,
         Position = UDim2.new(0, 0, 1, -2),
-        Size = UDim2.fromOffset(300, 2),
+        Size = UDim2.new(1, 0, 0, 2),
         ZIndex = 3,
         Parent = c.group,
     })
@@ -607,8 +609,8 @@ function Island:_build()
         Parent = self.shell,
     })
 
-    self.center = self:_makeCard(self.gui, self.Accent)
-    self.corner = self:_makeCard(self.gui, self.Accent)
+    self.center = self:_makeCard(self.gui, self.Accent, 0.5)
+    self.corner = self:_makeCard(self.gui, self.Accent, 1)
 
     local ml = self.layers.media
     local m = {}
@@ -1033,7 +1035,8 @@ function Island:_fillCard(c, n)
     c.text.Text = n.Text
     local textH = measureHeight(n.Text, 12, 236)
     c.text.Size = UDim2.fromOffset(236, textH + 6)
-    c.group.Size = UDim2.fromOffset(300, math.clamp(34 + textH + 16, 52, 420))
+    c.targetW = 300
+    c.targetH = math.clamp(34 + textH + 16, 52, 420)
     c.icon.BackgroundColor3 = n.Color
     c.timer.BackgroundColor3 = n.Color
     local icon = resolveImage(n.Icon)
@@ -1280,37 +1283,50 @@ function Island:_render(t)
     self.accentStroke.Color = self.glowColor
     self.accentStroke.Transparency = 1 - 0.85 * g
 
+    local p = math.clamp(self.sCard.Value, 0, 1)
+    local covering = (self.cardActive == self.center) and math.clamp(p * 2, 0, 1) or 0
+
     local fade = lerp(1, 0.5, dock)
     local alphas = {}
     for name, spring in pairs(self.layerSprings) do
         local alpha = math.clamp(spring.Value, 0, 1)
         alphas[name] = alpha
         local layer = self.layers[name]
-        layer.GroupTransparency = 1 - alpha * fade
-        layer.Visible = alpha > 0.01
+        layer.GroupTransparency = 1 - alpha * fade * (1 - covering)
+        layer.Visible = alpha > 0.01 and covering < 0.99
     end
 
     if alphas.media > 0.01 and self.media then
         self:_layoutMedia(W, H, e, ec)
     end
-    self.m.play.Visible = self.media ~= nil and alphas.media > 0.5 and ec > 0.5
+    self.m.play.Visible = self.media ~= nil and alphas.media > 0.5 and ec > 0.5 and covering < 0.5
     if alphas.idle > 0.01 then
         self:_layoutIdle(W, H, t)
     end
 
-    local p = math.clamp(self.sCard.Value, 0, 1)
-    local bottom = top + H * k
-    local hidden = bottom - 22
-    local belowY = bottom + 6
+    local bodyA = math.clamp(p * 2.2, 0, 1)
+    local contentA = math.clamp((p - 0.45) / 0.55, 0, 1)
+
     for _, c in ipairs({ self.center, self.corner }) do
-        if c == self.cardActive and p > 0.005 then
+        if c == self.cardActive and p > 0.003 then
             c.group.Visible = true
-            c.group.GroupTransparency = 1 - p
-            c.scale.Scale = lerp(0.96, 1, p)
-            if c == self.corner then
-                c.group.Position = UDim2.new(lerp(0.5, 1, p), lerp(0, -162, p), 0, top)
+            c.group.GroupTransparency = 1 - bodyA
+            c.title.TextTransparency = 1 - contentA
+            c.text.TextTransparency = 1 - contentA
+            c.glyph.TextTransparency = 1 - contentA
+            c.iconImage.ImageTransparency = 1 - contentA
+            if c == self.center then
+                local w = lerp(W, c.targetW, p) * k
+                local h = lerp(H, c.targetH, p) * k
+                c.group.AnchorPoint = Vector2.new(0.5, 0)
+                c.group.Size = UDim2.fromOffset(w, h)
+                c.group.Position = UDim2.new(0.5, 0, 0, top)
+                c.radius.CornerRadius = UDim.new(0, math.min(h / 2, 12))
             else
-                c.group.Position = UDim2.new(0.5, 0, 0, lerp(hidden, belowY, p))
+                c.group.AnchorPoint = Vector2.new(1, 0)
+                c.group.Size = UDim2.fromOffset(c.targetW * k, c.targetH * k)
+                c.group.Position = UDim2.new(1, lerp(320, -16, p), 0, top)
+                c.radius.CornerRadius = UDim.new(0, 12)
             end
         else
             c.group.Visible = false
@@ -1320,7 +1336,7 @@ function Island:_render(t)
     local nc = self.cardCurrent
     if nc and self.cardActive then
         local frac = math.clamp(1 - nc.Elapsed / nc.Duration, 0, 1)
-        self.cardActive.timer.Size = UDim2.fromOffset(300 * frac, 2)
+        self.cardActive.timer.Size = UDim2.new(frac, 0, 0, 2)
     end
 end
 
