@@ -450,7 +450,7 @@ function Island:_makeCard(parent, accent, anchorX)
         Size = UDim2.fromOffset(300, 60),
         GroupTransparency = 1,
         Visible = false,
-        ZIndex = 1,
+        ZIndex = 30,
         Parent = parent,
     })
     c.radius = new("UICorner", { CornerRadius = UDim.new(0, 12), Parent = c.group })
@@ -464,7 +464,7 @@ function Island:_makeCard(parent, accent, anchorX)
         BackgroundColor3 = accent,
         Position = UDim2.fromOffset(10, 10),
         Size = UDim2.fromOffset(28, 28),
-        ZIndex = 2,
+        ZIndex = 31,
         Parent = c.group,
     })
     new("UICorner", { CornerRadius = UDim.new(0, 6), Parent = c.icon })
@@ -473,21 +473,21 @@ function Island:_makeCard(parent, accent, anchorX)
         TextSize = 14,
         TextColor3 = Scheme.DarkColor,
         TextXAlignment = Enum.TextXAlignment.Center,
-        ZIndex = 3,
+        ZIndex = 32,
     })
     c.iconImage = new("ImageLabel", {
         BackgroundTransparency = 1,
         Size = UDim2.fromScale(1, 1),
         ScaleType = Enum.ScaleType.Fit,
         Visible = false,
-        ZIndex = 3,
+        ZIndex = 32,
         Parent = c.icon,
     })
     c.title = label(c.group, {
         Position = UDim2.fromOffset(46, 8),
         Size = UDim2.new(1, -56, 0, 16),
         TextSize = 14,
-        ZIndex = 2,
+        ZIndex = 31,
     })
     c.text = label(c.group, {
         Position = UDim2.fromOffset(46, 26),
@@ -497,20 +497,20 @@ function Island:_makeCard(parent, accent, anchorX)
         TextWrapped = true,
         TextTruncate = Enum.TextTruncate.None,
         TextYAlignment = Enum.TextYAlignment.Top,
-        ZIndex = 2,
+        ZIndex = 31,
     })
     c.timer = new("Frame", {
         BackgroundColor3 = accent,
         Position = UDim2.new(0, 0, 1, -2),
         Size = UDim2.new(1, 0, 0, 2),
-        ZIndex = 3,
+        ZIndex = 32,
         Parent = c.group,
     })
     c.hit = new("TextButton", {
         BackgroundTransparency = 1,
         Size = UDim2.fromScale(1, 1),
         Text = "",
-        ZIndex = 4,
+        ZIndex = 33,
         Parent = c.group,
     })
     return c
