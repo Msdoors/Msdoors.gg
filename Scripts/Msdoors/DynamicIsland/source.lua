@@ -1,3 +1,8 @@
+local ENV_ISLAND = (getgenv and getgenv()) or shared
+if type(ENV_ISLAND.DynamicIslandLib) == "table" and type(ENV_ISLAND.DynamicIslandLib.new) == "function" then
+    return ENV_ISLAND.DynamicIslandLib
+end
+
 local cloneref = cloneref or clonereference or function(instance)
     return instance
 end
@@ -179,6 +184,12 @@ local function clearTempDir()
     end
 end
 
+local function deleteImageFile(path)
+    if path and typeof(delfile) == "function" and typeof(isfile) == "function" and isfile(path) then
+        pcall(delfile, path)
+    end
+end
+
 local function tempPath(src)
     local hash = 5381
     for i = 1, #src do
@@ -243,8 +254,9 @@ local function resolveImage(src)
     if src:match("^%d+$") then
         return "rbxassetid://" .. src
     end
-    if assetCache[src] then
-        return assetCache[src]
+    local cached = assetCache[src]
+    if cached then
+        return cached.asset, cached.path
     end
     if not customAsset then
         return nil
@@ -260,10 +272,44 @@ local function resolveImage(src)
     end
     local ok, asset = pcall(customAsset, path)
     if not ok or not asset then
+        deleteImageFile(path)
         return nil
     end
-    assetCache[src] = asset
-    return asset
+    assetCache[src] = { asset = asset, path = path }
+    return asset, path
+end
+
+local function forgetImage(src)
+    local entry = assetCache[src]
+    if entry then
+        assetCache[src] = nil
+        deleteImageFile(entry.path)
+    end
+end
+
+local function clearImages()
+    for src, entry in pairs(assetCache) do
+        assetCache[src] = nil
+        deleteImageFile(entry.path)
+    end
+end
+
+local function showImage(imageLabel, src)
+    local asset = resolveImage(src)
+    if not asset then
+        imageLabel.Image = ""
+        return false
+    end
+    imageLabel.Image = asset
+    local key = tostring(src)
+    task.spawn(function()
+        local t0 = os.clock()
+        while not imageLabel.IsLoaded and os.clock() - t0 < 5 and imageLabel.Parent do
+            task.wait(0.1)
+        end
+        forgetImage(key)
+    end)
+    return true
 end
 
 pcall(clearTempDir)
@@ -406,6 +452,8 @@ function Island.new(config)
     self.specT = 0
     self.idleSince = os.clock()
     self.specLevels = { 0.2, 0.3, 0.25, 0.3, 0.2 }
+    self.lastCover = nil
+    self.coverOk = false
     self.sW = Spring.new(40, 4, 1)
     self.sH = Spring.new(24, 4, 1)
     self.sE = Spring.new(0, 4, 1)
@@ -883,14 +931,13 @@ function Island:_syncMedia()
     local m = self.m
     m.title.Text = media.Title or ""
     m.artist.Text = media.Artist or ""
-    local cover = resolveImage(media.Cover)
-    if cover then
-        m.image.Image = cover
-        m.image.Visible = true
-        m.letter.Visible = false
-    else
-        m.image.Visible = false
-        m.letter.Visible = true
+    if media.Cover ~= self.lastCover then
+        self.lastCover = media.Cover
+        self.coverOk = showImage(m.image, media.Cover)
+    end
+    m.image.Visible = self.coverOk == true
+    m.letter.Visible = not self.coverOk
+    if not self.coverOk then
         m.letter.Text = (media.Title or ""):sub(1, 1):upper()
     end
     self:_paint(self:_mediaAccent())
@@ -1039,14 +1086,10 @@ function Island:_fillCard(c, n)
     c.targetH = math.clamp(34 + textH + 16, 52, 420)
     c.icon.BackgroundColor3 = n.Color
     c.timer.BackgroundColor3 = n.Color
-    local icon = resolveImage(n.Icon)
-    if icon then
-        c.iconImage.Image = icon
-        c.iconImage.Visible = true
-        c.glyph.Visible = false
-    else
-        c.iconImage.Visible = false
-        c.glyph.Visible = true
+    local hasIcon = showImage(c.iconImage, n.Icon)
+    c.iconImage.Visible = hasIcon
+    c.glyph.Visible = not hasIcon
+    if not hasIcon then
         c.glyph.Text = Glyphs[n.Kind] or "i"
     end
 end
@@ -1425,13 +1468,20 @@ end
 local Library = {}
 
 function Library.new(config)
-    return Island.new(config)
+    if Library.instance and not Library.instance.destroyed then
+        return Library.instance
+    end
+    Library.instance = Island.new(config)
+    return Library.instance
 end
 
 function Library.DestroyAll()
     for i = #instances, 1, -1 do
         instances[i]:Destroy()
     end
+    Library.instance = nil
+    clearImages()
+    pcall(clearTempDir)
 end
 
 Library.Scheme = Scheme
