@@ -1797,6 +1797,67 @@ local function notifySTX(opts)
     end
 end
 
+local DYN_ISLAND_STYLE = "Dynamic Island"
+
+local function getHyperIslandLib()
+    local env = (getgenv and getgenv()) or shared
+    local lib = env and env.DynamicIslandLib
+    if type(lib) == "table" and type(lib.new) == "function" then
+        return lib
+    end
+    return nil
+end
+
+local function getDynIsland(lib)
+    local store = shared.notifyap
+    local cached = store.dynIsland
+    if cached and not cached.destroyed and store.dynIslandLib == lib then
+        return cached
+    end
+    local island = lib.new()
+    store.dynIsland = island
+    store.dynIslandLib = lib
+    return island
+end
+
+local function notifyDynamicIsland(opts)
+    local lib = getHyperIslandLib()
+    local island = nil
+    if lib then
+        local ok, res = pcall(getDynIsland, lib)
+        if ok then island = res end
+    end
+
+    if not island then
+        return notifyMParadox(opts)
+    end
+
+    local kind = opts.Type
+    if kind ~= "Info" and kind ~= "Success" and kind ~= "Warning" and kind ~= "Error" then
+        kind = "Info"
+    end
+
+    local ok, err = pcall(function()
+        island:Notify({
+            Title    = opts.Title or "Notificação",
+            Text     = opts.Description or opts.Reason or "",
+            Type     = kind,
+            Color    = opts.Color,
+            Icon     = opts.Image,
+            Duration = opts.Time,
+            Callback = opts.Callback,
+        })
+    end)
+
+    if not ok then
+        warn("Dynamic Island falhou, usando MParadox: " .. tostring(err))
+        return notifyMParadox(opts)
+    end
+
+    local soundId = resolveSound(opts.Sound, DEFAULT_SOUND)
+    playSound(game.Workspace, soundId, 1)
+end
+
 local STYLES = {
     Library  = notifyLibrary,
     Linoria  = notifyLinoria,
@@ -1813,6 +1874,7 @@ local STYLES = {
     Abyssal  = notifyAbyssal,
     Orion    = notifyOrion,
     STX      = notifySTX,
+    [DYN_ISLAND_STYLE] = notifyDynamicIsland,
 }
 
 local DEFAULT_STYLE = "Library"
