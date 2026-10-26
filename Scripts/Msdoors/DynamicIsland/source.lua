@@ -1283,29 +1283,29 @@ function Island:_render(t)
     self.accentStroke.Color = self.glowColor
     self.accentStroke.Transparency = 1 - 0.85 * g
 
-    local p = math.clamp(self.sCard.Value, 0, 1)
-    local covering = (self.cardActive == self.center) and math.clamp(p * 2, 0, 1) or 0
-
     local fade = lerp(1, 0.5, dock)
     local alphas = {}
     for name, spring in pairs(self.layerSprings) do
         local alpha = math.clamp(spring.Value, 0, 1)
         alphas[name] = alpha
         local layer = self.layers[name]
-        layer.GroupTransparency = 1 - alpha * fade * (1 - covering)
-        layer.Visible = alpha > 0.01 and covering < 0.99
+        layer.GroupTransparency = 1 - alpha * fade
+        layer.Visible = alpha > 0.01
     end
 
     if alphas.media > 0.01 and self.media then
         self:_layoutMedia(W, H, e, ec)
     end
-    self.m.play.Visible = self.media ~= nil and alphas.media > 0.5 and ec > 0.5 and covering < 0.5
+    self.m.play.Visible = self.media ~= nil and alphas.media > 0.5 and ec > 0.5
     if alphas.idle > 0.01 then
         self:_layoutIdle(W, H, t)
     end
 
+    local p = math.clamp(self.sCard.Value, 0, 1)
     local bodyA = math.clamp(p * 2.2, 0, 1)
     local contentA = math.clamp((p - 0.45) / 0.55, 0, 1)
+    local islandBottom = top + H * k
+    local belowY = islandBottom + 6
 
     for _, c in ipairs({ self.center, self.corner }) do
         if c == self.cardActive and p > 0.003 then
@@ -1320,7 +1320,7 @@ function Island:_render(t)
                 local h = lerp(H, c.targetH, p) * k
                 c.group.AnchorPoint = Vector2.new(0.5, 0)
                 c.group.Size = UDim2.fromOffset(w, h)
-                c.group.Position = UDim2.new(0.5, 0, 0, top)
+                c.group.Position = UDim2.new(0.5, 0, 0, lerp(top, belowY, p))
                 c.radius.CornerRadius = UDim.new(0, math.min(h / 2, 12))
             else
                 c.group.AnchorPoint = Vector2.new(1, 0)
