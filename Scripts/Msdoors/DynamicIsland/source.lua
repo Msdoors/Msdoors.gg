@@ -65,6 +65,10 @@ local EXP_SPACING = 22
 local COMPACT_LYRIC_Y = 36
 local EXP_H_LYRIC = 150
 local EXP_H_PLAIN = 78
+local CARD_PLATE_STEP = 6
+local CARD_PLATE_SHRINK = 0.05
+local CARD_PLATE_MAX = 2
+local CARD_PLACEMENTS = { "Island", "Corner" }
 
 local CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
@@ -183,8 +187,16 @@ local function textWidth(text)
 end
 
 local TEMP_DIR = "msdoors/DynamicIsland"
-local assetCache = {}
 local customAsset = getcustomasset or getsynasset
+local warned = {}
+
+local function warnOnce(key, msg)
+    if warned[key] then
+        return
+    end
+    warned[key] = true
+    warn("[DynamicIsland] " .. msg)
+end
 
 local function ensureTempDir()
     if not (makefolder and isfolder) then
@@ -270,26 +282,23 @@ local function copyLocalToTemp(src)
     return path
 end
 
-local function resolveImage(src)
+local function loadAsset(src)
     if src == nil or src == "" then
-        return nil
+        return nil, nil
     end
     if typeof(src) == "number" then
-        return "rbxassetid://" .. src
+        return "rbxassetid://" .. src, nil
     end
     src = tostring(src)
     if src:match("^rbxasset") then
-        return src
+        return src, nil
     end
     if src:match("^%d+$") then
-        return "rbxassetid://" .. src
-    end
-    local cached = assetCache[src]
-    if cached then
-        return cached.asset, cached.path
+        return "rbxassetid://" .. src, nil
     end
     if not customAsset then
-        return nil
+        warnOnce("no_custom_asset", "getcustomasset/getsynasset indisponível neste executor: capas e ícones por URL não serão exibidos.")
+        return nil, nil
     end
     local path
     if src:match("^https?://") then
@@ -298,46 +307,31 @@ local function resolveImage(src)
         path = copyLocalToTemp(src)
     end
     if not path then
-        return nil
+        warnOnce("download:" .. src, "Falha ao baixar imagem: " .. src)
+        return nil, nil
     end
     local ok, asset = pcall(customAsset, path)
     if not ok or not asset then
+        warnOnce("asset:" .. src, "Falha ao carregar imagem no executor: " .. src)
         deleteImageFile(path)
-        return nil
+        return nil, nil
     end
-    assetCache[src] = { asset = asset, path = path }
     return asset, path
 end
 
-local function forgetImage(src)
-    local entry = assetCache[src]
-    if entry then
-        assetCache[src] = nil
-        deleteImageFile(entry.path)
-    end
-end
-
-local function clearImages()
-    for src, entry in pairs(assetCache) do
-        assetCache[src] = nil
-        deleteImageFile(entry.path)
-    end
-end
-
 local function showImage(imageLabel, src)
-    local asset = resolveImage(src)
+    local asset, path = loadAsset(src)
     if not asset then
         imageLabel.Image = ""
         return false
     end
     imageLabel.Image = asset
-    local key = tostring(src)
     task.spawn(function()
         local t0 = os.clock()
         while not imageLabel.IsLoaded and os.clock() - t0 < 5 and imageLabel.Parent do
             task.wait(0.1)
         end
-        forgetImage(key)
+        deleteImageFile(path)
     end)
     return true
 end
@@ -554,17 +548,14 @@ function Island.new(config)
     self.Accent = cfg.Accent or Scheme.AccentColor
     self.glowColor = self.Accent
     self.connections = {}
-    self.queue = {}
-    self.notifyBusy = false
-    self.cardCurrent = nil
-    self.cardActive = nil
-    self.cardSkip = false
-    self.cardOver = false
+    self.stacks = { Island = {}, Corner = {} }
+    self.cardShown = {}
     self.lyrics = {}
     self.currentIdx = 0
     self.frameDt = 0
     self.S = 1
     self.over = false
+    self.cardOver = false
     self.hover = false
     self.pinned = false
     self.destroyed = false
@@ -572,16 +563,20 @@ function Island.new(config)
     self.specT = 0
     self.idleSince = os.clock()
     self.specLevels = { 0.2, 0.3, 0.25, 0.3, 0.2 }
-    self.lastCover = nil
+    self.coverSrc = nil
+    self.coverPath = nil
     self.coverOk = false
     self.sW = Spring.new(40, 4, 1)
     self.sH = Spring.new(24, 4, 1)
     self.sE = Spring.new(0, 4, 1)
     self.sShow = Spring.new(0, 3, 0.68)
     self.sGlow = Spring.new(0, 2.2, 1)
-    self.sCard = Spring.new(0, 2.6, 1)
     self.sDock = Spring.new(0, 1.6, 1)
     self.sScroll = Spring.new(0, 3.2, 1)
+    self.cardSprings = {
+        Island = Spring.new(0, 2.6, 1),
+        Corner = Spring.new(0, 2.6, 1),
+    }
     self.layerSprings = {
         media = Spring.new(0, 6, 1),
         idle = Spring.new(0, 6, 1),
@@ -592,9 +587,10 @@ function Island.new(config)
         self.sE,
         self.sShow,
         self.sGlow,
-        self.sCard,
         self.sDock,
         self.sScroll,
+        self.cardSprings.Island,
+        self.cardSprings.Corner,
         self.layerSprings.media,
         self.layerSprings.idle,
     }
@@ -689,6 +685,19 @@ function Island:_makeCard(parent, accent, anchorX)
         ZIndex = 33,
         Parent = c.group,
     })
+    c.plates = {}
+    for i = 1, CARD_PLATE_MAX do
+        local plate = new("Frame", {
+            BackgroundColor3 = Scheme.BackgroundColor,
+            BackgroundTransparency = 0.5,
+            Size = UDim2.fromOffset(300, 60),
+            ZIndex = 29 - i,
+            Visible = false,
+            Parent = parent,
+        })
+        new("UICorner", { CornerRadius = UDim.new(0, 12), Parent = plate })
+        c.plates[i] = plate
+    end
     return c
 end
 
@@ -785,8 +794,10 @@ function Island:_build()
         Parent = self.shell,
     })
 
-    self.center = self:_makeCard(self.gui, self.Accent, 0.5)
-    self.corner = self:_makeCard(self.gui, self.Accent, 1)
+    self.cards = {
+        Island = self:_makeCard(self.gui, self.Accent, 0.5),
+        Corner = self:_makeCard(self.gui, self.Accent, 1),
+    }
 
     local ml = self.layers.media
     local m = {}
@@ -797,6 +808,7 @@ function Island:_build()
         TextSize = 13,
         TextColor3 = Scheme.DarkColor,
         TextXAlignment = Enum.TextXAlignment.Center,
+        Visible = true,
     })
     m.image = new("ImageLabel", {
         BackgroundTransparency = 1,
@@ -898,12 +910,12 @@ function Island:_bind()
         self:_onActivated()
     end))
 
-    add(self.center.hit.Activated:Connect(function()
-        self:_onCardTap()
+    add(self.cards.Island.hit.Activated:Connect(function()
+        self:_onCardTap("Island")
     end))
 
-    add(self.corner.hit.Activated:Connect(function()
-        self:_onCardTap()
+    add(self.cards.Corner.hit.Activated:Connect(function()
+        self:_onCardTap("Corner")
     end))
 
     add(UserInputService.InputChanged:Connect(function(input)
@@ -950,13 +962,17 @@ function Island:_inside(pos)
 end
 
 function Island:_insideCard(pos)
-    local c = self.cardActive
-    if not c or not c.group.Visible then
-        return false
+    for _, placement in ipairs(CARD_PLACEMENTS) do
+        local c = self.cards[placement]
+        if c.group.Visible then
+            local p, s = c.group.AbsolutePosition, c.group.AbsoluteSize
+            local pad = 8
+            if pos.X >= p.X - pad and pos.X <= p.X + s.X + pad and pos.Y >= p.Y - pad and pos.Y <= p.Y + s.Y + pad then
+                return true
+            end
+        end
     end
-    local p, s = c.group.AbsolutePosition, c.group.AbsoluteSize
-    local pad = 8
-    return pos.X >= p.X - pad and pos.X <= p.X + s.X + pad and pos.Y >= p.Y - pad and pos.Y <= p.Y + s.Y + pad
+    return false
 end
 
 function Island:_insideTouch(position)
@@ -965,6 +981,15 @@ function Island:_insideTouch(position)
     end
     local raw = Vector2.new(position.X, position.Y)
     return self:_inside(raw) or self:_inside(raw + GuiService:GetGuiInset())
+end
+
+function Island:_hasNotification()
+    for _, placement in ipairs(CARD_PLACEMENTS) do
+        if #self.stacks[placement] > 0 then
+            return true
+        end
+    end
+    return false
 end
 
 function Island:_activeLayer()
@@ -1048,15 +1073,41 @@ function Island:_onActivated()
     self:_setPinned(not self.pinned)
 end
 
-function Island:_onCardTap()
-    local n = self.cardCurrent
-    if not n or self.sCard.Value < 0.5 then
+function Island:_onCardTap(placement)
+    local stack = self.stacks[placement]
+    local front = stack[#stack]
+    if not front or self.cardSprings[placement].Value < 0.5 then
         return
     end
-    if n.Callback then
-        task.spawn(n.Callback, n)
+    if front.Callback then
+        task.spawn(front.Callback, front)
     end
-    self.cardSkip = true
+    front.Skip = true
+end
+
+function Island:_setCover(src)
+    if src == self.coverSrc then
+        return
+    end
+    self.coverSrc = src
+    local old = self.coverPath
+    local asset, path = loadAsset(src)
+    if asset then
+        self.m.image.Image = asset
+        self.m.image.Visible = true
+        self.m.letter.Visible = false
+        self.coverOk = true
+    else
+        self.m.image.Image = ""
+        self.m.image.Visible = false
+        self.m.letter.Visible = true
+        self.coverOk = false
+        path = nil
+    end
+    self.coverPath = path
+    if old and old ~= path then
+        deleteImageFile(old)
+    end
 end
 
 function Island:_syncMedia()
@@ -1064,12 +1115,7 @@ function Island:_syncMedia()
     local m = self.m
     m.title.Text = media.Title or ""
     m.artist.Text = media.Artist or ""
-    if media.Cover ~= self.lastCover then
-        self.lastCover = media.Cover
-        self.coverOk = showImage(m.image, media.Cover)
-    end
-    m.image.Visible = self.coverOk == true
-    m.letter.Visible = not self.coverOk
+    self:_setCover(media.Cover)
     if not self.coverOk then
         m.letter.Text = (media.Title or ""):sub(1, 1):upper()
     end
@@ -1282,68 +1328,40 @@ function Island:Notify(opts)
             color = self.Accent
         end
     end
-    local duration = opts.Duration or self.Config.NotifyDuration
+    local placement = self.Config.NotifyPlacement == "Corner" and "Corner" or "Island"
     local n = {
         Title = tostring(opts.Title or "Notice"),
         Text = tostring(opts.Text or opts.Content or ""),
-        Duration = duration,
+        Duration = opts.Duration or self.Config.NotifyDuration,
         Elapsed = 0,
         Color = color,
         Kind = kind,
         Icon = opts.Icon,
         Callback = opts.Callback,
-        Placement = self.Config.NotifyPlacement == "Corner" and "Corner" or "Island",
+        Skip = false,
+        Placement = placement,
     }
-    table.insert(self.queue, n)
-    while #self.queue > self.Config.MaxQueue do
-        table.remove(self.queue, 1)
-    end
-    if not self.notifyBusy then
-        self.notifyBusy = true
-        task.spawn(function()
-            self:_runNotify()
-        end)
+    local stack = self.stacks[placement]
+    table.insert(stack, n)
+    while #stack > self.Config.MaxQueue do
+        table.remove(stack, 1)
     end
     return n
 end
 
-function Island:_runNotify()
-    while #self.queue > 0 and not self.destroyed do
-        local n = table.remove(self.queue, 1)
-        local c = n.Placement == "Corner" and self.corner or self.center
-        n.Elapsed = 0
-        self.cardCurrent = n
-        self.cardActive = c
-        self.cardSkip = false
-        self:_fillCard(c, n)
-        self:_glowOn(n.Color)
-        self.sCard.Value = 0
-        self.sCard.Velocity = 0
-        self.sCard.Target = 1
-        while n.Elapsed < n.Duration and not self.cardSkip and not self.destroyed do
-            task.wait()
-        end
-        self:_glowOff()
-        self.sCard.Target = 0
-        local t0 = os.clock()
-        while self.sCard.Value > 0.01 and os.clock() - t0 < 3 and not self.destroyed do
-            task.wait()
-        end
-        c.group.Visible = false
-        self.cardActive = nil
-        self.cardCurrent = nil
-        task.wait(0.15)
-    end
-    self.notifyBusy = false
-end
-
 function Island:Dismiss()
-    self.cardSkip = true
+    for _, placement in ipairs(CARD_PLACEMENTS) do
+        local front = self.stacks[placement][#self.stacks[placement]]
+        if front then
+            front.Skip = true
+        end
+    end
 end
 
 function Island:ClearNotifications()
-    table.clear(self.queue)
-    self.cardSkip = true
+    for _, placement in ipairs(CARD_PLACEMENTS) do
+        table.clear(self.stacks[placement])
+    end
 end
 
 function Island:Show()
@@ -1367,9 +1385,26 @@ function Island:Destroy()
     if self.gui then
         self.gui:Destroy()
     end
+    deleteImageFile(self.coverPath)
+    self.coverPath = nil
     local idx = table.find(instances, self)
     if idx then
         table.remove(instances, idx)
+    end
+end
+
+function Island:_tickNotifications(dt)
+    for _, placement in ipairs(CARD_PLACEMENTS) do
+        local stack = self.stacks[placement]
+        local front = stack[#stack]
+        if front then
+            if not self.cardOver then
+                front.Elapsed += dt
+            end
+            if front.Elapsed >= front.Duration or front.Skip then
+                table.remove(stack)
+            end
+        end
     end
 end
 
@@ -1402,11 +1437,9 @@ function Island:_step(dt)
         end
     end
 
-    if self.cardCurrent and not self.cardOver then
-        self.cardCurrent.Elapsed += dt
-    end
+    self:_tickNotifications(dt)
 
-    local busy = self.over or self.hover or self.pinned or self.cardCurrent ~= nil
+    local busy = self.over or self.hover or self.pinned or self:_hasNotification()
     if busy then
         self.idleSince = now
     end
@@ -1458,6 +1491,75 @@ function Island:_step(dt)
     end
 
     self:_render(now)
+end
+
+function Island:_renderPlates(card, stack, p)
+    local depth = math.min(#stack - 1, CARD_PLATE_MAX)
+    for i, plate in ipairs(card.plates) do
+        if i <= depth and p > 0.5 then
+            local shrink = 1 - CARD_PLATE_SHRINK * i
+            local size = card.group.Size
+            plate.AnchorPoint = card.group.AnchorPoint
+            plate.Size = UDim2.fromOffset(size.X.Offset * shrink, size.Y.Offset)
+            plate.Position = card.group.Position + UDim2.fromOffset(0, CARD_PLATE_STEP * i)
+            plate.BackgroundTransparency = 0.45 + 0.15 * (i - 1)
+            plate.Visible = true
+        else
+            plate.Visible = false
+        end
+    end
+end
+
+function Island:_renderCards(top, W, H, k)
+    local belowY = top + H * k + 6
+    for _, placement in ipairs(CARD_PLACEMENTS) do
+        local card = self.cards[placement]
+        local stack = self.stacks[placement]
+        local front = stack[#stack]
+        if front and self.cardShown[placement] ~= front then
+            self.cardShown[placement] = front
+            self:_fillCard(card, front)
+        end
+        if not front then
+            self.cardShown[placement] = nil
+        end
+
+        local p = math.clamp(self.cardSprings[placement].Value, 0, 1)
+        if p <= 0.003 then
+            card.group.Visible = false
+            for _, plate in ipairs(card.plates) do
+                plate.Visible = false
+            end
+        else
+            local bodyA = math.clamp(p * 2.2, 0, 1)
+            local contentA = math.clamp((p - 0.45) / 0.55, 0, 1)
+            card.group.Visible = true
+            card.group.GroupTransparency = 1 - bodyA
+            card.title.TextTransparency = 1 - contentA
+            card.text.TextTransparency = 1 - contentA
+            card.glyph.TextTransparency = 1 - contentA
+            card.iconImage.ImageTransparency = 1 - contentA
+            if placement == "Island" then
+                local w = lerp(W, card.targetW, p) * k
+                local h = lerp(H, card.targetH, p) * k
+                card.group.AnchorPoint = Vector2.new(0.5, 0)
+                card.group.Size = UDim2.fromOffset(w, h)
+                card.group.Position = UDim2.new(0.5, 0, 0, lerp(top, belowY, p))
+                card.radius.CornerRadius = UDim.new(0, math.min(h / 2, 12))
+            else
+                card.group.AnchorPoint = Vector2.new(1, 0)
+                card.group.Size = UDim2.fromOffset(card.targetW * k, card.targetH * k)
+                card.group.Position = UDim2.new(1, lerp(320, -16, p), 0, top)
+                card.radius.CornerRadius = UDim.new(0, 12)
+            end
+            self:_renderPlates(card, stack, p)
+        end
+
+        if front then
+            local frac = math.clamp(1 - front.Elapsed / front.Duration, 0, 1)
+            card.timer.Size = UDim2.new(frac, 0, 0, 2)
+        end
+    end
 end
 
 function Island:_render(t)
@@ -1512,43 +1614,7 @@ function Island:_render(t)
         self:_layoutIdle(W, H, t)
     end
 
-    local p = math.clamp(self.sCard.Value, 0, 1)
-    local bodyA = math.clamp(p * 2.2, 0, 1)
-    local contentA = math.clamp((p - 0.45) / 0.55, 0, 1)
-    local islandBottom = top + H * k
-    local belowY = islandBottom + 6
-
-    for _, c in ipairs({ self.center, self.corner }) do
-        if c == self.cardActive and p > 0.003 then
-            c.group.Visible = true
-            c.group.GroupTransparency = 1 - bodyA
-            c.title.TextTransparency = 1 - contentA
-            c.text.TextTransparency = 1 - contentA
-            c.glyph.TextTransparency = 1 - contentA
-            c.iconImage.ImageTransparency = 1 - contentA
-            if c == self.center then
-                local w = lerp(W, c.targetW, p) * k
-                local h = lerp(H, c.targetH, p) * k
-                c.group.AnchorPoint = Vector2.new(0.5, 0)
-                c.group.Size = UDim2.fromOffset(w, h)
-                c.group.Position = UDim2.new(0.5, 0, 0, lerp(top, belowY, p))
-                c.radius.CornerRadius = UDim.new(0, math.min(h / 2, 12))
-            else
-                c.group.AnchorPoint = Vector2.new(1, 0)
-                c.group.Size = UDim2.fromOffset(c.targetW * k, c.targetH * k)
-                c.group.Position = UDim2.new(1, lerp(320, -16, p), 0, top)
-                c.radius.CornerRadius = UDim.new(0, 12)
-            end
-        else
-            c.group.Visible = false
-        end
-    end
-
-    local nc = self.cardCurrent
-    if nc and self.cardActive then
-        local frac = math.clamp(1 - nc.Elapsed / nc.Duration, 0, 1)
-        self.cardActive.timer.Size = UDim2.new(frac, 0, 0, 2)
-    end
+    self:_renderCards(top, W, H, k)
 end
 
 function Island:_setSlotLine(slot, idx)
@@ -1766,7 +1832,6 @@ function Library.DestroyAll()
         instances[i]:Destroy()
     end
     Library.instance = nil
-    clearImages()
     pcall(clearTempDir)
 end
 
