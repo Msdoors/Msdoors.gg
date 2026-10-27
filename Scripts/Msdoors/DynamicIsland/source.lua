@@ -1191,27 +1191,9 @@ function Island:_setCover(src)
 
     img.Image = asset
     img.Visible = true
-    img.ImageTransparency = 1
-
-    task.spawn(function()
-        local t0 = os.clock()
-        while self.coverToken == token and not (img.IsLoaded and img.Image == asset) and os.clock() - t0 < 10 do
-            task.wait(0.05)
-        end
-        if self.coverToken ~= token then
-            return
-        end
-        if img.IsLoaded and img.Image == asset then
-            img.ImageTransparency = 0
-            self.m.letter.Visible = false
-            self.coverOk = true
-        else
-            img.Image = ""
-            img.Visible = false
-            self.m.letter.Visible = true
-            self.coverOk = false
-        end
-    end)
+    img.ImageTransparency = 0
+    self.m.letter.Visible = false
+    self.coverOk = true
 end
 
 function Island:_syncMedia()
