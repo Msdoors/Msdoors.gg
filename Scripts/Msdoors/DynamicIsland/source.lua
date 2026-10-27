@@ -69,6 +69,7 @@ local CARD_PLATE_STEP = 6
 local CARD_PLATE_SHRINK = 0.05
 local CARD_PLATE_MAX = 2
 local CARD_PLACEMENTS = { "Island", "Corner" }
+local COVER_CACHE_MAX = 12
 
 local CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
@@ -189,6 +190,8 @@ end
 local TEMP_DIR = "msdoors/DynamicIsland"
 local customAsset = getcustomasset or getsynasset
 local warned = {}
+local coverCache = {}
+local coverOrder = {}
 
 local function warnOnce(key, msg)
     if warned[key] then
@@ -246,8 +249,8 @@ local function tempPath(src)
 end
 
 local function fetchToTemp(url)
-    if not (writefile and readfile and isfile and game.HttpGet) then
-        return nil
+    if not (writefile and readfile and isfile) then
+        return nil, "writefile/readfile indisponíveis"
     end
     ensureTempDir()
     local path = tempPath(url)
@@ -257,9 +260,11 @@ local function fetchToTemp(url)
             return path
         end
     end
-    local ok, data = pcall(game.HttpGet, game, url)
+    local ok, data = pcall(function()
+        return game:HttpGet(url)
+    end)
     if not ok or type(data) ~= "string" or #data == 0 then
-        return nil
+        return nil, "HttpGet falhou: " .. tostring(data)
     end
     writefile(path, data)
     return path
@@ -267,72 +272,97 @@ end
 
 local function copyLocalToTemp(src)
     if not (writefile and readfile and isfile) then
-        return nil
+        return nil, "writefile/readfile indisponíveis"
     end
     if not isfile(src) then
-        return nil
+        return nil, "arquivo não existe: " .. src
     end
     ensureTempDir()
     local ok, data = pcall(readfile, src)
     if not ok or type(data) ~= "string" or #data == 0 then
-        return nil
+        return nil, "leitura falhou: " .. src
     end
     local path = tempPath(src)
     writefile(path, data)
     return path
 end
 
+local function touchCover(src)
+    for i = #coverOrder, 1, -1 do
+        if coverOrder[i] == src then
+            table.remove(coverOrder, i)
+        end
+    end
+    table.insert(coverOrder, src)
+    while #coverOrder > COVER_CACHE_MAX do
+        local old = table.remove(coverOrder, 1)
+        local entry = coverCache[old]
+        coverCache[old] = nil
+        if entry then
+            deleteImageFile(entry.path)
+        end
+    end
+end
+
+local function clearCovers()
+    for src, entry in pairs(coverCache) do
+        coverCache[src] = nil
+        deleteImageFile(entry.path)
+    end
+    table.clear(coverOrder)
+end
+
 local function loadAsset(src)
     if src == nil or src == "" then
-        return nil, nil
+        return nil
     end
     if typeof(src) == "number" then
-        return "rbxassetid://" .. src, nil
+        return "rbxassetid://" .. src
     end
     src = tostring(src)
     if src:match("^rbxasset") then
-        return src, nil
+        return src
     end
     if src:match("^%d+$") then
-        return "rbxassetid://" .. src, nil
+        return "rbxassetid://" .. src
+    end
+    local cached = coverCache[src]
+    if cached then
+        touchCover(src)
+        return cached.asset
     end
     if not customAsset then
-        warnOnce("no_custom_asset", "getcustomasset/getsynasset indisponível neste executor: capas e ícones por URL não serão exibidos.")
-        return nil, nil
+        warnOnce("no_custom_asset", "getcustomasset/getsynasset indisponível: capas por URL não aparecem neste executor.")
+        return nil
     end
-    local path
+    local path, reason
     if src:match("^https?://") then
-        path = fetchToTemp(src)
+        path, reason = fetchToTemp(src)
     else
-        path = copyLocalToTemp(src)
+        path, reason = copyLocalToTemp(src)
     end
     if not path then
-        warnOnce("download:" .. src, "Falha ao baixar imagem: " .. src)
-        return nil, nil
+        warnOnce("download:" .. src, "Falha ao obter imagem " .. src .. " (" .. tostring(reason) .. ")")
+        return nil
     end
     local ok, asset = pcall(customAsset, path)
     if not ok or not asset then
-        warnOnce("asset:" .. src, "Falha ao carregar imagem no executor: " .. src)
+        warnOnce("asset:" .. src, "Falha ao carregar imagem no executor: " .. tostring(asset))
         deleteImageFile(path)
-        return nil, nil
+        return nil
     end
-    return asset, path
+    coverCache[src] = { asset = asset, path = path }
+    touchCover(src)
+    return asset
 end
 
 local function showImage(imageLabel, src)
-    local asset, path = loadAsset(src)
+    local asset = loadAsset(src)
     if not asset then
         imageLabel.Image = ""
         return false
     end
     imageLabel.Image = asset
-    task.spawn(function()
-        local t0 = os.clock()
-        while not imageLabel.IsLoaded and os.clock() - t0 < 5 and imageLabel.Parent do
-            task.wait(0.1)
-        end
-        deleteImageFile(path)
-    end)
     return true
 end
 
@@ -564,7 +594,6 @@ function Island.new(config)
     self.idleSince = os.clock()
     self.specLevels = { 0.2, 0.3, 0.25, 0.3, 0.2 }
     self.coverSrc = nil
-    self.coverPath = nil
     self.coverOk = false
     self.sW = Spring.new(40, 4, 1)
     self.sH = Spring.new(24, 4, 1)
@@ -1090,8 +1119,7 @@ function Island:_setCover(src)
         return
     end
     self.coverSrc = src
-    local old = self.coverPath
-    local asset, path = loadAsset(src)
+    local asset = loadAsset(src)
     if asset then
         self.m.image.Image = asset
         self.m.image.Visible = true
@@ -1102,11 +1130,6 @@ function Island:_setCover(src)
         self.m.image.Visible = false
         self.m.letter.Visible = true
         self.coverOk = false
-        path = nil
-    end
-    self.coverPath = path
-    if old and old ~= path then
-        deleteImageFile(old)
     end
 end
 
@@ -1385,8 +1408,6 @@ function Island:Destroy()
     if self.gui then
         self.gui:Destroy()
     end
-    deleteImageFile(self.coverPath)
-    self.coverPath = nil
     local idx = table.find(instances, self)
     if idx then
         table.remove(instances, idx)
@@ -1405,6 +1426,8 @@ function Island:_tickNotifications(dt)
                 table.remove(stack)
             end
         end
+        local target = (#stack > 0) and 1 or 0
+        self.cardSprings[placement].Target = target
     end
 end
 
@@ -1832,6 +1855,7 @@ function Library.DestroyAll()
         instances[i]:Destroy()
     end
     Library.instance = nil
+    clearCovers()
     pcall(clearTempDir)
 end
 
