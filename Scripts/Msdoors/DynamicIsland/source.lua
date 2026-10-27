@@ -235,10 +235,10 @@ local function deleteImageFile(path)
     end
 end
 
-local function removeWhenLoaded(imageLabel, path)
+local function removeWhenLoaded(imageLabel, asset, path)
     task.spawn(function()
         local t0 = os.clock()
-        while not imageLabel.IsLoaded and os.clock() - t0 < 15 and imageLabel.Parent do
+        while not (imageLabel.Image == asset and imageLabel.IsLoaded) and os.clock() - t0 < 15 and imageLabel.Parent do
             task.wait(0.1)
         end
         deleteImageFile(path)
@@ -335,11 +335,6 @@ local function loadAsset(src)
     end
     if src:match("^%d+$") then
         return "rbxassetid://" .. src
-    end
-    local cached = coverCache[src]
-    if cached then
-        touchCover(src)
-        return cached.asset
     end
     if not customAsset then
         warnOnce("no_custom_asset", "getcustomasset/getsynasset indisponível: capas por URL não aparecem neste executor.")
@@ -1123,7 +1118,7 @@ function Island:_setCover(src)
     if asset then
         self.m.image.Image = asset
         if path then
-            removeWhenLoaded(self.m.image, path)
+            removeWhenLoaded(self.m.image, asset, path)
         end
         self.m.image.Visible = true
         self.m.letter.Visible = false
@@ -1344,7 +1339,7 @@ function Island:_fillCard(c, n)
             c.iconImage.Visible = true
             c.glyph.Visible = false
             if path then
-                removeWhenLoaded(c.iconImage, path)
+                removeWhenLoaded(c.iconImage, asset, path)
             end
         end)
     end
