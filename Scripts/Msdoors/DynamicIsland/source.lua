@@ -24,7 +24,7 @@ local Scheme = {
     OutlineColor = Color3.fromRGB(40, 40, 40),
     FontColor = Color3.new(1, 1, 1),
     DimColor = Color3.fromRGB(170, 170, 170),
-    LyricDimColor = Color3.fromRGB(150, 150, 150),
+    LyricDimColor = Color3.fromRGB(120, 120, 120),
     RedColor = Color3.fromRGB(255, 50, 50),
     GreenColor = Color3.fromRGB(80, 200, 120),
     YellowColor = Color3.fromRGB(255, 190, 60),
@@ -344,6 +344,10 @@ end
 
 pcall(clearTempDir)
 
+local function darkMix(color)
+    return Scheme.BackgroundColor:Lerp(color, 0.3)
+end
+
 local Spring = {}
 Spring.__index = Spring
 
@@ -558,6 +562,7 @@ function Island.new(config)
     self.cardOver = false
     self.lyrics = {}
     self.currentIdx = 0
+    self.frameDt = 0
     self.S = 1
     self.over = false
     self.hover = false
@@ -576,7 +581,7 @@ function Island.new(config)
     self.sGlow = Spring.new(0, 2.2, 1)
     self.sCard = Spring.new(0, 2.6, 1)
     self.sDock = Spring.new(0, 1.6, 1)
-    self.sScroll = Spring.new(0, 5, 1)
+    self.sScroll = Spring.new(0, 3.2, 1)
     self.layerSprings = {
         media = Spring.new(0, 6, 1),
         idle = Spring.new(0, 6, 1),
@@ -624,17 +629,25 @@ function Island:_makeCard(parent, accent, anchorX)
         Parent = c.group,
     })
     c.icon = new("Frame", {
-        BackgroundColor3 = accent,
+        BackgroundColor3 = darkMix(accent),
         Position = UDim2.fromOffset(10, 10),
         Size = UDim2.fromOffset(28, 28),
         ZIndex = 31,
         Parent = c.group,
     })
     new("UICorner", { CornerRadius = UDim.new(0, 6), Parent = c.icon })
+    c.iconStroke = new("UIStroke", {
+        Color = accent,
+        Thickness = 1,
+        Transparency = 0.35,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        ZIndex = 32,
+        Parent = c.icon,
+    })
     c.glyph = label(c.icon, {
         Size = UDim2.fromScale(1, 1),
         TextSize = 14,
-        TextColor3 = Scheme.DarkColor,
+        TextColor3 = accent,
         TextXAlignment = Enum.TextXAlignment.Center,
         ZIndex = 32,
     })
@@ -826,22 +839,32 @@ function Island:_build()
     new("UICorner", { CornerRadius = UDim.new(0, 4), Parent = m.play })
     self.m = m
 
+    self.lyricClip = new("Frame", {
+        BackgroundTransparency = 1,
+        ClipsDescendants = true,
+        Size = UDim2.fromOffset(10, 10),
+        Visible = false,
+        Parent = ml,
+    })
+
     self.slots = {}
     for k = 1, LYRIC_SLOTS do
-        local dim = label(ml, {
+        local dim = label(self.lyricClip, {
             TextSize = LYRIC_TEXT_SIZE,
             TextColor3 = Scheme.LyricDimColor,
+            TextTruncate = Enum.TextTruncate.None,
             Size = UDim2.fromOffset(10, 18),
             Visible = false,
         })
-        local bright = label(ml, {
+        local bright = label(self.lyricClip, {
             TextSize = LYRIC_TEXT_SIZE,
             TextColor3 = Scheme.FontColor,
+            TextTruncate = Enum.TextTruncate.None,
             Size = UDim2.fromOffset(10, 18),
             Visible = false,
         })
         local grad = new("UIGradient", { Parent = bright })
-        self.slots[k] = { dim = dim, bright = bright, grad = grad, idx = nil, w = 0, p = -1, regionW = 0 }
+        self.slots[k] = { dim = dim, bright = bright, grad = grad, idx = nil, w = 0, p = -1, x = 0 }
     end
 
     local il = self.layers.idle
@@ -1229,7 +1252,9 @@ function Island:_fillCard(c, n)
     c.text.Size = UDim2.fromOffset(236, textH + 6)
     c.targetW = 300
     c.targetH = math.clamp(34 + textH + 16, 52, 420)
-    c.icon.BackgroundColor3 = n.Color
+    c.icon.BackgroundColor3 = darkMix(n.Color)
+    c.iconStroke.Color = n.Color
+    c.glyph.TextColor3 = n.Color
     c.timer.BackgroundColor3 = n.Color
     local hasIcon = showImage(c.iconImage, n.Icon)
     c.iconImage.Visible = hasIcon
@@ -1353,6 +1378,7 @@ function Island:_step(dt)
         return
     end
     dt = math.min(dt, 1 / 20)
+    self.frameDt = dt
     local now = os.clock()
     local cfg = self.Config
 
@@ -1525,23 +1551,22 @@ function Island:_render(t)
     end
 end
 
-function Island:_setSlotLine(slot, idx, regionW)
-    if slot.idx == idx and slot.regionW == regionW then
-        return
+function Island:_setSlotLine(slot, idx)
+    if slot.idx == idx then
+        return false
     end
     slot.idx = idx
-    slot.regionW = regionW
     local text = self.lyrics[idx].Text
     if text == "" then
         text = "..."
     end
-    local w = math.min(textWidth(text), regionW)
-    slot.w = w
+    slot.w = textWidth(text)
     slot.dim.Text = text
     slot.bright.Text = text
-    slot.dim.Size = UDim2.fromOffset(w, 18)
-    slot.bright.Size = UDim2.fromOffset(w, 18)
+    slot.dim.Size = UDim2.fromOffset(slot.w + 2, 18)
+    slot.bright.Size = UDim2.fromOffset(slot.w + 2, 18)
     slot.p = -1
+    return true
 end
 
 function Island:_setSweep(slot, p)
@@ -1558,49 +1583,80 @@ function Island:_hideSlot(slot)
     slot.idx = nil
 end
 
+function Island:_lineOffset(w, regionW, pos, idx)
+    if w <= regionW then
+        return (regionW - w) / 2
+    end
+    local p = lineProgress(self.lyrics[idx], pos)
+    return -math.clamp(w * p - regionW * 0.42, 0, w - regionW)
+end
+
 function Island:_layoutLyrics(W, e, ec)
     local cfg = self.Config
     local hasLyr = self:_lyricsActive()
     local cur = self.currentIdx or 0
-    local expanded = ec > 0.5
     local la
     if not hasLyr then
         la = 0
-    elseif expanded then
+    elseif ec > 0.5 then
         la = ec
     else
         la = (cfg.LyricsInCompact and not cfg.Discreet) and (1 - ec) or 0
     end
 
     if la <= 0.01 or cur < 1 then
+        self.lyricClip.Visible = false
         for _, slot in ipairs(self.slots) do
             self:_hideSlot(slot)
         end
         return
     end
 
+    self.lyricClip.Visible = true
     local pos = self.media and self.media.Position or 0
+    local dt = self.frameDt or 0
+    local expanded = ec > 0.5
+    local regionW, clipX, clipY, clipH
+    if expanded then
+        clipX, clipY = 12, EXP_LYRIC_TOP
+        regionW = W - 24
+        clipH = EXP_LYRIC_H
+    else
+        clipX, clipY = 8, COMPACT_LYRIC_Y
+        regionW = W - 34
+        clipH = 18
+    end
+    regionW = math.max(regionW, 10)
+    self.lyricClip.Position = UDim2.fromOffset(clipX, clipY)
+    self.lyricClip.Size = UDim2.fromOffset(regionW, clipH)
 
     if expanded then
-        local regionX = 12
-        local regionW = W - 24
         local s = self.sScroll.Value
         local nearest = math.floor(s + 0.5)
-        local centerY = EXP_LYRIC_TOP + EXP_LYRIC_H / 2
+        local centerY = EXP_LYRIC_H / 2 - 9
         for k, slot in ipairs(self.slots) do
             local idx = nearest - 4 + k
             local dist = math.abs(idx - s)
             if idx >= 1 and idx <= #self.lyrics and dist < 2.6 then
-                self:_setSlotLine(slot, idx, regionW)
-                local x = regionX + (regionW - slot.w) / 2
-                local y = centerY + (idx - s) * EXP_SPACING - 9
+                local changed = self:_setSlotLine(slot, idx)
+                local tx = self:_lineOffset(slot.w, regionW, pos, idx)
+                if idx == cur then
+                    if changed then
+                        slot.x = tx
+                    else
+                        slot.x = lerp(slot.x, tx, math.min(1, dt * 12))
+                    end
+                else
+                    slot.x = tx
+                end
+                local y = centerY + (idx - s) * EXP_SPACING
                 local a = math.clamp(1 - dist * 0.5, 0, 1)
                 slot.dim.Visible = true
-                slot.dim.Position = UDim2.fromOffset(x, y)
+                slot.dim.Position = UDim2.fromOffset(slot.x, y)
                 slot.dim.TextTransparency = 1 - a * la * 0.6
                 if idx == cur then
                     slot.bright.Visible = true
-                    slot.bright.Position = UDim2.fromOffset(x, y)
+                    slot.bright.Position = UDim2.fromOffset(slot.x, y)
                     slot.bright.TextTransparency = 1 - la
                     self:_setSweep(slot, lineProgress(self.lyrics[idx], pos))
                 else
@@ -1611,18 +1667,20 @@ function Island:_layoutLyrics(W, e, ec)
             end
         end
     else
-        local regionX = 8
-        local regionW = W - 34
         for k, slot in ipairs(self.slots) do
             if k == 1 then
-                self:_setSlotLine(slot, cur, regionW)
-                local x = regionX + (regionW - slot.w) / 2
-                local y = COMPACT_LYRIC_Y
+                local changed = self:_setSlotLine(slot, cur)
+                local tx = self:_lineOffset(slot.w, regionW, pos, cur)
+                if changed then
+                    slot.x = tx
+                else
+                    slot.x = lerp(slot.x, tx, math.min(1, dt * 12))
+                end
                 slot.dim.Visible = true
-                slot.dim.Position = UDim2.fromOffset(x, y)
+                slot.dim.Position = UDim2.fromOffset(slot.x, 0)
                 slot.dim.TextTransparency = 1 - la * 0.6
                 slot.bright.Visible = true
-                slot.bright.Position = UDim2.fromOffset(x, y)
+                slot.bright.Position = UDim2.fromOffset(slot.x, 0)
                 slot.bright.TextTransparency = 1 - la
                 self:_setSweep(slot, lineProgress(self.lyrics[cur], pos))
             else
