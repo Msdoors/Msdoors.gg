@@ -348,6 +348,22 @@ local function clearCovers()
     table.clear(coverOrder)
 end
 
+local function GetGitImageID(githubLink, imageName)
+    local fileName = "img_" .. tostring(imageName) .. ".png"
+    if isfile and isfile(fileName) then
+        local s, a = pcall(function() return (getcustomasset or getsynasset)(fileName) end)
+        if s then return a end
+    end
+    local s, d = pcall(function() return game:HttpGet(githubLink, true) end)
+    if not s or type(d) ~= "string" or #d == 0 then return "" end
+    if writefile then
+        pcall(writefile, fileName, d)
+        local s2, a2 = pcall(function() return (getcustomasset or getsynasset)(fileName) end)
+        if s2 then return a2 end
+    end
+    return ""
+end
+
 local function loadAsset(src)
     if src == nil or src == "" then
         return nil
@@ -378,35 +394,9 @@ local function loadAsset(src)
         return nil
     end
 
-    local path = findCached(src)
-    if not path then
-        local data, reason
-        if src:match("^https?://") then
-            data, reason = downloadImage(src)
-        elseif isfile(src) then
-            local ok, content = pcall(readfile, src)
-            if ok and type(content) == "string" then
-                data = content
-            else
-                reason = "leitura falhou"
-            end
-        else
-            reason = "arquivo não existe"
-        end
-        if not data then
-            warnOnce("download:" .. src, "Falha ao obter capa (" .. tostring(reason) .. "): " .. src)
-            return nil
-        end
-        path, reason = storeImage(src, data)
-        if not path then
-            warnOnce("store:" .. src, "Capa rejeitada (" .. tostring(reason) .. "): " .. src)
-            return nil
-        end
-    end
-
-    local ok, asset = pcall(customAsset, path)
-    if not ok or not asset then
-        warnOnce("asset:" .. src, "Executor recusou a imagem: " .. tostring(asset))
+    local asset = GetGitImageID(src, hashOf(src))
+    if asset == "" then
+        warnOnce("cover:" .. src, "Falha ao obter capa: " .. src)
         return nil
     end
 
