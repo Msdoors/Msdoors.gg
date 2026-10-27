@@ -235,17 +235,61 @@ local function deleteImageFile(path)
     end
 end
 
-local function tempPath(src)
+local requestCompat = (syn and syn.request) or request or http_request or (http and http.request) or (fluxus and fluxus.request)
+
+local IMAGE_EXTS = { "png", "jpg", "bmp", "tga", "gif", "webp" }
+
+local function detectImage(data)
+    local b1, b2, b3, b4 = data:byte(1, 4)
+    if b1 == 0x89 and b2 == 0x50 and b3 == 0x4E and b4 == 0x47 then
+        return "png"
+    end
+    if b1 == 0xFF and b2 == 0xD8 and b3 == 0xFF then
+        return "jpg"
+    end
+    if b1 == 0x42 and b2 == 0x4D then
+        return "bmp"
+    end
+    if data:sub(1, 3) == "GIF" then
+        return "gif"
+    end
+    if data:sub(1, 4) == "RIFF" and data:sub(9, 12) == "WEBP" then
+        return "webp"
+    end
+    return nil
+end
+
+local function hashOf(src)
     local hash = 5381
     for i = 1, #src do
         hash = (hash * 33 + src:byte(i)) % 4294967296
     end
-    local ext = (src:match("%.(%a+)%f[%A]") or "png"):lower()
-    local allowed = { png = true, jpg = true, jpeg = true, bmp = true, tga = true }
-    if not allowed[ext] then
-        ext = "png"
+    return string.format("%08x", hash)
+end
+
+local function findCached(key)
+    for _, ext in ipairs(IMAGE_EXTS) do
+        local path = TEMP_DIR .. "/img_" .. key .. "." .. ext
+        if isfile(path) then
+            return path
+        end
     end
-    return TEMP_DIR .. "/img_" .. string.format("%08x", hash) .. "." .. ext
+    return nil
+end
+
+local function requestBytes(url)
+    if type(requestCompat) ~= "function" then
+        return nil, "executor sem função de requisição"
+    end
+    local ok, res = pcall(requestCompat, { Url = url, Method = "GET" })
+    if not ok or type(res) ~= "table" then
+        return nil, "requisição falhou"
+    end
+    local code = tonumber(res.StatusCode or res.status_code or res.status) or 0
+    if code < 200 or code >= 300 or type(res.Body) ~= "string" then
+        return nil, "HTTP " .. tostring(code)
+    end
+    return res.Body
 end
 
 local function fetchToTemp(url)
@@ -253,19 +297,20 @@ local function fetchToTemp(url)
         return nil, "writefile/readfile indisponíveis"
     end
     ensureTempDir()
-    local path = tempPath(url)
-    if isfile(path) then
-        local ok, data = pcall(readfile, path)
-        if ok and type(data) == "string" and #data > 0 then
-            return path
-        end
+    local key = hashOf(url)
+    local cached = findCached(key)
+    if cached then
+        return cached
     end
-    local ok, data = pcall(function()
-        return game:HttpGet(url)
-    end)
-    if not ok or type(data) ~= "string" or #data == 0 then
-        return nil, "HttpGet falhou: " .. tostring(data)
+    local data, reason = requestBytes(url)
+    if not data or #data == 0 then
+        return nil, "download falhou: " .. tostring(reason)
     end
+    local ext = detectImage(data)
+    if not ext then
+        return nil, "o link não devolveu uma imagem reconhecida"
+    end
+    local path = TEMP_DIR .. "/img_" .. key .. "." .. ext
     writefile(path, data)
     return path
 end
@@ -282,7 +327,11 @@ local function copyLocalToTemp(src)
     if not ok or type(data) ~= "string" or #data == 0 then
         return nil, "leitura falhou: " .. src
     end
-    local path = tempPath(src)
+    local ext = detectImage(data)
+    if not ext then
+        return nil, "o arquivo não é uma imagem reconhecida: " .. src
+    end
+    local path = TEMP_DIR .. "/img_" .. hashOf(src) .. "." .. ext
     writefile(path, data)
     return path
 end
@@ -351,19 +400,10 @@ local function loadAsset(src)
         deleteImageFile(path)
         return nil
     end
-    coverCache[src] = { asset = asset, path = path }
+    deleteImageFile(path)
+    coverCache[src] = { asset = asset }
     touchCover(src)
     return asset
-end
-
-local function showImage(imageLabel, src)
-    local asset = loadAsset(src)
-    if not asset then
-        imageLabel.Image = ""
-        return false
-    end
-    imageLabel.Image = asset
-    return true
 end
 
 pcall(clearTempDir)
@@ -1115,10 +1155,12 @@ function Island:_onCardTap(placement)
 end
 
 function Island:_setCover(src)
-    if src == self.coverSrc then
+    local now = os.clock()
+    if src == self.coverSrc and (self.coverOk or now < (self.coverRetryAt or 0)) then
         return
     end
     self.coverSrc = src
+    self.coverRetryAt = now + 4
     local asset = loadAsset(src)
     if asset then
         self.m.image.Image = asset
@@ -1325,11 +1367,22 @@ function Island:_fillCard(c, n)
     c.iconStroke.Color = n.Color
     c.glyph.TextColor3 = n.Color
     c.timer.BackgroundColor3 = n.Color
-    local hasIcon = showImage(c.iconImage, n.Icon)
-    c.iconImage.Visible = hasIcon
-    c.glyph.Visible = not hasIcon
-    if not hasIcon then
-        c.glyph.Text = Glyphs[n.Kind] or "i"
+    c.glyph.Text = Glyphs[n.Kind] or "i"
+    c.glyph.Visible = true
+    c.iconImage.Visible = false
+    c.iconImage.Image = ""
+    local token = {}
+    c.iconToken = token
+    if n.Icon ~= nil and n.Icon ~= "" then
+        task.spawn(function()
+            local asset = loadAsset(n.Icon)
+            if c.iconToken ~= token or not asset then
+                return
+            end
+            c.iconImage.Image = asset
+            c.iconImage.Visible = true
+            c.glyph.Visible = false
+        end)
     end
 end
 
@@ -1426,8 +1479,6 @@ function Island:_tickNotifications(dt)
                 table.remove(stack)
             end
         end
-        local target = (#stack > 0) and 1 or 0
-        self.cardSprings[placement].Target = target
     end
 end
 
@@ -1500,6 +1551,10 @@ function Island:_step(dt)
 
         self:_refreshTime()
 
+        if self.coverSrc and not self.coverOk and now >= (self.coverRetryAt or 0) then
+            task.spawn(self._setCover, self, self.coverSrc)
+        end
+
         if #self.lyrics > 0 then
             local idx = lyricIndexAt(self.lyrics, media.Position)
             if idx ~= self.currentIdx then
@@ -1539,15 +1594,26 @@ function Island:_renderCards(top, W, H, k)
         local card = self.cards[placement]
         local stack = self.stacks[placement]
         local front = stack[#stack]
-        if front and self.cardShown[placement] ~= front then
-            self.cardShown[placement] = front
-            self:_fillCard(card, front)
+        local spring = self.cardSprings[placement]
+        local shown = self.cardShown[placement]
+        if shown ~= nil and shown ~= front then
+            spring.Target = 0
+            if spring.Value <= 0.02 then
+                self.cardShown[placement] = nil
+                shown = nil
+            end
         end
-        if not front then
-            self.cardShown[placement] = nil
+        if shown == nil then
+            if front then
+                self.cardShown[placement] = front
+                self:_fillCard(card, front)
+                spring.Target = 1
+            else
+                spring.Target = 0
+            end
         end
 
-        local p = math.clamp(self.cardSprings[placement].Value, 0, 1)
+        local p = math.clamp(spring.Value, 0, 1)
         if p <= 0.003 then
             card.group.Visible = false
             for _, plate in ipairs(card.plates) do
@@ -1578,8 +1644,9 @@ function Island:_renderCards(top, W, H, k)
             self:_renderPlates(card, stack, p)
         end
 
-        if front then
-            local frac = math.clamp(1 - front.Elapsed / front.Duration, 0, 1)
+        local timed = self.cardShown[placement]
+        if timed then
+            local frac = math.clamp(1 - timed.Elapsed / timed.Duration, 0, 1)
             card.timer.Size = UDim2.new(frac, 0, 0, 2)
         end
     end
