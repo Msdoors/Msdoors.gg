@@ -229,28 +229,13 @@ local function clearTempDir()
     end
 end
 
-local function deleteImageFile(path)
-    if path and typeof(delfile) == "function" and typeof(isfile) == "function" and isfile(path) then
-        pcall(delfile, path)
-    end
-end
-
-local function removeWhenLoaded(imageLabel, asset, path)
-    task.spawn(function()
-        local t0 = os.clock()
-        while not (imageLabel.Image == asset and imageLabel.IsLoaded) and os.clock() - t0 < 15 and imageLabel.Parent do
-            task.wait(0.1)
-        end
-        deleteImageFile(path)
-    end)
-end
-
 local function tempPath(src)
     local hash = 5381
     for i = 1, #src do
         hash = (hash * 33 + src:byte(i)) % 4294967296
     end
-    local ext = (src:match("%.(%a+)%f[%A]") or "png"):lower()
+    local clean = src:match("^[^?#]*") or src
+    local ext = (clean:match("%.(%a+)$") or "png"):lower()
     local allowed = { png = true, jpg = true, jpeg = true, bmp = true, tga = true }
     if not allowed[ext] then
         ext = "png"
@@ -306,19 +291,12 @@ local function touchCover(src)
     table.insert(coverOrder, src)
     while #coverOrder > COVER_CACHE_MAX do
         local old = table.remove(coverOrder, 1)
-        local entry = coverCache[old]
         coverCache[old] = nil
-        if entry then
-            deleteImageFile(entry.path)
-        end
     end
 end
 
 local function clearCovers()
-    for src, entry in pairs(coverCache) do
-        coverCache[src] = nil
-        deleteImageFile(entry.path)
-    end
+    table.clear(coverCache)
     table.clear(coverOrder)
 end
 
@@ -335,6 +313,11 @@ local function loadAsset(src)
     end
     if src:match("^%d+$") then
         return "rbxassetid://" .. src
+    end
+    local cached = coverCache[src]
+    if cached then
+        touchCover(src)
+        return cached.asset
     end
     if not customAsset then
         warnOnce("no_custom_asset", "getcustomasset/getsynasset indisponível: capas por URL não aparecem neste executor.")
@@ -353,12 +336,11 @@ local function loadAsset(src)
     local ok, asset = pcall(customAsset, path)
     if not ok or not asset then
         warnOnce("asset:" .. src, "Falha ao carregar imagem no executor: " .. tostring(asset))
-        deleteImageFile(path)
         return nil
     end
     coverCache[src] = { asset = asset }
     touchCover(src)
-    return asset, path
+    return asset
 end
 
 pcall(clearTempDir)
@@ -590,6 +572,7 @@ function Island.new(config)
     self.specLevels = { 0.2, 0.3, 0.25, 0.3, 0.2 }
     self.coverSrc = nil
     self.coverOk = false
+    self.coverToken = nil
     self.sW = Spring.new(40, 4, 1)
     self.sH = Spring.new(24, 4, 1)
     self.sE = Spring.new(0, 4, 1)
@@ -1110,25 +1093,53 @@ function Island:_onCardTap(placement)
 end
 
 function Island:_setCover(src)
-    if src == self.coverSrc then
+    if src == self.coverSrc and self.coverToken then
         return
     end
+
+    local token = {}
+    self.coverToken = token
     self.coverSrc = src
-    local asset, path = loadAsset(src)
-    if asset then
-        self.m.image.Image = asset
-        if path then
-            removeWhenLoaded(self.m.image, asset, path)
-        end
-        self.m.image.Visible = true
-        self.m.letter.Visible = false
-        self.coverOk = true
-    else
-        self.m.image.Image = ""
-        self.m.image.Visible = false
-        self.m.letter.Visible = true
-        self.coverOk = false
+
+    local img = self.m.image
+    img.Image = ""
+    img.Visible = false
+    img.ImageTransparency = 1
+    self.m.letter.Visible = true
+    self.coverOk = false
+
+    if src == nil or src == "" then
+        return
     end
+
+    local asset = loadAsset(src)
+    if not asset then
+        return
+    end
+
+    img.Image = asset
+    img.Visible = true
+    img.ImageTransparency = 1
+
+    task.spawn(function()
+        local t0 = os.clock()
+        while self.coverToken == token and not (img.IsLoaded and img.Image == asset) and os.clock() - t0 < 10 do
+            task.wait(0.05)
+        end
+        if self.coverToken ~= token then
+            return
+        end
+        if img.IsLoaded and img.Image == asset then
+            img.ImageTransparency = 0
+            self.m.letter.Visible = false
+            self.coverOk = true
+        else
+            img.Image = ""
+            img.Visible = false
+            self.m.letter.Visible = true
+            self.coverOk = false
+        end
+    end)
 end
 
 function Island:_syncMedia()
@@ -1136,10 +1147,8 @@ function Island:_syncMedia()
     local m = self.m
     m.title.Text = media.Title or ""
     m.artist.Text = media.Artist or ""
+    m.letter.Text = (media.Title or ""):sub(1, 1):upper()
     self:_setCover(media.Cover)
-    if not self.coverOk then
-        m.letter.Text = (media.Title or ""):sub(1, 1):upper()
-    end
     self:_paint(self:_mediaAccent())
     self.lastTime = nil
 end
@@ -1331,16 +1340,13 @@ function Island:_fillCard(c, n)
     c.iconToken = token
     if n.Icon ~= nil and n.Icon ~= "" then
         task.spawn(function()
-            local asset, path = loadAsset(n.Icon)
+            local asset = loadAsset(n.Icon)
             if c.iconToken ~= token or not asset then
                 return
             end
             c.iconImage.Image = asset
             c.iconImage.Visible = true
             c.glyph.Visible = false
-            if path then
-                removeWhenLoaded(c.iconImage, asset, path)
-            end
         end)
     end
 end
