@@ -192,6 +192,7 @@ local customAsset = getcustomasset or getsynasset
 local warned = {}
 local coverCache = {}
 local coverOrder = {}
+local IMAGE_EXTS = { "png", "jpg", "bmp" }
 
 local function warnOnce(key, msg)
     if warned[key] then
@@ -229,56 +230,103 @@ local function clearTempDir()
     end
 end
 
-local function tempPath(src)
+local function hashOf(src)
     local hash = 5381
     for i = 1, #src do
         hash = (hash * 33 + src:byte(i)) % 4294967296
     end
-    local clean = src:match("^[^?#]*") or src
-    local ext = (clean:match("%.(%a+)$") or "png"):lower()
-    local allowed = { png = true, jpg = true, jpeg = true, bmp = true, tga = true }
-    if not allowed[ext] then
-        ext = "png"
-    end
-    return TEMP_DIR .. "/img_" .. string.format("%08x", hash) .. "." .. ext
+    return string.format("%08x", hash)
 end
 
-local function fetchToTemp(url)
-    if not (writefile and readfile and isfile) then
-        return nil, "writefile/readfile indisponíveis"
+local function detectImage(data)
+    if data:sub(1, 8) == "\137PNG\13\10\26\10" then
+        return "png"
     end
-    ensureTempDir()
-    local path = tempPath(url)
-    if isfile(path) then
-        local ok, data = pcall(readfile, path)
-        if ok and type(data) == "string" and #data > 0 then
+    if data:sub(1, 3) == "\255\216\255" then
+        return "jpg"
+    end
+    if data:sub(1, 2) == "BM" then
+        return "bmp"
+    end
+    if data:sub(1, 4) == "RIFF" and data:sub(9, 12) == "WEBP" then
+        return "webp"
+    end
+    return nil
+end
+
+local function findRequest()
+    local env = (getgenv and getgenv()) or shared
+    local mh = type(env.mhttp) == "table" and env.mhttp.request or nil
+    if type(mh) == "function" then
+        return mh
+    end
+    local candidates = {
+        function() return env.request end,
+        function() return env.http_request end,
+        function() return env.syn and env.syn.request end,
+        function() return env.http and env.http.request end,
+        function() return request end,
+        function() return http_request end,
+        function() return syn and syn.request end,
+    }
+    for _, get in ipairs(candidates) do
+        local ok, f = pcall(get)
+        if ok and type(f) == "function" then
+            return f
+        end
+    end
+    return nil
+end
+
+local function downloadImage(url)
+    local req = findRequest()
+    if req then
+        local ok, res = pcall(req, { Url = url, Method = "GET", Headers = { ["Accept"] = "image/*" } })
+        if ok and type(res) == "table" then
+            local code = tonumber(res.StatusCode or res.status_code or res.status) or 0
+            local body = res.Body
+            if (code == 0 or (code >= 200 and code < 300)) and type(body) == "string" and #body > 0 then
+                return body
+            end
+            return nil, "HTTP " .. tostring(code)
+        end
+    end
+    local ok, body = pcall(function()
+        return game:HttpGet(url)
+    end)
+    if ok and type(body) == "string" and #body > 0 then
+        return body
+    end
+    return nil, "download falhou"
+end
+
+local function findCached(src)
+    local base = TEMP_DIR .. "/img_" .. hashOf(src) .. "."
+    for _, ext in ipairs(IMAGE_EXTS) do
+        local path = base .. ext
+        if isfile(path) then
             return path
         end
     end
-    local ok, data = pcall(function()
-        return game:HttpGet(url)
-    end)
-    if not ok or type(data) ~= "string" or #data == 0 then
-        return nil, "HttpGet falhou: " .. tostring(data)
-    end
-    writefile(path, data)
-    return path
+    return nil
 end
 
-local function copyLocalToTemp(src)
-    if not (writefile and readfile and isfile) then
-        return nil, "writefile/readfile indisponíveis"
+local function storeImage(src, data)
+    local ext = detectImage(data)
+    if ext == "webp" then
+        return nil, "WebP não é suportado pelo Roblox"
     end
-    if not isfile(src) then
-        return nil, "arquivo não existe: " .. src
+    if not ext then
+        return nil, "conteúdo não é uma imagem PNG, JPG ou BMP"
     end
-    ensureTempDir()
-    local ok, data = pcall(readfile, src)
-    if not ok or type(data) ~= "string" or #data == 0 then
-        return nil, "leitura falhou: " .. src
+    if not ensureTempDir() then
+        return nil, "sistema de arquivos indisponível"
     end
-    local path = tempPath(src)
-    writefile(path, data)
+    local path = TEMP_DIR .. "/img_" .. hashOf(src) .. "." .. ext
+    local ok, err = pcall(writefile, path, data)
+    if not ok then
+        return nil, "escrita falhou: " .. tostring(err)
+    end
     return path
 end
 
@@ -314,30 +362,54 @@ local function loadAsset(src)
     if src:match("^%d+$") then
         return "rbxassetid://" .. src
     end
+
     local cached = coverCache[src]
     if cached then
         touchCover(src)
         return cached.asset
     end
+
     if not customAsset then
-        warnOnce("no_custom_asset", "getcustomasset/getsynasset indisponível: capas por URL não aparecem neste executor.")
+        warnOnce("no_custom_asset", "getcustomasset/getsynasset indisponível: capas não aparecem neste executor.")
         return nil
     end
-    local path, reason
-    if src:match("^https?://") then
-        path, reason = fetchToTemp(src)
-    else
-        path, reason = copyLocalToTemp(src)
+    if not (writefile and readfile and isfile and makefolder and isfolder) then
+        warnOnce("no_fs", "Sistema de arquivos do executor indisponível: capas não podem ser salvas.")
+        return nil
     end
+
+    local path = findCached(src)
     if not path then
-        warnOnce("download:" .. src, "Falha ao obter imagem " .. src .. " (" .. tostring(reason) .. ")")
-        return nil
+        local data, reason
+        if src:match("^https?://") then
+            data, reason = downloadImage(src)
+        elseif isfile(src) then
+            local ok, content = pcall(readfile, src)
+            if ok and type(content) == "string" then
+                data = content
+            else
+                reason = "leitura falhou"
+            end
+        else
+            reason = "arquivo não existe"
+        end
+        if not data then
+            warnOnce("download:" .. src, "Falha ao obter capa (" .. tostring(reason) .. "): " .. src)
+            return nil
+        end
+        path, reason = storeImage(src, data)
+        if not path then
+            warnOnce("store:" .. src, "Capa rejeitada (" .. tostring(reason) .. "): " .. src)
+            return nil
+        end
     end
+
     local ok, asset = pcall(customAsset, path)
     if not ok or not asset then
-        warnOnce("asset:" .. src, "Falha ao carregar imagem no executor: " .. tostring(asset))
+        warnOnce("asset:" .. src, "Executor recusou a imagem: " .. tostring(asset))
         return nil
     end
+
     coverCache[src] = { asset = asset }
     touchCover(src)
     return asset
