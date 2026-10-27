@@ -14,7 +14,6 @@ local TextService = cloneref(game:GetService("TextService"))
 local GuiService = cloneref(game:GetService("GuiService"))
 local CoreGui = cloneref(game:GetService("CoreGui"))
 local Workspace = cloneref(game:GetService("Workspace"))
-local TweenService = cloneref(game:GetService("TweenService"))
 
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 
@@ -25,6 +24,7 @@ local Scheme = {
     OutlineColor = Color3.fromRGB(40, 40, 40),
     FontColor = Color3.new(1, 1, 1),
     DimColor = Color3.fromRGB(170, 170, 170),
+    LyricDimColor = Color3.fromRGB(150, 150, 150),
     RedColor = Color3.fromRGB(255, 50, 50),
     GreenColor = Color3.fromRGB(80, 200, 120),
     YellowColor = Color3.fromRGB(255, 190, 60),
@@ -56,6 +56,15 @@ local Glyphs = {
     Warning = "!",
     Error = "x",
 }
+
+local LYRIC_TEXT_SIZE = 13
+local LYRIC_SLOTS = 7
+local EXP_LYRIC_TOP = 72
+local EXP_LYRIC_H = 70
+local EXP_SPACING = 22
+local COMPACT_LYRIC_Y = 36
+local EXP_H_LYRIC = 150
+local EXP_H_PLAIN = 78
 
 local CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
@@ -150,6 +159,27 @@ local function measureHeight(text, size, width)
     end
     local perLine = math.max(1, math.floor(width / (size * 0.55)))
     return math.ceil(#text / perLine) * size * 1.3
+end
+
+local widthCache = {}
+local widthCacheCount = 0
+
+local function textWidth(text)
+    local cached = widthCache[text]
+    if cached then
+        return cached
+    end
+    local ok, size = pcall(function()
+        return TextService:GetTextSize(text, LYRIC_TEXT_SIZE, Scheme.Font, Vector2.new(10000, 100))
+    end)
+    local w = (ok and size and size.X) or (#text * 7)
+    if widthCacheCount > 800 then
+        widthCache = {}
+        widthCacheCount = 0
+    end
+    widthCache[text] = w
+    widthCacheCount += 1
+    return w
 end
 
 local TEMP_DIR = "msdoors/DynamicIsland"
@@ -359,46 +389,86 @@ function Spring:Step(dt)
     self.Velocity = v
 end
 
-local function parseLyrics(source)
-    local out = {}
+local function parseWordTags(line)
+    local body = line:match("^<(.*)>$")
+    if not body then
+        return nil
+    end
+    local words = {}
+    for token in (body .. "|"):gmatch("([^|]*)|") do
+        local text, s, e = token:match("^(.*):([%d%.]+):([%d%.]+)$")
+        if text and text ~= "" and tonumber(s) and tonumber(e) then
+            table.insert(words, { Text = text, Start = tonumber(s), End = tonumber(e) })
+        end
+    end
+    if #words == 0 then
+        return nil
+    end
+    return words
+end
+
+local function strip(s)
+    return (s:gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
+local function parseLyricLines(source)
+    local lines = {}
     if type(source) == "table" then
         for _, entry in ipairs(source) do
             if type(entry) == "table" then
                 local t = tonumber(entry.Time or entry.time or entry[1])
                 local text = entry.Text or entry.text or entry[2]
                 if t and text then
-                    table.insert(out, { Time = t, Text = tostring(text) })
+                    table.insert(lines, { Time = t, Text = strip(tostring(text)), Words = nil })
                 end
             end
         end
     elseif type(source) == "string" then
-        local clean = source:gsub("\r", "")
-        for line in (clean .. "\n"):gmatch("([^\n]*)\n") do
-            local text = line
-            local times = {}
-            while true do
-                local m, s, frac, rest = text:match("^%s*%[(%d+):(%d+)[%.:]?(%d*)%](.*)$")
-                if not m then
-                    break
+        local lastGroup = {}
+        for raw in (source:gsub("\r", "") .. "\n"):gmatch("([^\n]*)\n") do
+            local line = strip(raw)
+            if line:sub(1, 1) == "<" then
+                local words = parseWordTags(line)
+                if words then
+                    for _, entry in ipairs(lastGroup) do
+                        entry.Words = words
+                    end
                 end
-                local t = tonumber(m) * 60 + tonumber(s)
-                if frac ~= "" then
-                    t += tonumber(frac) / (10 ^ #frac)
+            elseif line ~= "" then
+                local times = {}
+                local rest = line
+                while true do
+                    local mm, ss, frac, after = rest:match("^%[(%d+):(%d+)[%.:]?(%d*)%](.*)$")
+                    if not mm then
+                        break
+                    end
+                    local t = tonumber(mm) * 60 + tonumber(ss)
+                    if frac ~= "" then
+                        t = t + tonumber(frac) / (10 ^ #frac)
+                    end
+                    table.insert(times, t)
+                    rest = after
                 end
-                table.insert(times, t)
-                text = rest
-            end
-            local stripped = text:gsub("<%d+:%d+[%.:]?%d*>", "")
-            stripped = stripped:match("^%s*(.-)%s*$")
-            for _, t in ipairs(times) do
-                table.insert(out, { Time = t, Text = stripped })
+                if #times > 0 then
+                    local text = strip((rest:gsub("{[^}]*}", "")))
+                    lastGroup = {}
+                    for _, t in ipairs(times) do
+                        local entry = { Time = t, Text = text, Words = nil }
+                        table.insert(lines, entry)
+                        table.insert(lastGroup, entry)
+                    end
+                end
             end
         end
     end
-    table.sort(out, function(a, b)
+    table.sort(lines, function(a, b)
         return a.Time < b.Time
     end)
-    return out
+    for i, ln in ipairs(lines) do
+        local nxt = lines[i + 1]
+        ln.End = nxt and nxt.Time or (ln.Time + 6)
+    end
+    return lines
 end
 
 local function lyricIndexAt(lyrics, pos)
@@ -413,6 +483,51 @@ local function lyricIndexAt(lyrics, pos)
         end
     end
     return idx
+end
+
+local function lineProgress(line, pos)
+    if not line or pos <= line.Time then
+        return 0
+    end
+    if line.Words then
+        local total, done = 0, 0
+        for _, w in ipairs(line.Words) do
+            total += #w.Text
+        end
+        for _, w in ipairs(line.Words) do
+            local len = #w.Text
+            if pos >= w.End then
+                done += len
+            elseif pos > w.Start then
+                done += len * (pos - w.Start) / math.max(w.End - w.Start, 0.01)
+                break
+            else
+                break
+            end
+        end
+        if total <= 0 then
+            return 0
+        end
+        return math.clamp(done / total, 0, 1)
+    end
+    return math.clamp((pos - line.Time) / math.max(line.End - line.Time, 0.2), 0, 1)
+end
+
+local function sweepSequence(p)
+    if p <= 0 then
+        return NumberSequence.new(1)
+    end
+    if p >= 1 then
+        return NumberSequence.new(0)
+    end
+    local a = math.max(0, p - 0.04)
+    local b = math.min(p, 0.999)
+    return NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0),
+        NumberSequenceKeypoint.new(a, 0),
+        NumberSequenceKeypoint.new(b, 1),
+        NumberSequenceKeypoint.new(1, 1),
+    })
 end
 
 local Island = {}
@@ -442,7 +557,7 @@ function Island.new(config)
     self.cardSkip = false
     self.cardOver = false
     self.lyrics = {}
-    self.lyricIdx = -1
+    self.currentIdx = 0
     self.S = 1
     self.over = false
     self.hover = false
@@ -458,10 +573,10 @@ function Island.new(config)
     self.sH = Spring.new(24, 4, 1)
     self.sE = Spring.new(0, 4, 1)
     self.sShow = Spring.new(0, 3, 0.68)
-    self.sPulse = Spring.new(0, 5.5, 0.8)
     self.sGlow = Spring.new(0, 2.2, 1)
     self.sCard = Spring.new(0, 2.6, 1)
     self.sDock = Spring.new(0, 1.6, 1)
+    self.sScroll = Spring.new(0, 5, 1)
     self.layerSprings = {
         media = Spring.new(0, 6, 1),
         idle = Spring.new(0, 6, 1),
@@ -471,10 +586,10 @@ function Island.new(config)
         self.sH,
         self.sE,
         self.sShow,
-        self.sPulse,
         self.sGlow,
         self.sCard,
         self.sDock,
+        self.sScroll,
         self.layerSprings.media,
         self.layerSprings.idle,
     }
@@ -688,14 +803,10 @@ function Island:_build()
         AnchorPoint = Vector2.new(1, 0),
         Size = UDim2.fromOffset(92, 14),
     })
-    m.sep = new("Frame", { BackgroundColor3 = Scheme.OutlineColor, BackgroundTransparency = 1, Parent = ml })
     m.track = new("Frame", { BackgroundColor3 = Scheme.MainColor, BackgroundTransparency = 1, Parent = ml })
     m.trackCorner = new("UICorner", { CornerRadius = UDim.new(0, 0), Parent = m.track })
     m.fill = new("Frame", { BackgroundColor3 = self.Accent, Parent = ml })
     m.fillCorner = new("UICorner", { CornerRadius = UDim.new(0, 0), Parent = m.fill })
-    m.lPrev = label(ml, { TextSize = 13 })
-    m.lCur = label(ml, { TextSize = 13 })
-    m.lNext = label(ml, { TextSize = 13 })
     m.bars = {}
     for i = 1, 5 do
         local bar = new("Frame", { BackgroundColor3 = self.Accent, Parent = ml })
@@ -714,6 +825,24 @@ function Island:_build()
     })
     new("UICorner", { CornerRadius = UDim.new(0, 4), Parent = m.play })
     self.m = m
+
+    self.slots = {}
+    for k = 1, LYRIC_SLOTS do
+        local dim = label(ml, {
+            TextSize = LYRIC_TEXT_SIZE,
+            TextColor3 = Scheme.LyricDimColor,
+            Size = UDim2.fromOffset(10, 18),
+            Visible = false,
+        })
+        local bright = label(ml, {
+            TextSize = LYRIC_TEXT_SIZE,
+            TextColor3 = Scheme.FontColor,
+            Size = UDim2.fromOffset(10, 18),
+            Visible = false,
+        })
+        local grad = new("UIGradient", { Parent = bright })
+        self.slots[k] = { dim = dim, bright = bright, grad = grad, idx = nil, w = 0, p = -1, regionW = 0 }
+    end
 
     local il = self.layers.idle
     local i = {}
@@ -744,10 +873,6 @@ function Island:_bind()
 
     add(self.hit.Activated:Connect(function()
         self:_onActivated()
-    end))
-
-    add(self.m.play.Activated:Connect(function()
-        self:TogglePlaying()
     end))
 
     add(self.center.hit.Activated:Connect(function()
@@ -871,7 +996,7 @@ function Island:_retarget()
         Wc = math.min(cfg.Discreet and 200 or 255, maxW)
         Hc = 34 + ((lyr and cfg.LyricsInCompact and not cfg.Discreet) and 22 or 0)
         We = math.min(350, maxW)
-        He = lyr and 140 or 78
+        He = lyr and EXP_H_LYRIC or EXP_H_PLAIN
     elseif layer == "idle" then
         local text = cfg.IdleText or ""
         Wc = text == "" and 38 or math.min(#text * 7.3 + 42, maxW)
@@ -911,21 +1036,6 @@ function Island:_onCardTap()
     self.cardSkip = true
 end
 
-function Island:_syncLyrics()
-    local L = self.lyrics
-    local i = self.lyricIdx
-    local function text(k)
-        local e = L[k]
-        if not e then
-            return ""
-        end
-        return e.Text ~= "" and e.Text or "..."
-    end
-    self.m.lPrev.Text = text(i - 1)
-    self.m.lCur.Text = i >= 1 and text(i) or ""
-    self.m.lNext.Text = text(i + 1)
-end
-
 function Island:_syncMedia()
     local media = self.media
     local m = self.m
@@ -957,18 +1067,27 @@ function Island:_refreshTime()
     end
 end
 
+function Island:_clearLyricSlots()
+    for _, slot in ipairs(self.slots) do
+        slot.dim.Visible = false
+        slot.bright.Visible = false
+        slot.idx = nil
+    end
+end
+
 function Island:SetMedia(opts)
     opts = opts or {}
+    local duration = tonumber(opts.Duration)
     self.media = {
         Title = tostring(opts.Title or ""),
         Artist = tostring(opts.Artist or ""),
         Cover = opts.Cover,
         Color = opts.Color,
-        Duration = opts.Duration,
-        Position = opts.Position or 0,
+        Duration = (duration and duration > 0) and duration or nil,
+        Position = tonumber(opts.Position) or 0,
         Playing = opts.Playing ~= false,
     }
-    self.lyricIdx = -1
+    self:SetLyrics("")
     self:_syncMedia()
     self:_refreshTime()
     self:_retarget()
@@ -979,13 +1098,34 @@ function Island:UpdateMedia(opts)
         return self:SetMedia(opts)
     end
     opts = opts or {}
-    for k, v in pairs(opts) do
-        self.media[k] = v
+    local m = self.media
+    if opts.Title ~= nil then
+        m.Title = tostring(opts.Title)
     end
-    if opts.Position and self.boundSound and self.boundSound.Parent then
-        pcall(function()
-            self.boundSound.TimePosition = opts.Position
-        end)
+    if opts.Artist ~= nil then
+        m.Artist = tostring(opts.Artist)
+    end
+    if opts.Cover ~= nil then
+        m.Cover = opts.Cover
+    end
+    if opts.Color ~= nil then
+        m.Color = opts.Color
+    end
+    local duration = tonumber(opts.Duration)
+    if duration and duration > 0 then
+        m.Duration = duration
+    end
+    local position = tonumber(opts.Position)
+    if position then
+        m.Position = position
+        if self.boundSound and self.boundSound.Parent then
+            pcall(function()
+                self.boundSound.TimePosition = position
+            end)
+        end
+    end
+    if opts.Playing ~= nil then
+        m.Playing = opts.Playing and true or false
     end
     self:_syncMedia()
     self:_refreshTime()
@@ -1020,14 +1160,19 @@ end
 function Island:ClearMedia()
     self.media = nil
     self.boundSound = nil
-    self.lyricIdx = -1
+    self:SetLyrics("")
     self:_paint(self.Accent)
     self:_retarget()
 end
 
 function Island:SetLyrics(source)
-    self.lyrics = parseLyrics(source)
-    self.lyricIdx = -1
+    self.lyrics = parseLyricLines(source)
+    self:_clearLyricSlots()
+    local pos = self.media and self.media.Position or 0
+    self.currentIdx = lyricIndexAt(self.lyrics, pos)
+    self.sScroll.Target = self.currentIdx
+    self.sScroll.Value = self.currentIdx
+    self.sScroll.Velocity = 0
     self:_retarget()
 end
 
@@ -1256,7 +1401,6 @@ function Island:_step(dt)
             media.Position += dt
             if media.Duration and media.Position >= media.Duration then
                 media.Position = media.Duration
-                media.Playing = false
             end
         end
 
@@ -1274,13 +1418,11 @@ function Island:_step(dt)
 
         self:_refreshTime()
 
-        if self:_lyricsActive() then
+        if #self.lyrics > 0 then
             local idx = lyricIndexAt(self.lyrics, media.Position)
-            if idx ~= self.lyricIdx then
-                self.lyricIdx = idx
-                self:_syncLyrics()
-                self.sPulse.Value = 1
-                self.sPulse.Velocity = 0
+            if idx ~= self.currentIdx then
+                self.currentIdx = idx
+                self.sScroll.Target = idx
             end
         end
     end
@@ -1383,9 +1525,115 @@ function Island:_render(t)
     end
 end
 
+function Island:_setSlotLine(slot, idx, regionW)
+    if slot.idx == idx and slot.regionW == regionW then
+        return
+    end
+    slot.idx = idx
+    slot.regionW = regionW
+    local text = self.lyrics[idx].Text
+    if text == "" then
+        text = "..."
+    end
+    local w = math.min(textWidth(text), regionW)
+    slot.w = w
+    slot.dim.Text = text
+    slot.bright.Text = text
+    slot.dim.Size = UDim2.fromOffset(w, 18)
+    slot.bright.Size = UDim2.fromOffset(w, 18)
+    slot.p = -1
+end
+
+function Island:_setSweep(slot, p)
+    if math.abs(p - slot.p) < 0.002 then
+        return
+    end
+    slot.p = p
+    slot.grad.Transparency = sweepSequence(p)
+end
+
+function Island:_hideSlot(slot)
+    slot.dim.Visible = false
+    slot.bright.Visible = false
+    slot.idx = nil
+end
+
+function Island:_layoutLyrics(W, e, ec)
+    local cfg = self.Config
+    local hasLyr = self:_lyricsActive()
+    local cur = self.currentIdx or 0
+    local expanded = ec > 0.5
+    local la
+    if not hasLyr then
+        la = 0
+    elseif expanded then
+        la = ec
+    else
+        la = (cfg.LyricsInCompact and not cfg.Discreet) and (1 - ec) or 0
+    end
+
+    if la <= 0.01 or cur < 1 then
+        for _, slot in ipairs(self.slots) do
+            self:_hideSlot(slot)
+        end
+        return
+    end
+
+    local pos = self.media and self.media.Position or 0
+
+    if expanded then
+        local regionX = 12
+        local regionW = W - 24
+        local s = self.sScroll.Value
+        local nearest = math.floor(s + 0.5)
+        local centerY = EXP_LYRIC_TOP + EXP_LYRIC_H / 2
+        for k, slot in ipairs(self.slots) do
+            local idx = nearest - 4 + k
+            local dist = math.abs(idx - s)
+            if idx >= 1 and idx <= #self.lyrics and dist < 2.6 then
+                self:_setSlotLine(slot, idx, regionW)
+                local x = regionX + (regionW - slot.w) / 2
+                local y = centerY + (idx - s) * EXP_SPACING - 9
+                local a = math.clamp(1 - dist * 0.5, 0, 1)
+                slot.dim.Visible = true
+                slot.dim.Position = UDim2.fromOffset(x, y)
+                slot.dim.TextTransparency = 1 - a * la * 0.6
+                if idx == cur then
+                    slot.bright.Visible = true
+                    slot.bright.Position = UDim2.fromOffset(x, y)
+                    slot.bright.TextTransparency = 1 - la
+                    self:_setSweep(slot, lineProgress(self.lyrics[idx], pos))
+                else
+                    slot.bright.Visible = false
+                end
+            else
+                self:_hideSlot(slot)
+            end
+        end
+    else
+        local regionX = 8
+        local regionW = W - 34
+        for k, slot in ipairs(self.slots) do
+            if k == 1 then
+                self:_setSlotLine(slot, cur, regionW)
+                local x = regionX + (regionW - slot.w) / 2
+                local y = COMPACT_LYRIC_Y
+                slot.dim.Visible = true
+                slot.dim.Position = UDim2.fromOffset(x, y)
+                slot.dim.TextTransparency = 1 - la * 0.6
+                slot.bright.Visible = true
+                slot.bright.Position = UDim2.fromOffset(x, y)
+                slot.bright.TextTransparency = 1 - la
+                self:_setSweep(slot, lineProgress(self.lyrics[cur], pos))
+            else
+                self:_hideSlot(slot)
+            end
+        end
+    end
+end
+
 function Island:_layoutMedia(W, H, e, ec)
     local m = self.m
-    local cfg = self.Config
 
     local cs = lerp(22, 44, e)
     local cx = lerp(8, 12, e)
@@ -1405,7 +1653,7 @@ function Island:_layoutMedia(W, H, e, ec)
     m.artist.TextTransparency = 1 - ec
     m.time.Position = UDim2.fromOffset(W - lerp(8, 12, e) - 26, lerp(10, 13, e))
 
-    local py = lerp(H - 2, 62, e)
+    local py = lerp(H - 2, 60, e)
     local pt = lerp(2, 4, e)
     local px = lerp(0, 12, e)
     local pw = math.max(lerp(W, W - 24, e), 1)
@@ -1426,27 +1674,7 @@ function Island:_layoutMedia(W, H, e, ec)
         bar.Size = UDim2.fromOffset(2, bh)
     end
 
-    local hasLyr = self:_lyricsActive()
-    local compactVis = (cfg.LyricsInCompact and not cfg.Discreet) and 1 or 0
-    local vis = hasLyr and lerp(compactVis, 1, ec) or 0
-    local pulse = math.clamp(self.sPulse.Value, -0.2, 1.2)
-
-    m.sep.Position = UDim2.fromOffset(0, lerp(34, 74, e))
-    m.sep.Size = UDim2.fromOffset(W, 1)
-    m.sep.BackgroundTransparency = 1 - vis
-
-    local lx = lerp(8, 12, e)
-    local lw = math.max(W - lx - 26, 10)
-    m.lCur.Position = UDim2.fromOffset(lx, lerp(36, 98, e) + pulse * 6)
-    m.lCur.Size = UDim2.fromOffset(lw, 18)
-    m.lCur.TextTransparency = math.clamp(1 - vis + pulse * 0.6, 0, 1)
-    local side = vis * ec * 0.5
-    m.lPrev.Position = UDim2.fromOffset(lx, 80 - pulse * 4)
-    m.lPrev.Size = UDim2.fromOffset(lw, 18)
-    m.lPrev.TextTransparency = math.clamp(1 - side + pulse * 0.3, 0, 1)
-    m.lNext.Position = UDim2.fromOffset(lx, 116 + pulse * 4)
-    m.lNext.Size = UDim2.fromOffset(lw, 18)
-    m.lNext.TextTransparency = math.clamp(1 - side + pulse * 0.3, 0, 1)
+    self:_layoutLyrics(W, e, ec)
 end
 
 function Island:_layoutIdle(W, H, t)
