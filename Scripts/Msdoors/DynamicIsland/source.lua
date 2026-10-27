@@ -14,7 +14,6 @@ local TextService = cloneref(game:GetService("TextService"))
 local GuiService = cloneref(game:GetService("GuiService"))
 local CoreGui = cloneref(game:GetService("CoreGui"))
 local Workspace = cloneref(game:GetService("Workspace"))
-local TweenService = cloneref(game:GetService("TweenService"))
 
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 
@@ -25,6 +24,7 @@ local Scheme = {
     OutlineColor = Color3.fromRGB(40, 40, 40),
     FontColor = Color3.new(1, 1, 1),
     DimColor = Color3.fromRGB(170, 170, 170),
+    LyricDimColor = Color3.fromRGB(120, 120, 120),
     RedColor = Color3.fromRGB(255, 50, 50),
     GreenColor = Color3.fromRGB(80, 200, 120),
     YellowColor = Color3.fromRGB(255, 190, 60),
@@ -56,6 +56,20 @@ local Glyphs = {
     Warning = "!",
     Error = "x",
 }
+
+local LYRIC_TEXT_SIZE = 13
+local LYRIC_SLOTS = 7
+local EXP_LYRIC_TOP = 72
+local EXP_LYRIC_H = 70
+local EXP_SPACING = 22
+local COMPACT_LYRIC_Y = 36
+local EXP_H_LYRIC = 150
+local EXP_H_PLAIN = 78
+local CARD_PLATE_STEP = 6
+local CARD_PLATE_SHRINK = 0.05
+local CARD_PLATE_MAX = 2
+local CARD_PLACEMENTS = { "Island", "Corner" }
+local COVER_CACHE_MAX = 12
 
 local CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
@@ -152,9 +166,40 @@ local function measureHeight(text, size, width)
     return math.ceil(#text / perLine) * size * 1.3
 end
 
+local widthCache = {}
+local widthCacheCount = 0
+
+local function textWidth(text)
+    local cached = widthCache[text]
+    if cached then
+        return cached
+    end
+    local ok, size = pcall(function()
+        return TextService:GetTextSize(text, LYRIC_TEXT_SIZE, Scheme.Font, Vector2.new(10000, 100))
+    end)
+    local w = (ok and size and size.X) or (#text * 7)
+    if widthCacheCount > 800 then
+        widthCache = {}
+        widthCacheCount = 0
+    end
+    widthCache[text] = w
+    widthCacheCount += 1
+    return w
+end
+
 local TEMP_DIR = "msdoors/DynamicIsland"
-local assetCache = {}
 local customAsset = getcustomasset or getsynasset
+local warned = {}
+local coverCache = {}
+local coverOrder = {}
+
+local function warnOnce(key, msg)
+    if warned[key] then
+        return
+    end
+    warned[key] = true
+    warn("[DynamicIsland] " .. msg)
+end
 
 local function ensureTempDir()
     if not (makefolder and isfolder) then
@@ -190,6 +235,16 @@ local function deleteImageFile(path)
     end
 end
 
+local function removeWhenLoaded(imageLabel, path)
+    task.spawn(function()
+        local t0 = os.clock()
+        while not imageLabel.IsLoaded and os.clock() - t0 < 15 and imageLabel.Parent do
+            task.wait(0.1)
+        end
+        deleteImageFile(path)
+    end)
+end
+
 local function tempPath(src)
     local hash = 5381
     for i = 1, #src do
@@ -203,85 +258,71 @@ local function tempPath(src)
     return TEMP_DIR .. "/img_" .. string.format("%08x", hash) .. "." .. ext
 end
 
-local IMAGE_EXTS = { "png", "jpg", "jpeg", "bmp", "tga", "gif", "webp" }
-
-local function hashOf(src)
-    local hash = 5381
-    for i = 1, #src do
-        hash = (hash * 33 + src:byte(i)) % 4294967296
-    end
-    return string.format("%08x", hash)
-end
-
-local function detectExt(data)
-    local b1, b2, b3, b4 = data:byte(1, 4)
-    if b1 == 0x89 and b2 == 0x50 and b3 == 0x4E and b4 == 0x47 then
-        return "png"
-    end
-    if b1 == 0xFF and b2 == 0xD8 and b3 == 0xFF then
-        return "jpg"
-    end
-    if b1 == 0x42 and b2 == 0x4D then
-        return "bmp"
-    end
-    if data:sub(1, 3) == "GIF" then
-        return "gif"
-    end
-    if data:sub(1, 4) == "RIFF" and data:sub(9, 12) == "WEBP" then
-        return "webp"
-    end
-    return nil
-end
-
-local function downloadBytes(url)
-    local ok, data = pcall(game.HttpGet, game, url)
-    if ok and type(data) == "string" and #data > 0 then
-        return data
-    end
-    return nil
-end
-
 local function fetchToTemp(url)
     if not (writefile and readfile and isfile) then
-        return nil
+        return nil, "writefile/readfile indisponíveis"
     end
     ensureTempDir()
-    local key = hashOf(url)
-    for _, ext in ipairs(IMAGE_EXTS) do
-        local cached = TEMP_DIR .. "/img_" .. key .. "." .. ext
-        if isfile(cached) then
-            return cached
+    local path = tempPath(url)
+    if isfile(path) then
+        local ok, data = pcall(readfile, path)
+        if ok and type(data) == "string" and #data > 0 then
+            return path
         end
     end
-    local data = downloadBytes(url)
-    if not data or data:sub(1, 1) == "<" then
-        return nil
+    local ok, data = pcall(function()
+        return game:HttpGet(url)
+    end)
+    if not ok or type(data) ~= "string" or #data == 0 then
+        return nil, "HttpGet falhou: " .. tostring(data)
     end
-    local urlExt = (url:match("%.(%a+)%f[%A]") or "png"):lower()
-    local ext = detectExt(data) or (table.find(IMAGE_EXTS, urlExt) and urlExt) or "png"
-    local path = TEMP_DIR .. "/img_" .. key .. "." .. ext
     writefile(path, data)
     return path
 end
 
 local function copyLocalToTemp(src)
     if not (writefile and readfile and isfile) then
-        return nil
+        return nil, "writefile/readfile indisponíveis"
     end
     if not isfile(src) then
-        return nil
+        return nil, "arquivo não existe: " .. src
     end
     ensureTempDir()
     local ok, data = pcall(readfile, src)
     if not ok or type(data) ~= "string" or #data == 0 then
-        return nil
+        return nil, "leitura falhou: " .. src
     end
     local path = tempPath(src)
     writefile(path, data)
     return path
 end
 
-local function resolveImage(src)
+local function touchCover(src)
+    for i = #coverOrder, 1, -1 do
+        if coverOrder[i] == src then
+            table.remove(coverOrder, i)
+        end
+    end
+    table.insert(coverOrder, src)
+    while #coverOrder > COVER_CACHE_MAX do
+        local old = table.remove(coverOrder, 1)
+        local entry = coverCache[old]
+        coverCache[old] = nil
+        if entry then
+            deleteImageFile(entry.path)
+        end
+    end
+end
+
+local function clearCovers()
+    for src, entry in pairs(coverCache) do
+        coverCache[src] = nil
+        deleteImageFile(entry.path)
+    end
+    table.clear(coverOrder)
+end
+
+local function loadAsset(src)
     if src == nil or src == "" then
         return nil
     end
@@ -295,65 +336,41 @@ local function resolveImage(src)
     if src:match("^%d+$") then
         return "rbxassetid://" .. src
     end
-    local cached = assetCache[src]
+    local cached = coverCache[src]
     if cached then
-        return cached.asset, cached.path
+        touchCover(src)
+        return cached.asset
     end
     if not customAsset then
+        warnOnce("no_custom_asset", "getcustomasset/getsynasset indisponível: capas por URL não aparecem neste executor.")
         return nil
     end
-    local path
+    local path, reason
     if src:match("^https?://") then
-        path = fetchToTemp(src)
+        path, reason = fetchToTemp(src)
     else
-        path = copyLocalToTemp(src)
+        path, reason = copyLocalToTemp(src)
     end
     if not path then
+        warnOnce("download:" .. src, "Falha ao obter imagem " .. src .. " (" .. tostring(reason) .. ")")
         return nil
     end
     local ok, asset = pcall(customAsset, path)
     if not ok or not asset then
+        warnOnce("asset:" .. src, "Falha ao carregar imagem no executor: " .. tostring(asset))
         deleteImageFile(path)
         return nil
     end
-    assetCache[src] = { asset = asset, path = path }
+    coverCache[src] = { asset = asset }
+    touchCover(src)
     return asset, path
 end
 
-local function forgetImage(src)
-    local entry = assetCache[src]
-    if entry then
-        assetCache[src] = nil
-        deleteImageFile(entry.path)
-    end
-end
-
-local function clearImages()
-    for src, entry in pairs(assetCache) do
-        assetCache[src] = nil
-        deleteImageFile(entry.path)
-    end
-end
-
-local function showImage(imageLabel, src)
-    local asset = resolveImage(src)
-    if not asset then
-        imageLabel.Image = ""
-        return false
-    end
-    imageLabel.Image = asset
-    local key = tostring(src)
-    task.spawn(function()
-        local t0 = os.clock()
-        while not imageLabel.IsLoaded and os.clock() - t0 < 15 and imageLabel.Parent do
-            task.wait(0.1)
-        end
-        forgetImage(key)
-    end)
-    return true
-end
-
 pcall(clearTempDir)
+
+local function darkMix(color)
+    return Scheme.BackgroundColor:Lerp(color, 0.3)
+end
 
 local Spring = {}
 Spring.__index = Spring
@@ -400,46 +417,86 @@ function Spring:Step(dt)
     self.Velocity = v
 end
 
-local function parseLyrics(source)
-    local out = {}
+local function parseWordTags(line)
+    local body = line:match("^<(.*)>$")
+    if not body then
+        return nil
+    end
+    local words = {}
+    for token in (body .. "|"):gmatch("([^|]*)|") do
+        local text, s, e = token:match("^(.*):([%d%.]+):([%d%.]+)$")
+        if text and text ~= "" and tonumber(s) and tonumber(e) then
+            table.insert(words, { Text = text, Start = tonumber(s), End = tonumber(e) })
+        end
+    end
+    if #words == 0 then
+        return nil
+    end
+    return words
+end
+
+local function strip(s)
+    return (s:gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
+local function parseLyricLines(source)
+    local lines = {}
     if type(source) == "table" then
         for _, entry in ipairs(source) do
             if type(entry) == "table" then
                 local t = tonumber(entry.Time or entry.time or entry[1])
                 local text = entry.Text or entry.text or entry[2]
                 if t and text then
-                    table.insert(out, { Time = t, Text = tostring(text) })
+                    table.insert(lines, { Time = t, Text = strip(tostring(text)), Words = nil })
                 end
             end
         end
     elseif type(source) == "string" then
-        local clean = source:gsub("\r", "")
-        for line in (clean .. "\n"):gmatch("([^\n]*)\n") do
-            local text = line
-            local times = {}
-            while true do
-                local m, s, frac, rest = text:match("^%s*%[(%d+):(%d+)[%.:]?(%d*)%](.*)$")
-                if not m then
-                    break
+        local lastGroup = {}
+        for raw in (source:gsub("\r", "") .. "\n"):gmatch("([^\n]*)\n") do
+            local line = strip(raw)
+            if line:sub(1, 1) == "<" then
+                local words = parseWordTags(line)
+                if words then
+                    for _, entry in ipairs(lastGroup) do
+                        entry.Words = words
+                    end
                 end
-                local t = tonumber(m) * 60 + tonumber(s)
-                if frac ~= "" then
-                    t += tonumber(frac) / (10 ^ #frac)
+            elseif line ~= "" then
+                local times = {}
+                local rest = line
+                while true do
+                    local mm, ss, frac, after = rest:match("^%[(%d+):(%d+)[%.:]?(%d*)%](.*)$")
+                    if not mm then
+                        break
+                    end
+                    local t = tonumber(mm) * 60 + tonumber(ss)
+                    if frac ~= "" then
+                        t = t + tonumber(frac) / (10 ^ #frac)
+                    end
+                    table.insert(times, t)
+                    rest = after
                 end
-                table.insert(times, t)
-                text = rest
-            end
-            local stripped = text:gsub("<%d+:%d+[%.:]?%d*>", "")
-            stripped = stripped:match("^%s*(.-)%s*$")
-            for _, t in ipairs(times) do
-                table.insert(out, { Time = t, Text = stripped })
+                if #times > 0 then
+                    local text = strip((rest:gsub("{[^}]*}", "")))
+                    lastGroup = {}
+                    for _, t in ipairs(times) do
+                        local entry = { Time = t, Text = text, Words = nil }
+                        table.insert(lines, entry)
+                        table.insert(lastGroup, entry)
+                    end
+                end
             end
         end
     end
-    table.sort(out, function(a, b)
+    table.sort(lines, function(a, b)
         return a.Time < b.Time
     end)
-    return out
+    for i, ln in ipairs(lines) do
+        local nxt = lines[i + 1]
+        ln.End = nxt and nxt.Time or (ln.Time + 6)
+    end
+    return lines
 end
 
 local function lyricIndexAt(lyrics, pos)
@@ -454,6 +511,51 @@ local function lyricIndexAt(lyrics, pos)
         end
     end
     return idx
+end
+
+local function lineProgress(line, pos)
+    if not line or pos <= line.Time then
+        return 0
+    end
+    if line.Words then
+        local total, done = 0, 0
+        for _, w in ipairs(line.Words) do
+            total += #w.Text
+        end
+        for _, w in ipairs(line.Words) do
+            local len = #w.Text
+            if pos >= w.End then
+                done += len
+            elseif pos > w.Start then
+                done += len * (pos - w.Start) / math.max(w.End - w.Start, 0.01)
+                break
+            else
+                break
+            end
+        end
+        if total <= 0 then
+            return 0
+        end
+        return math.clamp(done / total, 0, 1)
+    end
+    return math.clamp((pos - line.Time) / math.max(line.End - line.Time, 0.2), 0, 1)
+end
+
+local function sweepSequence(p)
+    if p <= 0 then
+        return NumberSequence.new(1)
+    end
+    if p >= 1 then
+        return NumberSequence.new(0)
+    end
+    local a = math.max(0, p - 0.04)
+    local b = math.min(p, 0.999)
+    return NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0),
+        NumberSequenceKeypoint.new(a, 0),
+        NumberSequenceKeypoint.new(b, 1),
+        NumberSequenceKeypoint.new(1, 1),
+    })
 end
 
 local Island = {}
@@ -476,16 +578,14 @@ function Island.new(config)
     self.Accent = cfg.Accent or Scheme.AccentColor
     self.glowColor = self.Accent
     self.connections = {}
-    self.queue = {}
-    self.notifyBusy = false
-    self.cardCurrent = nil
-    self.cardActive = nil
-    self.cardSkip = false
-    self.cardOver = false
+    self.stacks = { Island = {}, Corner = {} }
+    self.cardShown = {}
     self.lyrics = {}
-    self.lyricIdx = -1
+    self.currentIdx = 0
+    self.frameDt = 0
     self.S = 1
     self.over = false
+    self.cardOver = false
     self.hover = false
     self.pinned = false
     self.destroyed = false
@@ -493,16 +593,19 @@ function Island.new(config)
     self.specT = 0
     self.idleSince = os.clock()
     self.specLevels = { 0.2, 0.3, 0.25, 0.3, 0.2 }
-    self.lastCover = nil
+    self.coverSrc = nil
     self.coverOk = false
     self.sW = Spring.new(40, 4, 1)
     self.sH = Spring.new(24, 4, 1)
     self.sE = Spring.new(0, 4, 1)
     self.sShow = Spring.new(0, 3, 0.68)
-    self.sPulse = Spring.new(0, 5.5, 0.8)
     self.sGlow = Spring.new(0, 2.2, 1)
-    self.sCard = Spring.new(0, 2.6, 1)
     self.sDock = Spring.new(0, 1.6, 1)
+    self.sScroll = Spring.new(0, 3.2, 1)
+    self.cardSprings = {
+        Island = Spring.new(0, 2.6, 1),
+        Corner = Spring.new(0, 2.6, 1),
+    }
     self.layerSprings = {
         media = Spring.new(0, 6, 1),
         idle = Spring.new(0, 6, 1),
@@ -512,10 +615,11 @@ function Island.new(config)
         self.sH,
         self.sE,
         self.sShow,
-        self.sPulse,
         self.sGlow,
-        self.sCard,
         self.sDock,
+        self.sScroll,
+        self.cardSprings.Island,
+        self.cardSprings.Corner,
         self.layerSprings.media,
         self.layerSprings.idle,
     }
@@ -550,17 +654,25 @@ function Island:_makeCard(parent, accent, anchorX)
         Parent = c.group,
     })
     c.icon = new("Frame", {
-        BackgroundColor3 = accent,
+        BackgroundColor3 = darkMix(accent),
         Position = UDim2.fromOffset(10, 10),
         Size = UDim2.fromOffset(28, 28),
         ZIndex = 31,
         Parent = c.group,
     })
     new("UICorner", { CornerRadius = UDim.new(0, 6), Parent = c.icon })
+    c.iconStroke = new("UIStroke", {
+        Color = accent,
+        Thickness = 1,
+        Transparency = 0.35,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        ZIndex = 32,
+        Parent = c.icon,
+    })
     c.glyph = label(c.icon, {
         Size = UDim2.fromScale(1, 1),
         TextSize = 14,
-        TextColor3 = Scheme.DarkColor,
+        TextColor3 = accent,
         TextXAlignment = Enum.TextXAlignment.Center,
         ZIndex = 32,
     })
@@ -602,6 +714,19 @@ function Island:_makeCard(parent, accent, anchorX)
         ZIndex = 33,
         Parent = c.group,
     })
+    c.plates = {}
+    for i = 1, CARD_PLATE_MAX do
+        local plate = new("Frame", {
+            BackgroundColor3 = Scheme.BackgroundColor,
+            BackgroundTransparency = 0.5,
+            Size = UDim2.fromOffset(300, 60),
+            ZIndex = 29 - i,
+            Visible = false,
+            Parent = parent,
+        })
+        new("UICorner", { CornerRadius = UDim.new(0, 12), Parent = plate })
+        c.plates[i] = plate
+    end
     return c
 end
 
@@ -698,8 +823,10 @@ function Island:_build()
         Parent = self.shell,
     })
 
-    self.center = self:_makeCard(self.gui, self.Accent, 0.5)
-    self.corner = self:_makeCard(self.gui, self.Accent, 1)
+    self.cards = {
+        Island = self:_makeCard(self.gui, self.Accent, 0.5),
+        Corner = self:_makeCard(self.gui, self.Accent, 1),
+    }
 
     local ml = self.layers.media
     local m = {}
@@ -710,6 +837,7 @@ function Island:_build()
         TextSize = 13,
         TextColor3 = Scheme.DarkColor,
         TextXAlignment = Enum.TextXAlignment.Center,
+        Visible = true,
     })
     m.image = new("ImageLabel", {
         BackgroundTransparency = 1,
@@ -729,14 +857,10 @@ function Island:_build()
         AnchorPoint = Vector2.new(1, 0),
         Size = UDim2.fromOffset(92, 14),
     })
-    m.sep = new("Frame", { BackgroundColor3 = Scheme.OutlineColor, BackgroundTransparency = 1, Parent = ml })
     m.track = new("Frame", { BackgroundColor3 = Scheme.MainColor, BackgroundTransparency = 1, Parent = ml })
     m.trackCorner = new("UICorner", { CornerRadius = UDim.new(0, 0), Parent = m.track })
     m.fill = new("Frame", { BackgroundColor3 = self.Accent, Parent = ml })
     m.fillCorner = new("UICorner", { CornerRadius = UDim.new(0, 0), Parent = m.fill })
-    m.lPrev = label(ml, { TextSize = 13 })
-    m.lCur = label(ml, { TextSize = 13 })
-    m.lNext = label(ml, { TextSize = 13 })
     m.bars = {}
     for i = 1, 5 do
         local bar = new("Frame", { BackgroundColor3 = self.Accent, Parent = ml })
@@ -755,6 +879,34 @@ function Island:_build()
     })
     new("UICorner", { CornerRadius = UDim.new(0, 4), Parent = m.play })
     self.m = m
+
+    self.lyricClip = new("Frame", {
+        BackgroundTransparency = 1,
+        ClipsDescendants = true,
+        Size = UDim2.fromOffset(10, 10),
+        Visible = false,
+        Parent = ml,
+    })
+
+    self.slots = {}
+    for k = 1, LYRIC_SLOTS do
+        local dim = label(self.lyricClip, {
+            TextSize = LYRIC_TEXT_SIZE,
+            TextColor3 = Scheme.LyricDimColor,
+            TextTruncate = Enum.TextTruncate.None,
+            Size = UDim2.fromOffset(10, 18),
+            Visible = false,
+        })
+        local bright = label(self.lyricClip, {
+            TextSize = LYRIC_TEXT_SIZE,
+            TextColor3 = Scheme.FontColor,
+            TextTruncate = Enum.TextTruncate.None,
+            Size = UDim2.fromOffset(10, 18),
+            Visible = false,
+        })
+        local grad = new("UIGradient", { Parent = bright })
+        self.slots[k] = { dim = dim, bright = bright, grad = grad, idx = nil, w = 0, p = -1, x = 0 }
+    end
 
     local il = self.layers.idle
     local i = {}
@@ -787,16 +939,12 @@ function Island:_bind()
         self:_onActivated()
     end))
 
-    add(self.m.play.Activated:Connect(function()
-        self:TogglePlaying()
+    add(self.cards.Island.hit.Activated:Connect(function()
+        self:_onCardTap("Island")
     end))
 
-    add(self.center.hit.Activated:Connect(function()
-        self:_onCardTap()
-    end))
-
-    add(self.corner.hit.Activated:Connect(function()
-        self:_onCardTap()
+    add(self.cards.Corner.hit.Activated:Connect(function()
+        self:_onCardTap("Corner")
     end))
 
     add(UserInputService.InputChanged:Connect(function(input)
@@ -843,13 +991,17 @@ function Island:_inside(pos)
 end
 
 function Island:_insideCard(pos)
-    local c = self.cardActive
-    if not c or not c.group.Visible then
-        return false
+    for _, placement in ipairs(CARD_PLACEMENTS) do
+        local c = self.cards[placement]
+        if c.group.Visible then
+            local p, s = c.group.AbsolutePosition, c.group.AbsoluteSize
+            local pad = 8
+            if pos.X >= p.X - pad and pos.X <= p.X + s.X + pad and pos.Y >= p.Y - pad and pos.Y <= p.Y + s.Y + pad then
+                return true
+            end
+        end
     end
-    local p, s = c.group.AbsolutePosition, c.group.AbsoluteSize
-    local pad = 8
-    return pos.X >= p.X - pad and pos.X <= p.X + s.X + pad and pos.Y >= p.Y - pad and pos.Y <= p.Y + s.Y + pad
+    return false
 end
 
 function Island:_insideTouch(position)
@@ -858,6 +1010,15 @@ function Island:_insideTouch(position)
     end
     local raw = Vector2.new(position.X, position.Y)
     return self:_inside(raw) or self:_inside(raw + GuiService:GetGuiInset())
+end
+
+function Island:_hasNotification()
+    for _, placement in ipairs(CARD_PLACEMENTS) do
+        if #self.stacks[placement] > 0 then
+            return true
+        end
+    end
+    return false
 end
 
 function Island:_activeLayer()
@@ -912,7 +1073,7 @@ function Island:_retarget()
         Wc = math.min(cfg.Discreet and 200 or 255, maxW)
         Hc = 34 + ((lyr and cfg.LyricsInCompact and not cfg.Discreet) and 22 or 0)
         We = math.min(350, maxW)
-        He = lyr and 140 or 78
+        He = lyr and EXP_H_LYRIC or EXP_H_PLAIN
     elseif layer == "idle" then
         local text = cfg.IdleText or ""
         Wc = text == "" and 38 or math.min(#text * 7.3 + 42, maxW)
@@ -941,30 +1102,38 @@ function Island:_onActivated()
     self:_setPinned(not self.pinned)
 end
 
-function Island:_onCardTap()
-    local n = self.cardCurrent
-    if not n or self.sCard.Value < 0.5 then
+function Island:_onCardTap(placement)
+    local stack = self.stacks[placement]
+    local front = stack[#stack]
+    if not front or self.cardSprings[placement].Value < 0.5 then
         return
     end
-    if n.Callback then
-        task.spawn(n.Callback, n)
+    if front.Callback then
+        task.spawn(front.Callback, front)
     end
-    self.cardSkip = true
+    front.Skip = true
 end
 
-function Island:_syncLyrics()
-    local L = self.lyrics
-    local i = self.lyricIdx
-    local function text(k)
-        local e = L[k]
-        if not e then
-            return ""
-        end
-        return e.Text ~= "" and e.Text or "..."
+function Island:_setCover(src)
+    if src == self.coverSrc then
+        return
     end
-    self.m.lPrev.Text = text(i - 1)
-    self.m.lCur.Text = i >= 1 and text(i) or ""
-    self.m.lNext.Text = text(i + 1)
+    self.coverSrc = src
+    local asset, path = loadAsset(src)
+    if asset then
+        self.m.image.Image = asset
+        if path then
+            removeWhenLoaded(self.m.image, path)
+        end
+        self.m.image.Visible = true
+        self.m.letter.Visible = false
+        self.coverOk = true
+    else
+        self.m.image.Image = ""
+        self.m.image.Visible = false
+        self.m.letter.Visible = true
+        self.coverOk = false
+    end
 end
 
 function Island:_syncMedia()
@@ -972,12 +1141,7 @@ function Island:_syncMedia()
     local m = self.m
     m.title.Text = media.Title or ""
     m.artist.Text = media.Artist or ""
-    if media.Cover ~= self.lastCover then
-        self.lastCover = media.Cover
-        self.coverOk = showImage(m.image, media.Cover)
-    end
-    m.image.Visible = self.coverOk == true
-    m.letter.Visible = not self.coverOk
+    self:_setCover(media.Cover)
     if not self.coverOk then
         m.letter.Text = (media.Title or ""):sub(1, 1):upper()
     end
@@ -998,18 +1162,27 @@ function Island:_refreshTime()
     end
 end
 
+function Island:_clearLyricSlots()
+    for _, slot in ipairs(self.slots) do
+        slot.dim.Visible = false
+        slot.bright.Visible = false
+        slot.idx = nil
+    end
+end
+
 function Island:SetMedia(opts)
     opts = opts or {}
+    local duration = tonumber(opts.Duration)
     self.media = {
         Title = tostring(opts.Title or ""),
         Artist = tostring(opts.Artist or ""),
         Cover = opts.Cover,
         Color = opts.Color,
-        Duration = opts.Duration,
-        Position = opts.Position or 0,
+        Duration = (duration and duration > 0) and duration or nil,
+        Position = tonumber(opts.Position) or 0,
         Playing = opts.Playing ~= false,
     }
-    self.lyricIdx = -1
+    self:SetLyrics("")
     self:_syncMedia()
     self:_refreshTime()
     self:_retarget()
@@ -1020,13 +1193,34 @@ function Island:UpdateMedia(opts)
         return self:SetMedia(opts)
     end
     opts = opts or {}
-    for k, v in pairs(opts) do
-        self.media[k] = v
+    local m = self.media
+    if opts.Title ~= nil then
+        m.Title = tostring(opts.Title)
     end
-    if opts.Position and self.boundSound and self.boundSound.Parent then
-        pcall(function()
-            self.boundSound.TimePosition = opts.Position
-        end)
+    if opts.Artist ~= nil then
+        m.Artist = tostring(opts.Artist)
+    end
+    if opts.Cover ~= nil then
+        m.Cover = opts.Cover
+    end
+    if opts.Color ~= nil then
+        m.Color = opts.Color
+    end
+    local duration = tonumber(opts.Duration)
+    if duration and duration > 0 then
+        m.Duration = duration
+    end
+    local position = tonumber(opts.Position)
+    if position then
+        m.Position = position
+        if self.boundSound and self.boundSound.Parent then
+            pcall(function()
+                self.boundSound.TimePosition = position
+            end)
+        end
+    end
+    if opts.Playing ~= nil then
+        m.Playing = opts.Playing and true or false
     end
     self:_syncMedia()
     self:_refreshTime()
@@ -1061,14 +1255,19 @@ end
 function Island:ClearMedia()
     self.media = nil
     self.boundSound = nil
-    self.lyricIdx = -1
+    self:SetLyrics("")
     self:_paint(self.Accent)
     self:_retarget()
 end
 
 function Island:SetLyrics(source)
-    self.lyrics = parseLyrics(source)
-    self.lyricIdx = -1
+    self.lyrics = parseLyricLines(source)
+    self:_clearLyricSlots()
+    local pos = self.media and self.media.Position or 0
+    self.currentIdx = lyricIndexAt(self.lyrics, pos)
+    self.sScroll.Target = self.currentIdx
+    self.sScroll.Value = self.currentIdx
+    self.sScroll.Velocity = 0
     self:_retarget()
 end
 
@@ -1125,13 +1324,29 @@ function Island:_fillCard(c, n)
     c.text.Size = UDim2.fromOffset(236, textH + 6)
     c.targetW = 300
     c.targetH = math.clamp(34 + textH + 16, 52, 420)
-    c.icon.BackgroundColor3 = n.Color
+    c.icon.BackgroundColor3 = darkMix(n.Color)
+    c.iconStroke.Color = n.Color
+    c.glyph.TextColor3 = n.Color
     c.timer.BackgroundColor3 = n.Color
-    local hasIcon = showImage(c.iconImage, n.Icon)
-    c.iconImage.Visible = hasIcon
-    c.glyph.Visible = not hasIcon
-    if not hasIcon then
-        c.glyph.Text = Glyphs[n.Kind] or "i"
+    c.glyph.Text = Glyphs[n.Kind] or "i"
+    c.glyph.Visible = true
+    c.iconImage.Visible = false
+    c.iconImage.Image = ""
+    local token = {}
+    c.iconToken = token
+    if n.Icon ~= nil and n.Icon ~= "" then
+        task.spawn(function()
+            local asset, path = loadAsset(n.Icon)
+            if c.iconToken ~= token or not asset then
+                return
+            end
+            c.iconImage.Image = asset
+            c.iconImage.Visible = true
+            c.glyph.Visible = false
+            if path then
+                removeWhenLoaded(c.iconImage, path)
+            end
+        end)
     end
 end
 
@@ -1153,68 +1368,40 @@ function Island:Notify(opts)
             color = self.Accent
         end
     end
-    local duration = opts.Duration or self.Config.NotifyDuration
+    local placement = self.Config.NotifyPlacement == "Corner" and "Corner" or "Island"
     local n = {
         Title = tostring(opts.Title or "Notice"),
         Text = tostring(opts.Text or opts.Content or ""),
-        Duration = duration,
+        Duration = opts.Duration or self.Config.NotifyDuration,
         Elapsed = 0,
         Color = color,
         Kind = kind,
         Icon = opts.Icon,
         Callback = opts.Callback,
-        Placement = self.Config.NotifyPlacement == "Corner" and "Corner" or "Island",
+        Skip = false,
+        Placement = placement,
     }
-    table.insert(self.queue, n)
-    while #self.queue > self.Config.MaxQueue do
-        table.remove(self.queue, 1)
-    end
-    if not self.notifyBusy then
-        self.notifyBusy = true
-        task.spawn(function()
-            self:_runNotify()
-        end)
+    local stack = self.stacks[placement]
+    table.insert(stack, n)
+    while #stack > self.Config.MaxQueue do
+        table.remove(stack, 1)
     end
     return n
 end
 
-function Island:_runNotify()
-    while #self.queue > 0 and not self.destroyed do
-        local n = table.remove(self.queue, 1)
-        local c = n.Placement == "Corner" and self.corner or self.center
-        n.Elapsed = 0
-        self.cardCurrent = n
-        self.cardActive = c
-        self.cardSkip = false
-        self:_fillCard(c, n)
-        self:_glowOn(n.Color)
-        self.sCard.Value = 0
-        self.sCard.Velocity = 0
-        self.sCard.Target = 1
-        while n.Elapsed < n.Duration and not self.cardSkip and not self.destroyed do
-            task.wait()
-        end
-        self:_glowOff()
-        self.sCard.Target = 0
-        local t0 = os.clock()
-        while self.sCard.Value > 0.01 and os.clock() - t0 < 3 and not self.destroyed do
-            task.wait()
-        end
-        c.group.Visible = false
-        self.cardActive = nil
-        self.cardCurrent = nil
-        task.wait(0.15)
-    end
-    self.notifyBusy = false
-end
-
 function Island:Dismiss()
-    self.cardSkip = true
+    for _, placement in ipairs(CARD_PLACEMENTS) do
+        local front = self.stacks[placement][#self.stacks[placement]]
+        if front then
+            front.Skip = true
+        end
+    end
 end
 
 function Island:ClearNotifications()
-    table.clear(self.queue)
-    self.cardSkip = true
+    for _, placement in ipairs(CARD_PLACEMENTS) do
+        table.clear(self.stacks[placement])
+    end
 end
 
 function Island:Show()
@@ -1244,11 +1431,27 @@ function Island:Destroy()
     end
 end
 
+function Island:_tickNotifications(dt)
+    for _, placement in ipairs(CARD_PLACEMENTS) do
+        local stack = self.stacks[placement]
+        local front = stack[#stack]
+        if front then
+            if not self.cardOver then
+                front.Elapsed += dt
+            end
+            if front.Elapsed >= front.Duration or front.Skip then
+                table.remove(stack)
+            end
+        end
+    end
+end
+
 function Island:_step(dt)
     if self.destroyed then
         return
     end
     dt = math.min(dt, 1 / 20)
+    self.frameDt = dt
     local now = os.clock()
     local cfg = self.Config
 
@@ -1272,11 +1475,9 @@ function Island:_step(dt)
         end
     end
 
-    if self.cardCurrent and not self.cardOver then
-        self.cardCurrent.Elapsed += dt
-    end
+    self:_tickNotifications(dt)
 
-    local busy = self.over or self.hover or self.pinned or self.cardCurrent ~= nil
+    local busy = self.over or self.hover or self.pinned or self:_hasNotification()
     if busy then
         self.idleSince = now
     end
@@ -1297,7 +1498,6 @@ function Island:_step(dt)
             media.Position += dt
             if media.Duration and media.Position >= media.Duration then
                 media.Position = media.Duration
-                media.Playing = false
             end
         end
 
@@ -1315,13 +1515,11 @@ function Island:_step(dt)
 
         self:_refreshTime()
 
-        if self:_lyricsActive() then
+        if #self.lyrics > 0 then
             local idx = lyricIndexAt(self.lyrics, media.Position)
-            if idx ~= self.lyricIdx then
-                self.lyricIdx = idx
-                self:_syncLyrics()
-                self.sPulse.Value = 1
-                self.sPulse.Velocity = 0
+            if idx ~= self.currentIdx then
+                self.currentIdx = idx
+                self.sScroll.Target = idx
             end
         end
     end
@@ -1331,6 +1529,87 @@ function Island:_step(dt)
     end
 
     self:_render(now)
+end
+
+function Island:_renderPlates(card, stack, p)
+    local depth = math.min(#stack - 1, CARD_PLATE_MAX)
+    for i, plate in ipairs(card.plates) do
+        if i <= depth and p > 0.5 then
+            local shrink = 1 - CARD_PLATE_SHRINK * i
+            local size = card.group.Size
+            plate.AnchorPoint = card.group.AnchorPoint
+            plate.Size = UDim2.fromOffset(size.X.Offset * shrink, size.Y.Offset)
+            plate.Position = card.group.Position + UDim2.fromOffset(0, CARD_PLATE_STEP * i)
+            plate.BackgroundTransparency = 0.45 + 0.15 * (i - 1)
+            plate.Visible = true
+        else
+            plate.Visible = false
+        end
+    end
+end
+
+function Island:_renderCards(top, W, H, k)
+    local belowY = top + H * k + 6
+    for _, placement in ipairs(CARD_PLACEMENTS) do
+        local card = self.cards[placement]
+        local stack = self.stacks[placement]
+        local front = stack[#stack]
+        local spring = self.cardSprings[placement]
+        local shown = self.cardShown[placement]
+        if shown ~= nil and shown ~= front then
+            spring.Target = 0
+            if spring.Value <= 0.02 then
+                self.cardShown[placement] = nil
+                shown = nil
+            end
+        end
+        if shown == nil then
+            if front then
+                self.cardShown[placement] = front
+                self:_fillCard(card, front)
+                spring.Target = 1
+            else
+                spring.Target = 0
+            end
+        end
+
+        local p = math.clamp(spring.Value, 0, 1)
+        if p <= 0.003 then
+            card.group.Visible = false
+            for _, plate in ipairs(card.plates) do
+                plate.Visible = false
+            end
+        else
+            local bodyA = math.clamp(p * 2.2, 0, 1)
+            local contentA = math.clamp((p - 0.45) / 0.55, 0, 1)
+            card.group.Visible = true
+            card.group.GroupTransparency = 1 - bodyA
+            card.title.TextTransparency = 1 - contentA
+            card.text.TextTransparency = 1 - contentA
+            card.glyph.TextTransparency = 1 - contentA
+            card.iconImage.ImageTransparency = 1 - contentA
+            if placement == "Island" then
+                local w = lerp(W, card.targetW, p) * k
+                local h = lerp(H, card.targetH, p) * k
+                card.group.AnchorPoint = Vector2.new(0.5, 0)
+                card.group.Size = UDim2.fromOffset(w, h)
+                card.group.Position = UDim2.new(0.5, 0, 0, lerp(top, belowY, p))
+                card.radius.CornerRadius = UDim.new(0, math.min(h / 2, 12))
+            else
+                card.group.AnchorPoint = Vector2.new(1, 0)
+                card.group.Size = UDim2.fromOffset(card.targetW * k, card.targetH * k)
+                card.group.Position = UDim2.new(1, lerp(320, -16, p), 0, top)
+                card.radius.CornerRadius = UDim.new(0, 12)
+            end
+            self:_renderPlates(card, stack, p)
+        end
+
+        local timed = self.cardShown[placement]
+        if timed then
+            local frac = math.clamp(1 - timed.Elapsed / timed.Duration, 0, 1)
+            card.timer.Size = UDim2.new(frac, 0, 0, 2)
+        end
+    end
 end
 
 function Island:_render(t)
@@ -1385,48 +1664,150 @@ function Island:_render(t)
         self:_layoutIdle(W, H, t)
     end
 
-    local p = math.clamp(self.sCard.Value, 0, 1)
-    local bodyA = math.clamp(p * 2.2, 0, 1)
-    local contentA = math.clamp((p - 0.45) / 0.55, 0, 1)
-    local islandBottom = top + H * k
-    local belowY = islandBottom + 6
+    self:_renderCards(top, W, H, k)
+end
 
-    for _, c in ipairs({ self.center, self.corner }) do
-        if c == self.cardActive and p > 0.003 then
-            c.group.Visible = true
-            c.group.GroupTransparency = 1 - bodyA
-            c.title.TextTransparency = 1 - contentA
-            c.text.TextTransparency = 1 - contentA
-            c.glyph.TextTransparency = 1 - contentA
-            c.iconImage.ImageTransparency = 1 - contentA
-            if c == self.center then
-                local w = lerp(W, c.targetW, p) * k
-                local h = lerp(H, c.targetH, p) * k
-                c.group.AnchorPoint = Vector2.new(0.5, 0)
-                c.group.Size = UDim2.fromOffset(w, h)
-                c.group.Position = UDim2.new(0.5, 0, 0, lerp(top, belowY, p))
-                c.radius.CornerRadius = UDim.new(0, math.min(h / 2, 12))
-            else
-                c.group.AnchorPoint = Vector2.new(1, 0)
-                c.group.Size = UDim2.fromOffset(c.targetW * k, c.targetH * k)
-                c.group.Position = UDim2.new(1, lerp(320, -16, p), 0, top)
-                c.radius.CornerRadius = UDim.new(0, 12)
-            end
-        else
-            c.group.Visible = false
-        end
+function Island:_setSlotLine(slot, idx)
+    if slot.idx == idx then
+        return false
+    end
+    slot.idx = idx
+    local text = self.lyrics[idx].Text
+    if text == "" then
+        text = "..."
+    end
+    slot.w = textWidth(text)
+    slot.dim.Text = text
+    slot.bright.Text = text
+    slot.dim.Size = UDim2.fromOffset(slot.w + 2, 18)
+    slot.bright.Size = UDim2.fromOffset(slot.w + 2, 18)
+    slot.p = -1
+    return true
+end
+
+function Island:_setSweep(slot, p)
+    if math.abs(p - slot.p) < 0.002 then
+        return
+    end
+    slot.p = p
+    slot.grad.Transparency = sweepSequence(p)
+end
+
+function Island:_hideSlot(slot)
+    slot.dim.Visible = false
+    slot.bright.Visible = false
+    slot.idx = nil
+end
+
+function Island:_lineOffset(w, regionW, pos, idx)
+    if w <= regionW then
+        return (regionW - w) / 2
+    end
+    local p = lineProgress(self.lyrics[idx], pos)
+    return -math.clamp(w * p - regionW * 0.42, 0, w - regionW)
+end
+
+function Island:_layoutLyrics(W, e, ec)
+    local cfg = self.Config
+    local hasLyr = self:_lyricsActive()
+    local cur = self.currentIdx or 0
+    local la
+    if not hasLyr then
+        la = 0
+    elseif ec > 0.5 then
+        la = ec
+    else
+        la = (cfg.LyricsInCompact and not cfg.Discreet) and (1 - ec) or 0
     end
 
-    local nc = self.cardCurrent
-    if nc and self.cardActive then
-        local frac = math.clamp(1 - nc.Elapsed / nc.Duration, 0, 1)
-        self.cardActive.timer.Size = UDim2.new(frac, 0, 0, 2)
+    if la <= 0.01 or cur < 1 then
+        self.lyricClip.Visible = false
+        for _, slot in ipairs(self.slots) do
+            self:_hideSlot(slot)
+        end
+        return
+    end
+
+    self.lyricClip.Visible = true
+    local pos = self.media and self.media.Position or 0
+    local dt = self.frameDt or 0
+    local expanded = ec > 0.5
+    local regionW, clipX, clipY, clipH
+    if expanded then
+        clipX, clipY = 12, EXP_LYRIC_TOP
+        regionW = W - 24
+        clipH = EXP_LYRIC_H
+    else
+        clipX, clipY = 8, COMPACT_LYRIC_Y
+        regionW = W - 34
+        clipH = 18
+    end
+    regionW = math.max(regionW, 10)
+    self.lyricClip.Position = UDim2.fromOffset(clipX, clipY)
+    self.lyricClip.Size = UDim2.fromOffset(regionW, clipH)
+
+    if expanded then
+        local s = self.sScroll.Value
+        local nearest = math.floor(s + 0.5)
+        local centerY = EXP_LYRIC_H / 2 - 9
+        for k, slot in ipairs(self.slots) do
+            local idx = nearest - 4 + k
+            local dist = math.abs(idx - s)
+            if idx >= 1 and idx <= #self.lyrics and dist < 2.6 then
+                local changed = self:_setSlotLine(slot, idx)
+                local tx = self:_lineOffset(slot.w, regionW, pos, idx)
+                if idx == cur then
+                    if changed then
+                        slot.x = tx
+                    else
+                        slot.x = lerp(slot.x, tx, math.min(1, dt * 12))
+                    end
+                else
+                    slot.x = tx
+                end
+                local y = centerY + (idx - s) * EXP_SPACING
+                local a = math.clamp(1 - dist * 0.5, 0, 1)
+                slot.dim.Visible = true
+                slot.dim.Position = UDim2.fromOffset(slot.x, y)
+                slot.dim.TextTransparency = 1 - a * la * 0.6
+                if idx == cur then
+                    slot.bright.Visible = true
+                    slot.bright.Position = UDim2.fromOffset(slot.x, y)
+                    slot.bright.TextTransparency = 1 - la
+                    self:_setSweep(slot, lineProgress(self.lyrics[idx], pos))
+                else
+                    slot.bright.Visible = false
+                end
+            else
+                self:_hideSlot(slot)
+            end
+        end
+    else
+        for k, slot in ipairs(self.slots) do
+            if k == 1 then
+                local changed = self:_setSlotLine(slot, cur)
+                local tx = self:_lineOffset(slot.w, regionW, pos, cur)
+                if changed then
+                    slot.x = tx
+                else
+                    slot.x = lerp(slot.x, tx, math.min(1, dt * 12))
+                end
+                slot.dim.Visible = true
+                slot.dim.Position = UDim2.fromOffset(slot.x, 0)
+                slot.dim.TextTransparency = 1 - la * 0.6
+                slot.bright.Visible = true
+                slot.bright.Position = UDim2.fromOffset(slot.x, 0)
+                slot.bright.TextTransparency = 1 - la
+                self:_setSweep(slot, lineProgress(self.lyrics[cur], pos))
+            else
+                self:_hideSlot(slot)
+            end
+        end
     end
 end
 
 function Island:_layoutMedia(W, H, e, ec)
     local m = self.m
-    local cfg = self.Config
 
     local cs = lerp(22, 44, e)
     local cx = lerp(8, 12, e)
@@ -1446,7 +1827,7 @@ function Island:_layoutMedia(W, H, e, ec)
     m.artist.TextTransparency = 1 - ec
     m.time.Position = UDim2.fromOffset(W - lerp(8, 12, e) - 26, lerp(10, 13, e))
 
-    local py = lerp(H - 2, 62, e)
+    local py = lerp(H - 2, 60, e)
     local pt = lerp(2, 4, e)
     local px = lerp(0, 12, e)
     local pw = math.max(lerp(W, W - 24, e), 1)
@@ -1467,27 +1848,7 @@ function Island:_layoutMedia(W, H, e, ec)
         bar.Size = UDim2.fromOffset(2, bh)
     end
 
-    local hasLyr = self:_lyricsActive()
-    local compactVis = (cfg.LyricsInCompact and not cfg.Discreet) and 1 or 0
-    local vis = hasLyr and lerp(compactVis, 1, ec) or 0
-    local pulse = math.clamp(self.sPulse.Value, -0.2, 1.2)
-
-    m.sep.Position = UDim2.fromOffset(0, lerp(34, 74, e))
-    m.sep.Size = UDim2.fromOffset(W, 1)
-    m.sep.BackgroundTransparency = 1 - vis
-
-    local lx = lerp(8, 12, e)
-    local lw = math.max(W - lx - 26, 10)
-    m.lCur.Position = UDim2.fromOffset(lx, lerp(36, 98, e) + pulse * 6)
-    m.lCur.Size = UDim2.fromOffset(lw, 18)
-    m.lCur.TextTransparency = math.clamp(1 - vis + pulse * 0.6, 0, 1)
-    local side = vis * ec * 0.5
-    m.lPrev.Position = UDim2.fromOffset(lx, 80 - pulse * 4)
-    m.lPrev.Size = UDim2.fromOffset(lw, 18)
-    m.lPrev.TextTransparency = math.clamp(1 - side + pulse * 0.3, 0, 1)
-    m.lNext.Position = UDim2.fromOffset(lx, 116 + pulse * 4)
-    m.lNext.Size = UDim2.fromOffset(lw, 18)
-    m.lNext.TextTransparency = math.clamp(1 - side + pulse * 0.3, 0, 1)
+    self:_layoutLyrics(W, e, ec)
 end
 
 function Island:_layoutIdle(W, H, t)
@@ -1521,7 +1882,7 @@ function Library.DestroyAll()
         instances[i]:Destroy()
     end
     Library.instance = nil
-    clearImages()
+    clearCovers()
     pcall(clearTempDir)
 end
 
