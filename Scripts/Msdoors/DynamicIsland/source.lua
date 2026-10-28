@@ -348,22 +348,6 @@ local function clearCovers()
     table.clear(coverOrder)
 end
 
-local function GetGitImageID(githubLink, imageName)
-    local fileName = "img_" .. tostring(imageName) .. ".png"
-    if isfile and isfile(fileName) then
-        local s, a = pcall(function() return (getcustomasset or getsynasset)(fileName) end)
-        if s then return a end
-    end
-    local s, d = pcall(function() return game:HttpGet(githubLink, true) end)
-    if not s or type(d) ~= "string" or #d == 0 then return "" end
-    if writefile then
-        pcall(writefile, fileName, d)
-        local s2, a2 = pcall(function() return (getcustomasset or getsynasset)(fileName) end)
-        if s2 then return a2 end
-    end
-    return ""
-end
-
 local function loadAsset(src)
     if src == nil or src == "" then
         return nil
@@ -389,14 +373,29 @@ local function loadAsset(src)
         warnOnce("no_custom_asset", "getcustomasset/getsynasset indisponível: capas não aparecem neste executor.")
         return nil
     end
-    if not (writefile and readfile and isfile and makefolder and isfolder) then
+    if not ensureTempDir() then
         warnOnce("no_fs", "Sistema de arquivos do executor indisponível: capas não podem ser salvas.")
         return nil
     end
 
-    local asset = GetGitImageID(src, hashOf(src))
-    if asset == "" then
-        warnOnce("cover:" .. src, "Falha ao obter capa: " .. src)
+    local path = findCached(src)
+    if not path then
+        local data, err = downloadImage(src)
+        if not data then
+            warnOnce("dl:" .. src, "Falha ao baixar capa (" .. tostring(err) .. "): " .. src)
+            return nil
+        end
+        local stored, serr = storeImage(src, data)
+        if not stored then
+            warnOnce("store:" .. src, "Capa inválida (" .. tostring(serr) .. "): " .. src)
+            return nil
+        end
+        path = stored
+    end
+
+    local ok, asset = pcall(customAsset, path)
+    if not ok or type(asset) ~= "string" or asset == "" then
+        warnOnce("asset:" .. src, "getcustomasset falhou para: " .. src)
         return nil
     end
 
@@ -1166,7 +1165,6 @@ function Island:_setCover(src)
     local img = self.m.image
     img.Image = ""
     img.Visible = false
-    img.ImageTransparency = 1
     self.m.letter.Visible = true
     self.coverOk = false
 
@@ -1174,16 +1172,17 @@ function Island:_setCover(src)
         return
     end
 
-    local asset = loadAsset(src)
-    if not asset then
-        return
-    end
-
-    img.Image = asset
-    img.Visible = true
-    img.ImageTransparency = 0
-    self.m.letter.Visible = false
-    self.coverOk = true
+    task.spawn(function()
+        local asset = loadAsset(src)
+        if self.destroyed or self.coverToken ~= token or not asset then
+            return
+        end
+        img.Image = asset
+        img.ImageTransparency = 0
+        img.Visible = true
+        self.m.letter.Visible = false
+        self.coverOk = true
+    end)
 end
 
 function Island:_syncMedia()
