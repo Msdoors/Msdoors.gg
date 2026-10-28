@@ -192,7 +192,6 @@ local customAsset = getcustomasset or getsynasset
 local warned = {}
 local coverCache = {}
 local coverOrder = {}
-local IMAGE_EXTS = { "png", "jpg", "bmp" }
 
 local function warnOnce(key, msg)
     if warned[key] then
@@ -238,22 +237,6 @@ local function hashOf(src)
     return string.format("%08x", hash)
 end
 
-local function detectImage(data)
-    if data:sub(1, 8) == "\137PNG\13\10\26\10" then
-        return "png"
-    end
-    if data:sub(1, 3) == "\255\216\255" then
-        return "jpg"
-    end
-    if data:sub(1, 2) == "BM" then
-        return "bmp"
-    end
-    if data:sub(1, 4) == "RIFF" and data:sub(9, 12) == "WEBP" then
-        return "webp"
-    end
-    return nil
-end
-
 local function findRequest()
     local env = (getgenv and getgenv()) or shared
     local mh = type(env.mhttp) == "table" and env.mhttp.request or nil
@@ -278,54 +261,36 @@ local function findRequest()
     return nil
 end
 
-local function downloadImage(url)
-    local req = findRequest()
-    if req then
-        local ok, res = pcall(req, { Url = url, Method = "GET", Headers = { ["Accept"] = "image/*" } })
-        if ok and type(res) == "table" then
-            local code = tonumber(res.StatusCode or res.status_code or res.status) or 0
-            local body = res.Body
-            if (code == 0 or (code >= 200 and code < 300)) and type(body) == "string" and #body > 0 then
-                return body
-            end
-            return nil, "HTTP " .. tostring(code)
-        end
-    end
+local function fetchImage(url)
     local ok, body = pcall(function()
-        return game:HttpGet(url)
+        return game:HttpGet(url, true)
     end)
     if ok and type(body) == "string" and #body > 0 then
         return body
     end
-    return nil, "download falhou"
-end
 
-local function findCached(src)
-    local base = TEMP_DIR .. "/img_" .. hashOf(src) .. "."
-    for _, ext in ipairs(IMAGE_EXTS) do
-        local path = base .. ext
-        if isfile(path) then
-            return path
+    local req = findRequest()
+    if req then
+        local okReq, res = pcall(req, { Url = url, Method = "GET" })
+        if okReq and type(res) == "table" then
+            local code = tonumber(res.StatusCode or res.status_code or res.status) or 0
+            if (code == 0 or (code >= 200 and code < 300)) and type(res.Body) == "string" and #res.Body > 0 then
+                return res.Body
+            end
         end
     end
+
     return nil
 end
 
 local function storeImage(src, data)
-    local ext = detectImage(data)
-    if ext == "webp" then
-        return nil, "WebP não é suportado pelo Roblox"
-    end
-    if not ext then
-        return nil, "conteúdo não é uma imagem PNG, JPG ou BMP"
-    end
     if not ensureTempDir() then
-        return nil, "sistema de arquivos indisponível"
+        return nil
     end
-    local path = TEMP_DIR .. "/img_" .. hashOf(src) .. "." .. ext
-    local ok, err = pcall(writefile, path, data)
+    local path = TEMP_DIR .. "/img_" .. hashOf(src) .. ".png"
+    local ok = pcall(writefile, path, data)
     if not ok then
-        return nil, "escrita falhou: " .. tostring(err)
+        return nil
     end
     return path
 end
@@ -373,24 +338,28 @@ local function loadAsset(src)
         warnOnce("no_custom_asset", "getcustomasset/getsynasset indisponível: capas não aparecem neste executor.")
         return nil
     end
-    if not ensureTempDir() then
+    if not (writefile and isfile and makefolder and isfolder) then
         warnOnce("no_fs", "Sistema de arquivos do executor indisponível: capas não podem ser salvas.")
         return nil
     end
 
-    local path = findCached(src)
-    if not path then
-        local data, err = downloadImage(src)
+    local path = TEMP_DIR .. "/img_" .. hashOf(src) .. ".png"
+    local exists = false
+    pcall(function()
+        exists = ensureTempDir() and isfile(path)
+    end)
+
+    if not exists then
+        local data = fetchImage(src)
         if not data then
-            warnOnce("dl:" .. src, "Falha ao baixar capa (" .. tostring(err) .. "): " .. src)
+            warnOnce("dl:" .. src, "Falha ao baixar capa: " .. src)
             return nil
         end
-        local stored, serr = storeImage(src, data)
-        if not stored then
-            warnOnce("store:" .. src, "Capa inválida (" .. tostring(serr) .. "): " .. src)
+        path = storeImage(src, data)
+        if not path then
+            warnOnce("store:" .. src, "Falha ao salvar capa: " .. src)
             return nil
         end
-        path = stored
     end
 
     local ok, asset = pcall(customAsset, path)
